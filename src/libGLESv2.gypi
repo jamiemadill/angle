@@ -121,6 +121,23 @@
                         },
                     },
                 },
+                {
+                    'target_name': 'mapstest',
+                    'type': 'executable',
+                    'dependencies': [ 'libGLESv2', 'libEGL' ],
+                    'include_dirs':
+                    [
+                        '../include',
+                        'third_party/SDL2-2.0.1/include',
+                        'third_party/glew-1.10.0/include',
+                    ],
+                    'sources': [ '<!@(python <(angle_build_scripts_path)/enumerate_files.py third_party/benvanik -types *.cc *.h)' ],
+                    'libraries': [ 'third_party/sdl-build/Release/SDL2.lib' ],
+                    'copies': [
+                        { 'destination': '<(PRODUCT_DIR)', 'files': [ 'third_party/sdl-build/Release/SDL2.dll'] },
+                        { 'destination': '<(PRODUCT_DIR)', 'files': [ 'third_party/benvanik/google-maps-20131028T165101.bin'] },
+                    ],
+                },
             ],
         },
         ],

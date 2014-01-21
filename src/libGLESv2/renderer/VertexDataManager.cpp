@@ -198,6 +198,10 @@ GLenum VertexDataManager::prepareVertexData(const gl::VertexAttribute attribs[],
                         int totalCount = ElementsInBuffer(attribs[i], storage->getSize());
                         int startIndex = attribs[i].mOffset / attribs[i].stride();
 
+                        //char buf[255];
+                        printf("Converting %d elements\n", totalCount);
+                        //OutputDebugStringA(buf);
+
                         if (!staticBuffer->storeVertexAttributes(attribs[i], currentValues[i], -startIndex, totalCount,
                                                                  0, &streamOffset))
                         {
