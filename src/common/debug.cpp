@@ -109,4 +109,5 @@ ScopedPerfEventHelper::~ScopedPerfEventHelper()
     }
 #endif
 }
+
 }
