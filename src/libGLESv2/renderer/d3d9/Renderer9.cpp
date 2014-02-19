@@ -3091,6 +3091,9 @@ bool Renderer9::blitRect(gl::Framebuffer *readFramebuffer, const gl::Rectangle &
 void Renderer9::readPixels(gl::Framebuffer *framebuffer, GLint x, GLint y, GLsizei width, GLsizei height, GLenum format,
                            GLenum type, GLuint outputPitch, const gl::PixelPackState &pack, void* pixels)
 {
+    // Pixel pack buffers are ES3 only
+    ASSERT(pack.pixelBuffer.get() == NULL);
+
     RenderTarget9 *renderTarget = NULL;
     IDirect3DSurface9 *surface = NULL;
     gl::Renderbuffer *colorbuffer = framebuffer->getColorbuffer(0);
