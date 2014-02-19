@@ -20,7 +20,9 @@
 #include "libGLESv2/renderer/d3d11/BufferStorage11.h"
 #include "libGLESv2/renderer/d3d11/TextureStorage11.h"
 #include "libGLESv2/renderer/d3d11/RenderTarget11.h"
+#include "libGLESv2/renderer/d3d11/formatutils11.h"
 #include "libGLESv2/Context.h"
+#include "libGLESv2/Renderbuffer.h"
 
 // Precompiled shaders
 #include "libGLESv2/renderer/d3d11/shaders/compiled/buffertotexture11_vs.h"
@@ -28,6 +30,11 @@
 #include "libGLESv2/renderer/d3d11/shaders/compiled/buffertotexture11_ps_4f.h"
 #include "libGLESv2/renderer/d3d11/shaders/compiled/buffertotexture11_ps_4i.h"
 #include "libGLESv2/renderer/d3d11/shaders/compiled/buffertotexture11_ps_4ui.h"
+
+#include "libGLESv2/renderer/d3d11/shaders/compiled/packpixels11_vs.h"
+#include "libGLESv2/renderer/d3d11/shaders/compiled/packpixels11_ps_4f.h"
+#include "libGLESv2/renderer/d3d11/shaders/compiled/packpixels11_ps_4i.h"
+#include "libGLESv2/renderer/d3d11/shaders/compiled/packpixels11_ps_4ui.h"
 
 namespace rx
 {
@@ -78,7 +85,7 @@ PixelTransfer11::PixelTransfer11(Renderer11 *renderer)
     ASSERT(SUCCEEDED(result));
 
     D3D11_BUFFER_DESC constantBufferDesc = { 0 };
-    constantBufferDesc.ByteWidth = rx::roundUp<UINT>(sizeof(CopyShaderParams), 32u);
+    constantBufferDesc.ByteWidth = rx::roundUp<UINT>(sizeof(UnpackParams), 32u);
     constantBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
     constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -92,10 +99,12 @@ PixelTransfer11::PixelTransfer11(Renderer11 *renderer)
     // init shaders
     mBufferToTextureVS = d3d11::CompileVS(device, g_VS_BufferToTexture, "BufferToTexture VS");
     mBufferToTextureGS = d3d11::CompileGS(device, g_GS_BufferToTexture, "BufferToTexture GS");
+    mPackPixelsVS = d3d11::CompileVS(device, g_VS_PackPixels, "PackPixels VS");
 
     buildShaderMap();
 
-    StructZero(&mParamsData);
+    StructZero(&mCopyParams.pack);
+    StructZero(&mCopyParams.unpack);
 }
 
 PixelTransfer11::~PixelTransfer11()
@@ -115,7 +124,7 @@ PixelTransfer11::~PixelTransfer11()
 }
 
 void PixelTransfer11::setBufferToTextureCopyParams(const gl::Box &destArea, const gl::Extents &destSize, GLenum internalFormat,
-                                                   const gl::PixelUnpackState &unpack, unsigned int offset, CopyShaderParams *parametersOut)
+                                                   const gl::PixelUnpackState &unpack, unsigned int offset, UnpackParams *parametersOut)
 {
     StructZero(parametersOut);
 
@@ -170,7 +179,7 @@ bool PixelTransfer11::copyBufferToTexture(const gl::PixelUnpackState &unpack, un
     ID3D11RenderTargetView *textureRTV = RenderTarget11::makeRenderTarget11(destRenderTarget)->getRenderTargetView();
     ASSERT(textureRTV != NULL);
 
-    CopyShaderParams shaderParams;
+    UnpackParams shaderParams;
     setBufferToTextureCopyParams(destArea, destSize, sourceFormat, unpack, offset, &shaderParams);
 
     ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
@@ -196,10 +205,10 @@ bool PixelTransfer11::copyBufferToTexture(const gl::PixelUnpackState &unpack, un
 
     mRenderer->setOneTimeRenderTarget(textureRTV);
 
-    if (!StructEquals(mParamsData, shaderParams))
+    if (!StructEquals(mCopyParams.unpack, shaderParams))
     {
         d3d11::SetBufferData(deviceContext, mParamsConstantBuffer, shaderParams);
-        mParamsData = shaderParams;
+        mCopyParams.unpack = shaderParams;
     }
 
     deviceContext->VSSetConstantBuffers(0, 1, &mParamsConstantBuffer);
@@ -233,6 +242,10 @@ void PixelTransfer11::buildShaderMap()
     mBufferToTexturePSMap[GL_FLOAT]        = d3d11::CompilePS(device, g_PS_BufferToTexture_4F,  "BufferToTexture RGBA ps");
     mBufferToTexturePSMap[GL_INT]          = d3d11::CompilePS(device, g_PS_BufferToTexture_4I,  "BufferToTexture RGBA-I ps");
     mBufferToTexturePSMap[GL_UNSIGNED_INT] = d3d11::CompilePS(device, g_PS_BufferToTexture_4UI, "BufferToTexture RGBA-UI ps");
+
+    mPackPixelsPSMap[GL_FLOAT]        = d3d11::CompilePS(device, g_PS_PackPixels_4F,  "PackPixels RGBA ps");
+    mPackPixelsPSMap[GL_INT]          = d3d11::CompilePS(device, g_PS_PackPixels_4I,  "PackPixels RGBA-I ps");
+    mPackPixelsPSMap[GL_UNSIGNED_INT] = d3d11::CompilePS(device, g_PS_PackPixels_4UI, "PackPixels RGBA-UI ps");
 }
 
 ID3D11PixelShader *PixelTransfer11::findBufferToTexturePS(GLenum internalFormat) const
@@ -247,6 +260,115 @@ ID3D11PixelShader *PixelTransfer11::findBufferToTexturePS(GLenum internalFormat)
 
     auto shaderMapIt = mBufferToTexturePSMap.find(componentType);
     return (shaderMapIt == mBufferToTexturePSMap.end() ? NULL : shaderMapIt->second);
+}
+
+ID3D11PixelShader *PixelTransfer11::findPackPixelsPS(DXGI_FORMAT nativeFormat) const
+{
+    GLenum componentType = d3d11::GetComponentType(nativeFormat);
+
+    if (componentType == GL_SIGNED_NORMALIZED || componentType == GL_UNSIGNED_NORMALIZED)
+    {
+        componentType = GL_FLOAT;
+    }
+
+    auto shaderMapIt = mPackPixelsPSMap.find(componentType);
+    return (shaderMapIt == mPackPixelsPSMap.end() ? NULL : shaderMapIt->second);
+}
+
+void PixelTransfer11::setPackParams(const gl::Rectangle &srcArea, const gl::Extents &srcSize, size_t destSize, DXGI_FORMAT readFormat,
+                                    const gl::PixelPackState &pack, unsigned int offset, PackParams *parametersOut)
+{
+    size_t pixelBytes = d3d11::GetFormatPixelBytes(readFormat);
+    size_t packRowBytes = srcArea.width * pixelBytes;
+    size_t alignedRowBytes = rx::roundUp<size_t>(packRowBytes, pack.alignment);
+
+    parametersOut->ReadStride = srcSize.width;
+    parametersOut->WriteStride = destSize;
+    parametersOut->AlignmentOffset = alignedRowBytes - packRowBytes;
+    parametersOut->WriteOffset = offset;
+    parametersOut->WriteTexScale[0] = 2.0f / float(destSize);
+    parametersOut->WriteTexScale[1] = -2.0f / float(destSize);
+    parametersOut->WriteTexOffset[0] = -1.0f + 1.0f / float(destSize);
+    parametersOut->WriteTexOffset[1] = 1.0f - 1.0f / float(destSize);
+}
+
+void PixelTransfer11::packPixels(const gl::PixelPackState &pack, GLenum packFormat, const gl::Rectangle &area,
+                                 size_t offset, gl::Renderbuffer *colorbuffer)
+{
+    gl::Buffer *packBuffer = pack.pixelBuffer.get();
+    ASSERT(packBuffer);
+
+    ID3D11DeviceContext *context = mRenderer->getDeviceContext();
+
+    RenderTarget11 *renderTarget11 = RenderTarget11::makeRenderTarget11(colorbuffer->getRenderTarget());
+    ID3D11ShaderResourceView *srv = renderTarget11->getShaderResourceView();
+
+    DXGI_FORMAT nativePackFormat = gl_d3d11::GetRenderableFormat(packFormat, mRenderer->getCurrentClientVersion());
+    size_t pixelBytes = d3d11::GetFormatPixelBytes(nativePackFormat);
+    size_t outputPitch = rx::roundUp<size_t>(area.width * pixelBytes, pack.alignment);
+    size_t totalRequiredSize = offset + area.height * outputPitch;
+    rx::BufferStorage11 *packBufferStorage = BufferStorage11::makeBufferStorage11(packBuffer->getStorage());
+    ID3D11RenderTargetView *packRTV = packBufferStorage->getPackTextureRTV(nativePackFormat, totalRequiredSize);
+    size_t packTexSize = packBufferStorage->getPackTextureSize();
+
+    D3D11_RENDER_TARGET_VIEW_DESC packRTVDesc;
+    packRTV->GetDesc(&packRTVDesc);
+
+    // Perform shader copy
+    ID3D11PixelShader *pixelShader = findPackPixelsPS(nativePackFormat);
+    ASSERT(pixelShader);
+
+    ID3D11ShaderResourceView *nullSRV = NULL;
+    ID3D11Buffer *nullBuffer = NULL;
+    UINT zero = 0;
+
+    mRenderer->setOneTimeRenderTarget(packRTV);
+
+    // Are we doing a 2D or 3D copy?
+    context->VSSetShader(mPackPixelsVS, NULL, 0);
+    context->GSSetShader(NULL, NULL, 0);
+    context->PSSetShader(pixelShader, NULL, 0);
+    context->PSSetShaderResources(0, 1, &srv);
+    context->IASetInputLayout(NULL);
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+    context->IASetVertexBuffers(0, 1, &nullBuffer, &zero, &zero);
+    context->OMSetBlendState(NULL, NULL, 0xFFFFFFF);
+    context->OMSetDepthStencilState(mCopyDepthStencilState, 0xFFFFFFFF);
+    context->RSSetState(mCopyRasterizerState);
+
+    gl::Extents srcSize(renderTarget11->getWidth(), renderTarget11->getHeight(), 1);
+    PackParams shaderParams;
+    setPackParams(area, srcSize, packTexSize, nativePackFormat, pack, offset, &shaderParams);
+
+    if (!StructEquals(mCopyParams.pack, shaderParams))
+    {
+        d3d11::SetBufferData(context, mParamsConstantBuffer, shaderParams);
+        mCopyParams.pack = shaderParams;
+    }
+
+    context->VSSetConstantBuffers(0, 1, &mParamsConstantBuffer);
+
+    // Set the viewport
+    D3D11_VIEWPORT viewport;
+    viewport.TopLeftX = 0;
+    viewport.TopLeftY = 0;
+    viewport.Width = packTexSize;
+    viewport.Height = packTexSize;
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &viewport);
+
+    UINT numPixels = (area.width * area.height);
+    context->Draw(numPixels, 0);
+
+    // Unbind textures and render targets and vertex buffer
+    context->PSSetShaderResources(0, 1, &nullSRV);
+    context->VSSetConstantBuffers(0, 1, &nullBuffer);
+
+    mRenderer->markAllStateDirty();
+
+    packBufferStorage->stagePackTexture();
 }
 
 }

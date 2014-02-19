@@ -18,6 +18,9 @@ class Buffer;
 struct Box;
 struct Extents;
 struct PixelUnpackState;
+struct PixelPackState;
+struct Rectangle;
+class Renderbuffer;
 
 }
 
@@ -42,9 +45,12 @@ class PixelTransfer11
     bool copyBufferToTexture(const gl::PixelUnpackState &unpack, unsigned int offset, RenderTarget *destRenderTarget,
                              GLenum destinationFormat, GLenum sourcePixelsType, const gl::Box &destArea);
 
+    void packPixels(const gl::PixelPackState &pack, GLenum packFormat, const gl::Rectangle &area,
+                    size_t offset, gl::Renderbuffer *colorbuffer);
+
   private:
 
-    struct CopyShaderParams
+    struct UnpackParams
     {
         unsigned int FirstPixelOffset;
         unsigned int PixelsPerRow;
@@ -56,19 +62,40 @@ class PixelTransfer11
         int TexLocationScale[2];
     };
 
+    struct PackParams
+    {
+        unsigned int ReadStride;
+        unsigned int WriteStride;
+        unsigned int AlignmentOffset;
+        unsigned int WriteOffset;
+        float WriteTexOffset[2];
+        float WriteTexScale[2];
+    };
+
     static void setBufferToTextureCopyParams(const gl::Box &destArea, const gl::Extents &destSize, GLenum internalFormat,
-                                             const gl::PixelUnpackState &unpack, unsigned int offset, CopyShaderParams *parametersOut);
+                                             const gl::PixelUnpackState &unpack, unsigned int offset, UnpackParams *parametersOut);
+
+    static void setPackParams(const gl::Rectangle &srcArea, const gl::Extents &srcSize, size_t destSize, DXGI_FORMAT readFormat,
+                              const gl::PixelPackState &pack, unsigned int offset, PackParams *parametersOut);
 
     void buildShaderMap();
     ID3D11PixelShader *findBufferToTexturePS(GLenum internalFormat) const;
+    ID3D11PixelShader *findPackPixelsPS(DXGI_FORMAT nativeFormat) const;
 
     Renderer11 *mRenderer;
 
     std::map<GLenum, ID3D11PixelShader *> mBufferToTexturePSMap;
+    std::map<GLenum, ID3D11PixelShader *> mPackPixelsPSMap;
     ID3D11VertexShader *mBufferToTextureVS;
     ID3D11GeometryShader *mBufferToTextureGS;
+    ID3D11VertexShader *mPackPixelsVS;
     ID3D11Buffer *mParamsConstantBuffer;
-    CopyShaderParams mParamsData;
+
+    union
+    {
+        UnpackParams unpack;
+        PackParams pack;
+    } mCopyParams;
 
     ID3D11RasterizerState *mCopyRasterizerState;
     ID3D11DepthStencilState *mCopyDepthStencilState;

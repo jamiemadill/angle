@@ -82,6 +82,11 @@ call:BuildShader BufferToTexture11.hlsl  PS_BufferToTexture_4F     ps_4_0 compil
 call:BuildShader BufferToTexture11.hlsl  PS_BufferToTexture_4I     ps_4_0 compiled/buffertotexture11_ps_4i.h   %debug%
 call:BuildShader BufferToTexture11.hlsl  PS_BufferToTexture_4UI    ps_4_0 compiled/buffertotexture11_ps_4ui.h  %debug%
 
+call:BuildShader PackPixels11.hlsl  VS_PackPixels              vs_4_0 compiled/packpixels11_vs.h      %debug%
+call:BuildShader PackPixels11.hlsl  PS_PackPixels_4F           ps_4_0 compiled/packpixels11_ps_4f.h   %debug%
+call:BuildShader PackPixels11.hlsl  PS_PackPixels_4I           ps_4_0 compiled/packpixels11_ps_4i.h   %debug%
+call:BuildShader PackPixels11.hlsl  PS_PackPixels_4UI          ps_4_0 compiled/packpixels11_ps_4ui.h  %debug%
+
 echo.
 
 if %successCount% GTR 0 (
