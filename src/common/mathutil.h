@@ -65,6 +65,15 @@ inline int clampToInt(unsigned int x)
     return static_cast<int>(std::min(x, static_cast<unsigned int>(std::numeric_limits<int>::max())));
 }
 
+// This assumes SrcT can properly represent DestT::min/max
+template <typename DestT, typename SrcT>
+inline DestT clampCast(SrcT value)
+{
+    SrcT lo = static_cast<SrcT>(std::numeric_limits<DestT>::min());
+    SrcT hi = static_cast<SrcT>(std::numeric_limits<DestT>::max());
+    return static_cast<DestT>(value > lo ? (value > hi ? hi : value) : lo);
+}
+
 template<typename T, typename MIN, typename MAX>
 inline T clamp(T x, MIN min, MAX max)
 {
