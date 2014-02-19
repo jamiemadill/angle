@@ -331,6 +331,7 @@ class Context
     Sampler *getSampler(GLuint handle) const;
     Query *getQuery(GLuint handle, bool create, GLenum type);
 
+    Buffer *getTargetBuffer(GLenum target) const;
     Buffer *getArrayBuffer();
     Buffer *getElementArrayBuffer();
     ProgramBinary *getCurrentProgramBinary();
