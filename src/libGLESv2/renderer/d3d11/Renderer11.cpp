@@ -3039,29 +3039,55 @@ void Renderer11::readPixels(gl::Framebuffer *framebuffer, GLint x, GLint y, GLsi
 
     gl::Renderbuffer *colorbuffer = framebuffer->getReadColorbuffer();
 
+    gl::Rectangle area;
+    area.x = x;
+    area.y = y;
+    area.width = width;
+    area.height = height;
+
+    // Check for fast copy support
+    gl::Buffer *packBuffer = pack.pixelBuffer.get();
+    int clientVersion = getCurrentClientVersion();
+    GLenum textureFormat = colorbuffer->getActualFormat();
+    GLenum readFormat = gl::GetSizedInternalFormat(format, type, clientVersion);
+
+    //gl::WaitForDebugger();
+
+    if (packBuffer != NULL &&
+        getNativeTextureFormat(textureFormat) == textureFormat &&
+        gl_d3d11::GetRTVFormat(textureFormat, clientVersion) != DXGI_FORMAT_UNKNOWN &&
+        gl::GetColorEncoding(textureFormat, clientVersion) != GL_SRGB)
+    {
+        //char buf[1000];
+        //sprintf(buf, "Format: 0x%X. Native.\n", textureFormat);
+        //OutputDebugStringA(buf);
+
+        size_t offset = reinterpret_cast<size_t>(pixels);
+        mPixelTransfer->packPixels(pack, readFormat, area, offset, colorbuffer);
+        return;
+    }
+
     if (colorbuffer && getRenderTargetResource(colorbuffer, &subresourceIndex, &colorBufferTexture))
     {
         void *packDestinationPointer = pixels;
 
-        if (pack.pixelBuffer.get() != NULL)
+        if (packBuffer != NULL)
         {
-            rx::BufferStorage11 *packBufferStorage = BufferStorage11::makeBufferStorage11(pack.pixelBuffer.get()->getStorage());
+            //char buf[1000];
+            //sprintf(buf, "Format: 0x%X. Readback.\n", textureFormat);
+            //OutputDebugStringA(buf);
+
+            rx::BufferStorage11 *packBufferStorage = BufferStorage11::makeBufferStorage11(packBuffer->getStorage());
             packDestinationPointer = packBufferStorage->map(GL_MAP_WRITE_BIT);
         }
-
-        gl::Rectangle area;
-        area.x = x;
-        area.y = y;
-        area.width = width;
-        area.height = height;
 
         readTextureData(colorBufferTexture, subresourceIndex, area, format, type, outputPitch, pack, packDestinationPointer);
 
         SafeRelease(colorBufferTexture);
 
-        if (pack.pixelBuffer.get() != NULL)
+        if (packBuffer != NULL)
         {
-            rx::BufferStorage11 *packBufferStorage = BufferStorage11::makeBufferStorage11(pack.pixelBuffer.get()->getStorage());
+            rx::BufferStorage11 *packBufferStorage = BufferStorage11::makeBufferStorage11(packBuffer->getStorage());
             packBufferStorage->unmap();
         }
     }
