@@ -50,7 +50,7 @@ D3D11_MAP ConvertMapBits(GLbitfield access)
 
 BufferStorage11::BufferStorage11(Renderer11 *renderer)
     : mRenderer(renderer),
-      mIsMapped(false),
+      mMappedResource(NULL),
       mResolvedDataRevision(0),
       mReadUsageCount(0),
       mWriteUsageCount(0),
@@ -74,7 +74,7 @@ BufferStorage11 *BufferStorage11::makeBufferStorage11(BufferStorage *bufferStora
 
 void *BufferStorage11::getData()
 {
-    DirectBufferStorage11 *stagingBuffer = getStagingBuffer();
+    DirectBufferStorage11 *stagingBuffer = getStagingStorage();
     if (stagingBuffer->getDataRevision() > mResolvedDataRevision)
     {
         if (stagingBuffer->getSize() > mResolvedData.size())
@@ -85,7 +85,7 @@ void *BufferStorage11::getData()
         ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
         D3D11_MAPPED_SUBRESOURCE mappedResource;
-        HRESULT result = context->Map(stagingBuffer->getD3DBuffer(), 0, D3D11_MAP_READ, 0, &mappedResource);
+        HRESULT result = context->Map(stagingBuffer->getD3DResource(), 0, D3D11_MAP_READ, 0, &mappedResource);
         if (FAILED(result))
         {
             return gl::error(GL_OUT_OF_MEMORY, (void*)NULL);
@@ -93,7 +93,7 @@ void *BufferStorage11::getData()
 
         memcpy(mResolvedData.data(), mappedResource.pData, stagingBuffer->getSize());
 
-        context->Unmap(stagingBuffer->getD3DBuffer(), 0);
+        context->Unmap(stagingBuffer->getD3DResource(), 0);
 
         mResolvedDataRevision = stagingBuffer->getDataRevision();
     }
@@ -103,7 +103,7 @@ void *BufferStorage11::getData()
 
 void BufferStorage11::setData(const void* data, unsigned int size, unsigned int offset)
 {
-    DirectBufferStorage11 *stagingBuffer = getStagingBuffer();
+    DirectBufferStorage11 *stagingBuffer = getStagingStorage();
 
     // Explicitly resize the staging buffer, preserving data if the new data will not
     // completely fill the buffer
@@ -119,7 +119,7 @@ void BufferStorage11::setData(const void* data, unsigned int size, unsigned int 
         ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
         D3D11_MAPPED_SUBRESOURCE mappedResource;
-        HRESULT result = context->Map(stagingBuffer->getD3DBuffer(), 0, D3D11_MAP_WRITE, 0, &mappedResource);
+        HRESULT result = context->Map(stagingBuffer->getD3DResource(), 0, D3D11_MAP_WRITE, 0, &mappedResource);
         if (FAILED(result))
         {
             return gl::error(GL_OUT_OF_MEMORY);
@@ -128,7 +128,7 @@ void BufferStorage11::setData(const void* data, unsigned int size, unsigned int 
         unsigned char *offsetBufferPointer = reinterpret_cast<unsigned char *>(mappedResource.pData) + offset;
         memcpy(offsetBufferPointer, data, size);
 
-        context->Unmap(stagingBuffer->getD3DBuffer(), 0);
+        context->Unmap(stagingBuffer->getD3DResource(), 0);
     }
 
     stagingBuffer->setDataRevision(stagingBuffer->getDataRevision() + 1);
@@ -145,7 +145,7 @@ void BufferStorage11::copyData(BufferStorage* sourceStorage, unsigned int size,
         DirectBufferStorage11 *dest = getLatestStorage();
         if (!dest)
         {
-            dest = getStagingBuffer();
+            dest = getStagingStorage();
         }
 
         DirectBufferStorage11 *source = sourceStorage11->getLatestStorage();
@@ -191,14 +191,16 @@ void BufferStorage11::markBufferUsage()
 
 ID3D11Buffer *BufferStorage11::getBuffer(BufferUsage usage)
 {
+    ASSERT(usage != BUFFER_USAGE_PIXEL_PACK);
+
     markBufferUsage();
-    return getStorage(usage)->getD3DBuffer();
+    return static_cast<ID3D11Buffer*>(getStorage(usage)->getD3DResource());
 }
 
 ID3D11ShaderResourceView *BufferStorage11::getSRV(DXGI_FORMAT srvFormat)
 {
     DirectBufferStorage11 *storage = getStorage(BUFFER_USAGE_PIXEL_UNPACK);
-    ID3D11Buffer *buffer = storage->getD3DBuffer();
+    ID3D11Buffer *buffer = static_cast<ID3D11Buffer*>(storage->getD3DResource());
 
     auto bufferSRVIt = mBufferResourceViews.find(srvFormat);
 
@@ -244,7 +246,15 @@ DirectBufferStorage11 *BufferStorage11::getStorage(BufferUsage usage)
     if (!directBuffer)
     {
         // buffer is not allocated, create it
-        directBuffer = new DirectBufferStorage11(mRenderer, usage);
+        if (usage == BUFFER_USAGE_PIXEL_PACK)
+        {
+            directBuffer = new PackBufferStorage11(mRenderer, usage);
+        }
+        else
+        {
+            directBuffer = new NativeBufferStorage11(mRenderer, usage);
+        }
+
         mDirectBuffers.insert(std::make_pair(usage, directBuffer));
     }
 
@@ -263,7 +273,12 @@ DirectBufferStorage11 *BufferStorage11::getStorage(BufferUsage usage)
     return directBuffer;
 }
 
-DirectBufferStorage11 *BufferStorage11::getLatestStorage() const
+DirectBufferStorage11 *BufferStorage11::getLatestStorage()
+{
+    return getLatestAccessibleStorage(false);
+}
+
+DirectBufferStorage11 *BufferStorage11::getLatestAccessibleStorage(bool requireCPUAccess)
 {
     // Even though we iterate over all the direct buffers, it is expected that only
     // 1 or 2 will be present.
@@ -272,7 +287,8 @@ DirectBufferStorage11 *BufferStorage11::getLatestStorage() const
     for (auto it = mDirectBuffers.begin(); it != mDirectBuffers.end(); it++)
     {
         DirectBufferStorage11 *storage = it->second;
-        if (storage->getDataRevision() > latestRevision)
+        if (storage->getDataRevision() > latestRevision &&
+            (storage->isCPUAccessible() || !requireCPUAccess))
         {
             latestStorage = storage;
             latestRevision = storage->getDataRevision();
@@ -284,71 +300,106 @@ DirectBufferStorage11 *BufferStorage11::getLatestStorage() const
 
 bool BufferStorage11::isMapped() const
 {
-    return mIsMapped;
+    return (mMappedResource != NULL);
 }
 
 void *BufferStorage11::map(GLbitfield access)
 {
-    ASSERT(!mIsMapped);
+    ASSERT(!isMapped());
 
-    D3D11_MAPPED_SUBRESOURCE mappedResource;
+    D3D11_MAPPED_SUBRESOURCE mapInfo;
     HRESULT result;
     ID3D11DeviceContext *context = mRenderer->getDeviceContext();
     D3D11_MAP d3dMapType = gl_d3d11::ConvertMapBits(access);
     UINT d3dMapFlag = ((access & GL_MAP_UNSYNCHRONIZED_BIT) > 0 ? D3D11_MAP_FLAG_DO_NOT_WAIT : 0);
-    ID3D11Buffer *stagingBuffer = getStagingBuffer()->getD3DBuffer();
+    DirectBufferStorage11 *latestStorage = getLatestAccessibleStorage(true);
 
-    result = context->Map(stagingBuffer, 0, d3dMapType, d3dMapFlag, &mappedResource);
+    if (!latestStorage)
+    {
+        latestStorage = getStagingStorage();
+        ASSERT(latestStorage);
+    }
+
+    mMappedResource = latestStorage->getD3DResource();
+
+    result = context->Map(mMappedResource, 0, d3dMapType, d3dMapFlag, &mapInfo);
     ASSERT(SUCCEEDED(result));
 
-    mIsMapped = true;
-
-    return mappedResource.pData;
+    return mapInfo.pData;
 }
 
 void BufferStorage11::unmap()
 {
-    ASSERT(mIsMapped);
+    ASSERT(mMappedResource);
 
     ID3D11DeviceContext *context = mRenderer->getDeviceContext();
-    ID3D11Buffer *stagingBuffer = getStagingBuffer()->getD3DBuffer();
+    context->Unmap(mMappedResource, 0);
 
-    context->Unmap(stagingBuffer, 0);
-
-    mIsMapped = false;
+    mMappedResource = false;
 }
 
-DirectBufferStorage11 *BufferStorage11::getStagingBuffer()
+size_t BufferStorage11::getPackTextureSize()
+{
+    return getPackStorage()->getPackTextureSize();
+}
+
+void BufferStorage11::stagePackTexture()
+{
+    PackBufferStorage11 *packStorage = getPackStorage();
+
+    packStorage->stagePackTexture();
+    packStorage->setDataRevision(packStorage->getDataRevision() + 1);
+}
+
+ID3D11RenderTargetView *BufferStorage11::getPackTextureRTV(DXGI_FORMAT packFormat, size_t minimumSize)
+{
+    return getPackStorage()->getPackTextureRTV(packFormat, minimumSize);
+}
+
+DirectBufferStorage11 *BufferStorage11::getStagingStorage()
 {
     return getStorage(BUFFER_USAGE_STAGING);
+}
+
+PackBufferStorage11 *BufferStorage11::getPackStorage()
+{
+    return static_cast<PackBufferStorage11*>(getStorage(BUFFER_USAGE_PIXEL_PACK));
 }
 
 DirectBufferStorage11::DirectBufferStorage11(Renderer11 *renderer, BufferUsage usage)
     : mRenderer(renderer),
       mUsage(usage),
-      mRevision(0),
-      mDirectBuffer(NULL),
+      mDataRevision(0),
       mBufferSize(0)
 {
 }
 
-DirectBufferStorage11::~DirectBufferStorage11()
+NativeBufferStorage11::NativeBufferStorage11(Renderer11 *renderer, BufferUsage usage)
+    : DirectBufferStorage11(renderer, usage),
+      mD3DBuffer(NULL)
 {
-    SafeRelease(mDirectBuffer);
 }
 
-BufferUsage DirectBufferStorage11::getUsage() const
+NativeBufferStorage11::~NativeBufferStorage11()
 {
-    return mUsage;
+    SafeRelease(mD3DBuffer);
 }
 
 // Returns true if it recreates the direct buffer
-bool DirectBufferStorage11::copyFromStorage(DirectBufferStorage11 *source, size_t sourceOffset, size_t size, size_t destOffset)
+bool NativeBufferStorage11::copyFromStorage(DirectBufferStorage11 *source, size_t sourceOffset,
+                                            size_t size, size_t destOffset)
 {
+    if (source->getUsage() == BUFFER_USAGE_PIXEL_PACK)
+    {
+        // TODO: handle pack buffer (texture)
+        UNIMPLEMENTED();
+        return false;
+    }
+
     ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
     size_t requiredSize = sourceOffset + size;
-    bool createBuffer = !mDirectBuffer || mBufferSize < requiredSize;
+    bool createBuffer = !mD3DBuffer || mBufferSize < requiredSize;
 
     // (Re)initialize D3D buffer if needed
     if (createBuffer)
@@ -365,18 +416,18 @@ bool DirectBufferStorage11::copyFromStorage(DirectBufferStorage11 *source, size_
     srcBox.front = 0;
     srcBox.back = 1;
 
-    context->CopySubresourceRegion(mDirectBuffer, 0, destOffset, 0, 0, source->getD3DBuffer(), 0, &srcBox);
+    context->CopySubresourceRegion(mD3DBuffer, 0, destOffset, 0, 0, source->getD3DResource(), 0, &srcBox);
 
     return createBuffer;
 }
 
-void DirectBufferStorage11::resize(size_t size, bool preserveData)
+void NativeBufferStorage11::resize(size_t size, bool preserveData)
 {
     ID3D11Device *device = mRenderer->getDevice();
     ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
     D3D11_BUFFER_DESC bufferDesc;
-    fillBufferDesc(&bufferDesc, mRenderer, mUsage, size);
+    fillBufferDesc(&bufferDesc, mUsage, size);
 
     ID3D11Buffer *newBuffer;
     HRESULT result = device->CreateBuffer(&bufferDesc, NULL, &newBuffer);
@@ -386,7 +437,7 @@ void DirectBufferStorage11::resize(size_t size, bool preserveData)
         return gl::error(GL_OUT_OF_MEMORY);
     }
 
-    if (mDirectBuffer && preserveData)
+    if (mD3DBuffer && preserveData)
     {
         D3D11_BOX srcBox;
         srcBox.left = 0;
@@ -396,17 +447,17 @@ void DirectBufferStorage11::resize(size_t size, bool preserveData)
         srcBox.front = 0;
         srcBox.back = 1;
 
-        context->CopySubresourceRegion(newBuffer, 0, 0, 0, 0, mDirectBuffer, 0, &srcBox);
+        context->CopySubresourceRegion(newBuffer, 0, 0, 0, 0, mD3DBuffer, 0, &srcBox);
     }
 
     // No longer need the old buffer
-    SafeRelease(mDirectBuffer);
-    mDirectBuffer = newBuffer;
+    SafeRelease(mD3DBuffer);
+    mD3DBuffer = newBuffer;
 
     mBufferSize = bufferDesc.ByteWidth;
 }
 
-void DirectBufferStorage11::fillBufferDesc(D3D11_BUFFER_DESC* bufferDesc, Renderer *renderer, BufferUsage usage, unsigned int bufferSize)
+void NativeBufferStorage11::fillBufferDesc(D3D11_BUFFER_DESC *bufferDesc, BufferUsage usage, unsigned int bufferSize) const
 {
     bufferDesc->ByteWidth = bufferSize;
     bufferDesc->MiscFlags = 0;
@@ -446,12 +497,131 @@ void DirectBufferStorage11::fillBufferDesc(D3D11_BUFFER_DESC* bufferDesc, Render
         // Constant buffers must be of a limited size, and aligned to 16 byte boundaries
         // For our purposes we ignore any buffer data past the maximum constant buffer size
         bufferDesc->ByteWidth = roundUp(bufferDesc->ByteWidth, 16u);
-        bufferDesc->ByteWidth = std::min(bufferDesc->ByteWidth, renderer->getMaxUniformBufferSize());
+        bufferDesc->ByteWidth = std::min(bufferDesc->ByteWidth, mRenderer->getMaxUniformBufferSize());
         break;
 
-    default:
+      default:
         UNREACHABLE();
     }
+}
+
+PackBufferStorage11::PackBufferStorage11(Renderer11 *renderer, BufferUsage usage)
+    : DirectBufferStorage11(renderer, usage),
+      mPackFormat(DXGI_FORMAT_UNKNOWN),
+      mPackTextureSize(0),
+      mStagingTexture(NULL),
+      mPackTexture(NULL),
+      mPackTextureRTV(NULL)
+{
+}
+
+PackBufferStorage11::~PackBufferStorage11()
+{
+    SafeRelease(mStagingTexture);
+    SafeRelease(mPackTexture);
+    SafeRelease(mPackTextureRTV);
+}
+
+ID3D11RenderTargetView *PackBufferStorage11::getPackTextureRTV(DXGI_FORMAT packFormat, size_t minimumSize)
+{
+    size_t packTextureCapacity = mPackTextureSize * mPackTextureSize;
+
+    if (mPackFormat != packFormat || minimumSize > packTextureCapacity)
+    {
+        // TODO: preserve contents
+
+        mPackTextureSize = 0;
+        mPackFormat = DXGI_FORMAT_UNKNOWN;
+
+        SafeRelease(mPackTexture);
+        SafeRelease(mStagingTexture);
+    }
+
+    if (mPackTexture == NULL)
+    {
+        ID3D11Device *device = mRenderer->getDevice();
+        HRESULT hr;
+
+        unsigned int textureDim = 32;
+        while (textureDim * textureDim < minimumSize)
+        {
+            textureDim *= 2;
+        }
+
+        mPackTextureSize = textureDim;
+        mPackFormat = packFormat;
+
+        D3D11_TEXTURE2D_DESC storageDesc;
+        storageDesc.Width = textureDim;
+        storageDesc.Height = textureDim;
+        storageDesc.MipLevels = 1;
+        storageDesc.ArraySize = 1;
+        storageDesc.Format = packFormat;
+        storageDesc.SampleDesc.Count = 1;
+        storageDesc.SampleDesc.Quality = 0;
+        storageDesc.Usage = D3D11_USAGE_DEFAULT;
+        storageDesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+        storageDesc.CPUAccessFlags = 0;
+        storageDesc.MiscFlags = 0;
+
+        hr = device->CreateTexture2D(&storageDesc, NULL, &mPackTexture);
+        if (FAILED(hr))
+        {
+            return gl::error<ID3D11RenderTargetView*>(GL_OUT_OF_MEMORY, NULL);
+        }
+
+        D3D11_TEXTURE2D_DESC stagingDesc;
+        stagingDesc.Width = textureDim;
+        stagingDesc.Height = textureDim;
+        stagingDesc.MipLevels = 1;
+        stagingDesc.ArraySize = 1;
+        stagingDesc.Format = packFormat;
+        stagingDesc.SampleDesc.Count = 1;
+        stagingDesc.SampleDesc.Quality = 0;
+        stagingDesc.Usage = D3D11_USAGE_STAGING;
+        stagingDesc.BindFlags = 0;
+        stagingDesc.CPUAccessFlags = (D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE);
+        stagingDesc.MiscFlags = 0;
+
+        hr = device->CreateTexture2D(&stagingDesc, NULL, &mStagingTexture);
+        if (FAILED(hr))
+        {
+            return gl::error<ID3D11RenderTargetView*>(GL_OUT_OF_MEMORY, NULL);
+        }
+
+        D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
+        rtvDesc.Format = packFormat;
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+        rtvDesc.Texture2D.MipSlice = 0;
+
+        hr = device->CreateRenderTargetView(mPackTexture, &rtvDesc, &mPackTextureRTV);
+        if (FAILED(hr))
+        {
+            return gl::error<ID3D11RenderTargetView*>(GL_OUT_OF_MEMORY, NULL);
+        }
+    }
+
+    return mPackTextureRTV;
+}
+
+// Returns true if it recreates the direct buffer
+bool PackBufferStorage11::copyFromStorage(DirectBufferStorage11 *source, size_t sourceOffset,
+                                            size_t size, size_t destOffset)
+{
+    // TODO: PackBufferStorage11::copyFromStorage
+    UNIMPLEMENTED();
+    return false;
+}
+
+void PackBufferStorage11::stagePackTexture()
+{
+    ID3D11DeviceContext *immediateContext = mRenderer->getDeviceContext();
+    immediateContext->CopyResource(mStagingTexture, mPackTexture);
+}
+
+void PackBufferStorage11::resize(size_t size, bool preserveData)
+{
+    UNIMPLEMENTED();
 }
 
 }

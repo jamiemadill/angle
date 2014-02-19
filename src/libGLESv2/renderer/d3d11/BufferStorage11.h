@@ -16,6 +16,8 @@ namespace rx
 class Renderer;
 class Renderer11;
 class DirectBufferStorage11;
+class NativeBufferStorage11;
+class PackBufferStorage11;
 
 enum BufferUsage
 {
@@ -23,7 +25,8 @@ enum BufferUsage
     BUFFER_USAGE_VERTEX = 1,
     BUFFER_USAGE_INDEX = 2,
     BUFFER_USAGE_PIXEL_UNPACK = 3,
-    BUFFER_USAGE_UNIFORM = 4,
+    BUFFER_USAGE_PIXEL_PACK = 4,
+    BUFFER_USAGE_UNIFORM = 5,
 };
 
 typedef size_t DataRevision;
@@ -51,9 +54,23 @@ class BufferStorage11 : public BufferStorage
     virtual void *map(GLbitfield access);
     virtual void unmap();
 
+    ID3D11RenderTargetView *getPackTextureRTV(DXGI_FORMAT packFormat, size_t minimumSize);
+    size_t getPackTextureSize();
+    void stagePackTexture();
+
   private:
+
+    enum StorageType
+    {
+        STORAGE_NONE,
+        STORAGE_BUFFER,
+        STORAGE_TEXTURE
+    };
+
     Renderer11 *mRenderer;
-    bool mIsMapped;
+    ID3D11Resource *mMappedResource;
+
+    StorageType mMapState;
 
     std::map<BufferUsage, DirectBufferStorage11*> mDirectBuffers;
 
@@ -69,42 +86,85 @@ class BufferStorage11 : public BufferStorage
     size_t mSize;
 
     void markBufferUsage();
-    DirectBufferStorage11 *getStagingBuffer();
+    DirectBufferStorage11 *getStagingStorage();
+    PackBufferStorage11 *getPackStorage();
 
     DirectBufferStorage11 *getStorage(BufferUsage usage);
-    DirectBufferStorage11 *getLatestStorage() const;
+    DirectBufferStorage11 *getLatestStorage();
+    DirectBufferStorage11 *getLatestAccessibleStorage(bool requireCPUAccess);
 };
 
 // Each instance of BufferStorageD3DBuffer11 is specialized for a class of D3D binding points
 // - vertex/transform feedback buffers
 // - index buffers
 // - pixel unpack buffers
+// - pixel pack buffers
 // - uniform buffers
 class DirectBufferStorage11
 {
   public:
     DirectBufferStorage11(Renderer11 *renderer, BufferUsage usage);
-    ~DirectBufferStorage11();
+    virtual ~DirectBufferStorage11() {}
 
-    BufferUsage getUsage() const;
-    ID3D11Buffer *getD3DBuffer() const { return mDirectBuffer; }
-    size_t getSize() const {return mBufferSize; }
+    BufferUsage getUsage() const { return mUsage; }
+    size_t getSize() const { return mBufferSize; }
+    DataRevision getDataRevision() const { return mDataRevision; }
+    void setDataRevision(DataRevision rev) { mDataRevision = rev; }
 
-    bool copyFromStorage(DirectBufferStorage11 *source, size_t sourceOffset, size_t size, size_t destOffset);
-    void resize(size_t size, bool preserveData);
+    virtual ID3D11Resource *getD3DResource() const = 0;
+    virtual bool isCPUAccessible() const = 0;
+    virtual bool copyFromStorage(DirectBufferStorage11 *source, size_t sourceOffset,
+                                 size_t size, size_t destOffset) = 0;
+    virtual void resize(size_t size, bool preserveData) = 0;
 
-    DataRevision getDataRevision() const { return mRevision; }
-    void setDataRevision(DataRevision rev) { mRevision = rev; }
-
-  private:
+  protected:
     Renderer11 *mRenderer;
     const BufferUsage mUsage;
-    DataRevision mRevision;
-
-    ID3D11Buffer *mDirectBuffer;
+    DataRevision mDataRevision;
     size_t mBufferSize;
+};
 
-    static void fillBufferDesc(D3D11_BUFFER_DESC* bufferDesc, Renderer *renderer, BufferUsage usage, unsigned int bufferSize);
+class NativeBufferStorage11 : public DirectBufferStorage11
+{
+  public:
+    NativeBufferStorage11(Renderer11 *renderer, BufferUsage usage);
+    ~NativeBufferStorage11();
+
+    virtual ID3D11Resource *getD3DResource() const { return mD3DBuffer; }
+    virtual bool isCPUAccessible() const { return (mUsage == BUFFER_USAGE_STAGING); }
+    virtual bool copyFromStorage(DirectBufferStorage11 *source, size_t sourceOffset,
+                                 size_t size, size_t destOffset);
+    virtual void resize(size_t size, bool preserveData);
+
+  private:
+    ID3D11Buffer *mD3DBuffer;
+
+    void fillBufferDesc(D3D11_BUFFER_DESC* bufferDesc, BufferUsage usage, unsigned int bufferSize) const;
+};
+
+// For pixel pack buffers, which are backed by a texture
+class PackBufferStorage11 : public DirectBufferStorage11
+{
+  public:
+    PackBufferStorage11(Renderer11 *renderer, BufferUsage usage);
+    ~PackBufferStorage11();
+
+    virtual ID3D11Resource *getD3DResource() const { return mStagingTexture; }
+    virtual bool isCPUAccessible() const { return true; }
+    virtual bool copyFromStorage(DirectBufferStorage11 *source, size_t sourceOffset,
+                                 size_t size, size_t destOffset);
+    virtual void resize(size_t size, bool preserveData);
+
+    size_t getPackTextureSize() const { return mPackTextureSize; }
+    ID3D11RenderTargetView *getPackTextureRTV(DXGI_FORMAT packFormat, size_t minimumSize);
+    void stagePackTexture();
+
+  private:
+    DXGI_FORMAT mPackFormat;
+    size_t mPackTextureSize;
+    ID3D11Texture2D *mStagingTexture;
+    ID3D11Texture2D *mPackTexture;
+    ID3D11RenderTargetView *mPackTextureRTV;
 };
 
 }
