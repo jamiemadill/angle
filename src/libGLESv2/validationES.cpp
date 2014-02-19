@@ -81,12 +81,12 @@ bool ValidBufferTarget(const Context *context, GLenum target)
     {
       case GL_ARRAY_BUFFER:
       case GL_ELEMENT_ARRAY_BUFFER:
+      case GL_PIXEL_PACK_BUFFER:
+      case GL_PIXEL_UNPACK_BUFFER:
         return true;
 
       case GL_COPY_READ_BUFFER:
       case GL_COPY_WRITE_BUFFER:
-      case GL_PIXEL_PACK_BUFFER:
-      case GL_PIXEL_UNPACK_BUFFER:
       case GL_TRANSFORM_FEEDBACK_BUFFER:
       case GL_UNIFORM_BUFFER:
         return (context->getClientVersion() >= 3);
@@ -110,7 +110,7 @@ bool ValidBufferParameter(const Context *context, GLenum pname)
       case GL_BUFFER_MAPPED:
       case GL_BUFFER_MAP_OFFSET:
       case GL_BUFFER_MAP_LENGTH:
-        return (context->getClientVersion() >= 3);
+        return true;
 
       default:
         return false;

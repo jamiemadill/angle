@@ -576,9 +576,9 @@ void __stdcall glBufferData(GLenum target, GLsizeiptr size, const GLvoid* data, 
           case GL_STREAM_DRAW:
           case GL_STATIC_DRAW:
           case GL_DYNAMIC_DRAW:
+          case GL_STREAM_READ:
             break;
 
-          case GL_STREAM_READ:
           case GL_STREAM_COPY:
           case GL_STATIC_READ:
           case GL_STATIC_COPY:
@@ -6582,11 +6582,6 @@ GLboolean __stdcall glUnmapBuffer(GLenum target)
 
         if (context)
         {
-            if (context->getClientVersion() < 3)
-            {
-                return gl::error(GL_INVALID_OPERATION, GL_FALSE);
-            }
-
             if (!gl::ValidBufferTarget(context, target))
             {
                 return gl::error(GL_INVALID_ENUM, GL_FALSE);
@@ -6624,11 +6619,6 @@ void __stdcall glGetBufferPointerv(GLenum target, GLenum pname, GLvoid** params)
 
         if (context)
         {
-            if (context->getClientVersion() < 3)
-            {
-                return gl::error(GL_INVALID_OPERATION);
-            }
-
             if (!gl::ValidBufferTarget(context, target))
             {
                 return gl::error(GL_INVALID_ENUM);
@@ -7065,11 +7055,6 @@ GLvoid* __stdcall glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr le
 
         if (context)
         {
-            if (context->getClientVersion() < 3)
-            {
-                return gl::error(GL_INVALID_OPERATION, reinterpret_cast<GLvoid*>(NULL));
-            }
-
             if (!gl::ValidBufferTarget(context, target))
             {
                 return gl::error<GLvoid*>(GL_INVALID_ENUM, NULL);
@@ -7156,11 +7141,6 @@ void __stdcall glFlushMappedBufferRange(GLenum target, GLintptr offset, GLsizeip
 
         if (context)
         {
-            if (context->getClientVersion() < 3)
-            {
-                return gl::error(GL_INVALID_OPERATION);
-            }
-
             if (!gl::ValidBufferTarget(context, target))
             {
                 return gl::error(GL_INVALID_ENUM);
