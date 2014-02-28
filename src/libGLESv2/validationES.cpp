@@ -809,11 +809,25 @@ bool ValidateReadPixelsParameters(gl::Context *context, GLint x, GLint y, GLsize
                                  GetSizedInternalFormat(format, type, clientVersion);
 
     GLsizei outputPitch = GetRowPitch(sizedInternalFormat, type, clientVersion, width, context->getPackAlignment());
+    int requiredSize = outputPitch * height;
+
     // sized query sanity check
     if (bufSize)
     {
-        int requiredSize = outputPitch * height;
         if (requiredSize > *bufSize)
+        {
+            return gl::error(GL_INVALID_OPERATION, false);
+        }
+    }
+
+    // Validate pack buffer
+    gl::Buffer *packBuffer = context->getPixelPackBuffer();
+    if (clientVersion == 3 && packBuffer != NULL)
+    {
+        size_t offset = reinterpret_cast<size_t>(pixels);
+        size_t length = static_cast<size_t>(requiredSize);
+        if (!rx::IsUnsignedAdditionSafe(offset, length) ||
+            offset + length > static_cast<size_t>(packBuffer->size()))
         {
             return gl::error(GL_INVALID_OPERATION, false);
         }
