@@ -15,7 +15,8 @@ namespace rx
 {
 class Renderer;
 class Renderer11;
-class DirectBufferStorage11;
+class TypedBufferStorage11;
+class NativeBuffer11;
 
 enum BufferUsage
 {
@@ -55,7 +56,7 @@ class BufferStorage11 : public BufferStorage
     Renderer11 *mRenderer;
     bool mIsMapped;
 
-    std::map<BufferUsage, DirectBufferStorage11*> mDirectBuffers;
+    std::map<BufferUsage, TypedBufferStorage11*> mTypedBuffers;
 
     typedef std::pair<ID3D11Buffer *, ID3D11ShaderResourceView *> BufferSRVPair;
     std::map<DXGI_FORMAT, BufferSRVPair> mBufferResourceViews;
@@ -69,10 +70,10 @@ class BufferStorage11 : public BufferStorage
     size_t mSize;
 
     void markBufferUsage();
-    DirectBufferStorage11 *getStagingBuffer();
+    NativeBuffer11 *getStagingBuffer();
 
-    DirectBufferStorage11 *getStorage(BufferUsage usage);
-    DirectBufferStorage11 *getLatestStorage() const;
+    TypedBufferStorage11 *getStorage(BufferUsage usage);
+    TypedBufferStorage11 *getLatestStorage() const;
 };
 
 // Each instance of BufferStorageD3DBuffer11 is specialized for a class of D3D binding points
@@ -80,29 +81,44 @@ class BufferStorage11 : public BufferStorage
 // - index buffers
 // - pixel unpack buffers
 // - uniform buffers
-class DirectBufferStorage11
+class TypedBufferStorage11
 {
   public:
-    DirectBufferStorage11(Renderer11 *renderer, BufferUsage usage);
-    ~DirectBufferStorage11();
-
-    BufferUsage getUsage() const;
-    ID3D11Buffer *getD3DBuffer() const { return mDirectBuffer; }
-    size_t getSize() const {return mBufferSize; }
-
-    bool copyFromStorage(DirectBufferStorage11 *source, size_t sourceOffset, size_t size, size_t destOffset);
-    void resize(size_t size, bool preserveData);
+    virtual ~TypedBufferStorage11() {}
 
     DataRevision getDataRevision() const { return mRevision; }
+    BufferUsage getUsage() const { return mUsage; }
+    size_t getSize() const { return mBufferSize; }
+
     void setDataRevision(DataRevision rev) { mRevision = rev; }
 
-  private:
-    Renderer11 *mRenderer;
-    const BufferUsage mUsage;
-    DataRevision mRevision;
+    virtual bool copyFromStorage(TypedBufferStorage11 *source, size_t sourceOffset,
+                                 size_t size, size_t destOffset) = 0;
+    virtual void resize(size_t size, bool preserveData) = 0;
 
-    ID3D11Buffer *mDirectBuffer;
+  protected:
+    TypedBufferStorage11(Renderer11 *renderer, BufferUsage usage);
+
+    Renderer11 *mRenderer;
+    DataRevision mRevision;
+    const BufferUsage mUsage;
     size_t mBufferSize;
+};
+
+class NativeBuffer11 : public TypedBufferStorage11
+{
+  public:
+    NativeBuffer11(Renderer11 *renderer, BufferUsage usage);
+    ~NativeBuffer11();
+
+    ID3D11Buffer *getNativeBuffer() const { return mNativeBuffer; }
+
+    virtual bool copyFromStorage(TypedBufferStorage11 *source, size_t sourceOffset,
+                                 size_t size, size_t destOffset) ;
+    virtual void resize(size_t size, bool preserveData);
+
+  private:
+    ID3D11Buffer *mNativeBuffer;
 
     static void fillBufferDesc(D3D11_BUFFER_DESC* bufferDesc, Renderer *renderer, BufferUsage usage, unsigned int bufferSize);
 };
