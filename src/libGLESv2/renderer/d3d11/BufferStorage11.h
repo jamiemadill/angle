@@ -96,6 +96,9 @@ class TypedBufferStorage11
                                  size_t size, size_t destOffset) = 0;
     virtual void resize(size_t size, bool preserveData) = 0;
 
+    virtual void *map(GLbitfield access) = 0;
+    virtual void unmap() = 0;
+
   protected:
     TypedBufferStorage11(Renderer11 *renderer, BufferUsage usage);
 
@@ -116,6 +119,9 @@ class NativeBuffer11 : public TypedBufferStorage11
     virtual bool copyFromStorage(TypedBufferStorage11 *source, size_t sourceOffset,
                                  size_t size, size_t destOffset) ;
     virtual void resize(size_t size, bool preserveData);
+
+    virtual void *map(GLbitfield access);
+    virtual void unmap();
 
   private:
     ID3D11Buffer *mNativeBuffer;
