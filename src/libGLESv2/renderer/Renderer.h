@@ -208,6 +208,8 @@ class Renderer
     virtual GLsizei getNumSampleCounts(GLenum internalFormat) const = 0;
     virtual void getSampleCounts(GLenum internalFormat, GLsizei bufSize, GLint *params) const = 0;
 
+    virtual bool supportsPBO() const { return false; }
+
     virtual unsigned int getMaxRenderTargets() const = 0;
 
     // Pixel operations

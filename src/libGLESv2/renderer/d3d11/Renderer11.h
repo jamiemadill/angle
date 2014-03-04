@@ -160,6 +160,8 @@ class Renderer11 : public Renderer
 
     virtual unsigned int getMaxRenderTargets() const;
 
+    virtual bool supportsPBO() const { return true; }
+
     // Pixel operations
     virtual bool copyToRenderTarget(TextureStorageInterface2D *dest, TextureStorageInterface2D *source);
     virtual bool copyToRenderTarget(TextureStorageInterfaceCube *dest, TextureStorageInterfaceCube *source);

@@ -3813,6 +3813,12 @@ void Context::initExtensionString()
         {
             mExtensionStringList.push_back("GL_NV_fence");
         }
+
+        if (mRenderer->supportsPBO())
+        {
+            mExtensionStringList.push_back("GL_ARB_map_buffer_range");
+            mExtensionStringList.push_back("GL_ARB_pixel_buffer_object");
+        }
     }
 
     if (mClientVersion == 3)
