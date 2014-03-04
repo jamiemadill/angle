@@ -25,6 +25,7 @@ enum BufferUsage
     BUFFER_USAGE_INDEX = 2,
     BUFFER_USAGE_PIXEL_UNPACK = 3,
     BUFFER_USAGE_UNIFORM = 4,
+    BUFFER_USAGE_PIXEL_PACK = 5,
 };
 
 typedef size_t DataRevision;
@@ -127,6 +128,24 @@ class NativeBuffer11 : public TypedBufferStorage11
     ID3D11Buffer *mNativeBuffer;
 
     static void fillBufferDesc(D3D11_BUFFER_DESC* bufferDesc, Renderer *renderer, BufferUsage usage, unsigned int bufferSize);
+};
+
+class PackStorage11 : public TypedBufferStorage11
+{
+  public:
+    PackStorage11(Renderer11 *renderer);
+    ~PackStorage11();
+
+    virtual bool copyFromStorage(TypedBufferStorage11 *source, size_t sourceOffset,
+                                 size_t size, size_t destOffset) ;
+    virtual void resize(size_t size, bool preserveData);
+
+    virtual void *map(GLbitfield access);
+    virtual void unmap();
+
+  private:
+    ID3D11Texture2D *mStagingTexture;
+    unsigned char *mMemoryBuffer;
 };
 
 }

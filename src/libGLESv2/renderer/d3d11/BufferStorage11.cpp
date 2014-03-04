@@ -467,4 +467,46 @@ void NativeBuffer11::unmap()
     context->Unmap(mNativeBuffer, 0);
 }
 
+
+PackStorage11::PackStorage11(Renderer11 *renderer)
+    : TypedBufferStorage11(renderer, BUFFER_USAGE_PIXEL_PACK),
+      mStagingTexture(NULL),
+      mMemoryBuffer(NULL)
+{
+}
+
+PackStorage11::~PackStorage11()
+{
+    SafeRelease(mStagingTexture);
+
+    if (mMemoryBuffer != NULL)
+    {
+        delete [] mMemoryBuffer;
+        mMemoryBuffer = NULL;
+    }
+}
+
+bool PackStorage11::copyFromStorage(TypedBufferStorage11 *source, size_t sourceOffset,
+                                    size_t size, size_t destOffset)
+{
+    UNIMPLEMENTED();
+    return false;
+}
+
+void PackStorage11::resize(size_t size, bool preserveData)
+{
+    UNIMPLEMENTED();
+}
+
+void *PackStorage11::map(GLbitfield access)
+{
+    UNIMPLEMENTED();
+    return NULL;
+}
+
+void PackStorage11::unmap()
+{
+    UNIMPLEMENTED();
+}
+
 }
