@@ -70,7 +70,7 @@ D3D11_MAP GetD3DMapTypeFromBits(GLbitfield access)
 
 BufferStorage11::BufferStorage11(Renderer11 *renderer)
     : mRenderer(renderer),
-      mIsMapped(false),
+      mMappedStorage(NULL),
       mResolvedDataRevision(0),
       mReadUsageCount(0),
       mWriteUsageCount(0),
@@ -325,21 +325,33 @@ TypedBufferStorage11 *BufferStorage11::getLatestStorage() const
 
 bool BufferStorage11::isMapped() const
 {
-    return mIsMapped;
+    return mMappedStorage != NULL;
 }
 
 void *BufferStorage11::map(GLbitfield access)
 {
-    ASSERT(!mIsMapped);
-    mIsMapped = true;
-    return getStagingBuffer()->map(access);
+    ASSERT(!mMappedStorage);
+
+    TypedBufferStorage11 *latestStorage = getLatestStorage();
+
+    if (latestStorage->getUsage() == BUFFER_USAGE_PIXEL_PACK ||
+        latestStorage->getUsage() == BUFFER_USAGE_STAGING)
+    {
+        mMappedStorage = latestStorage;
+    }
+    else
+    {
+        mMappedStorage = getStagingBuffer();
+    }
+
+    return mMappedStorage->map(access);
 }
 
 void BufferStorage11::unmap()
 {
-    ASSERT(mIsMapped);
-    mIsMapped = false;
-    getStagingBuffer()->unmap();
+    ASSERT(mMappedStorage);
+    mMappedStorage->unmap();
+    mMappedStorage = NULL;
 }
 
 NativeBuffer11 *BufferStorage11::getStagingBuffer()
@@ -381,6 +393,11 @@ bool NativeBuffer11::copyFromStorage(TypedBufferStorage11 *source, size_t source
     }
 
     ASSERT(HAS_DYNAMIC_TYPE(source, NativeBuffer11));
+
+    if (source->getUsage() == BUFFER_USAGE_PIXEL_PACK)
+    {
+        return false;
+    }
 
     ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
@@ -518,7 +535,8 @@ PackStorage11::PackStorage11(Renderer11 *renderer)
     : TypedBufferStorage11(renderer, BUFFER_USAGE_PIXEL_PACK),
       mStagingTexture(NULL),
       mTextureFormat(DXGI_FORMAT_UNKNOWN),
-      mMemoryBuffer(NULL)
+      mMemoryBuffer(NULL),
+      mDataModified(false)
 {
 }
 
@@ -547,13 +565,20 @@ void PackStorage11::resize(size_t size, bool preserveData)
 
 void *PackStorage11::map(GLbitfield access)
 {
-    UNIMPLEMENTED();
-    return NULL;
+    ASSERT(!mMemoryBuffer);
+
+    mMemoryBuffer = new unsigned char[mBufferSize];
+    mRenderer->packPixels(mStagingTexture, mPackParams, mMemoryBuffer);
+    mDataModified = (mDataModified || (access & GL_MAP_WRITE_BIT) != 0);
+
+    return mMemoryBuffer;
 }
 
 void PackStorage11::unmap()
 {
-    UNIMPLEMENTED();
+    ASSERT(mMemoryBuffer);
+    delete [] mMemoryBuffer;
+    mMemoryBuffer = NULL;
 }
 
 void PackStorage11::packPixels(ID3D11Texture2D *srcTexure, UINT srcSubresource, const PackPixelsParams &params)

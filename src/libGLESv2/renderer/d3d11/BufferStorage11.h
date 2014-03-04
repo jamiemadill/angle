@@ -73,7 +73,7 @@ class BufferStorage11 : public BufferStorage
 
   private:
     Renderer11 *mRenderer;
-    bool mIsMapped;
+    TypedBufferStorage11 *mMappedStorage;
 
     std::map<BufferUsage, TypedBufferStorage11*> mTypedBuffers;
 
@@ -170,6 +170,7 @@ class PackStorage11 : public TypedBufferStorage11
     gl::Extents mTextureSize;
     unsigned char *mMemoryBuffer;
     PackPixelsParams mPackParams;
+    bool mDataModified;
 };
 
 }
