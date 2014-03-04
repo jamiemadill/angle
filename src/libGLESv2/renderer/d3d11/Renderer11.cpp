@@ -3077,29 +3077,24 @@ void Renderer11::readPixels(gl::Framebuffer *framebuffer, GLint x, GLint y, GLsi
 
     if (colorbuffer && getRenderTargetResource(colorbuffer, &subresourceIndex, &colorBufferTexture))
     {
-        void *packDestinationPointer = pixels;
-
-        if (pack.pixelBuffer.get() != NULL)
-        {
-            rx::BufferStorage11 *packBufferStorage = BufferStorage11::makeBufferStorage11(pack.pixelBuffer.get()->getStorage());
-            packDestinationPointer = packBufferStorage->map(GL_MAP_WRITE_BIT);
-        }
-
         gl::Rectangle area;
         area.x = x;
         area.y = y;
         area.width = width;
         area.height = height;
 
-        readTextureData(colorBufferTexture, subresourceIndex, area, format, type, outputPitch, pack, packDestinationPointer);
-
-        SafeRelease(colorBufferTexture);
-
         if (pack.pixelBuffer.get() != NULL)
         {
             rx::BufferStorage11 *packBufferStorage = BufferStorage11::makeBufferStorage11(pack.pixelBuffer.get()->getStorage());
-            packBufferStorage->unmap();
+            PackPixelsParams packParams(area, format, type, outputPitch, pack, reinterpret_cast<ptrdiff_t>(pixels));
+            packBufferStorage->packPixels(colorBufferTexture, subresourceIndex, packParams);
         }
+        else
+        {
+            readTextureData(colorBufferTexture, subresourceIndex, area, format, type, outputPitch, pack, pixels);
+        }
+
+        SafeRelease(colorBufferTexture);
     }
 }
 
