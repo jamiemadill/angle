@@ -123,19 +123,22 @@ void *BufferStorage11::getData()
 
 void BufferStorage11::setData(const void* data, unsigned int size, unsigned int offset)
 {
-    NativeBuffer11 *stagingBuffer = getStagingBuffer();
-
-    // Explicitly resize the staging buffer, preserving data if the new data will not
-    // completely fill the buffer
     size_t requiredSize = size + offset;
-    if (stagingBuffer->getSize() < requiredSize)
-    {
-        bool preserveData = (offset > 0);
-        stagingBuffer->resize(requiredSize, preserveData);
-    }
+    mWriteUsageCount = 0;
+    mSize = std::max(mSize, requiredSize);
 
     if (data)
     {
+        NativeBuffer11 *stagingBuffer = getStagingBuffer();
+
+        // Explicitly resize the staging buffer, preserving data if the new data will not
+        // completely fill the buffer
+        if (stagingBuffer->getSize() < requiredSize)
+        {
+            bool preserveData = (offset > 0);
+            stagingBuffer->resize(requiredSize, preserveData);
+        }
+
         ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
         D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -149,11 +152,9 @@ void BufferStorage11::setData(const void* data, unsigned int size, unsigned int 
         memcpy(offsetBufferPointer, data, size);
 
         context->Unmap(stagingBuffer->getNativeBuffer(), 0);
-    }
 
-    stagingBuffer->setDataRevision(stagingBuffer->getDataRevision() + 1);
-    mWriteUsageCount = 0;
-    mSize = std::max(mSize, requiredSize);
+        stagingBuffer->setDataRevision(stagingBuffer->getDataRevision() + 1);
+    }
 }
 
 void BufferStorage11::copyData(BufferStorage* sourceStorage, unsigned int size,
@@ -261,8 +262,10 @@ void BufferStorage11::packPixels(ID3D11Texture2D *srcTexture, UINT srcSubresourc
 {
     PackStorage11 *packStorage = getPackStorage();
 
+    TypedBufferStorage11 *latestStorage = getLatestStorage();
+
     packStorage->packPixels(srcTexture, srcSubresource, params);
-    packStorage->setDataRevision(getLatestStorage()->getDataRevision() + 1);
+    packStorage->setDataRevision(latestStorage ? latestStorage->getDataRevision() + 1 : 1);
 }
 
 TypedBufferStorage11 *BufferStorage11::getStorage(BufferUsage usage)
@@ -287,6 +290,12 @@ TypedBufferStorage11 *BufferStorage11::getStorage(BufferUsage usage)
         }
 
         mTypedBuffers.insert(std::make_pair(usage, directBuffer));
+    }
+
+    // resize buffer
+    if (directBuffer->getSize() < mSize)
+    {
+        directBuffer->resize(mSize, true);
     }
 
     TypedBufferStorage11 *latestBuffer = getLatestStorage();
