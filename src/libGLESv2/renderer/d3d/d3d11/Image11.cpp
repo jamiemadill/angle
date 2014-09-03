@@ -31,6 +31,7 @@ Image11::Image11()
     mAssociatedStorageLevel = 0;
     mAssociatedStorageLayerTarget = 0;
     mRecoveredFromStorageCount = 0;
+    mTS = NULL;
 }
 
 Image11::~Image11()
@@ -254,24 +255,44 @@ void Image11::loadData(GLint xoffset, GLint yoffset, GLint zoffset, GLsizei widt
     GLsizei inputRowPitch = formatInfo.computeRowPitch(type, width, unpackAlignment);
     GLsizei inputDepthPitch = formatInfo.computeDepthPitch(type, width, height, unpackAlignment);
 
-    const d3d11::DXGIFormat &dxgiFormatInfo = d3d11::GetDXGIFormatInfo(mDXGIFormat);
-    GLuint outputPixelSize = dxgiFormatInfo.pixelBytes;
+ //   const d3d11::DXGIFormat &dxgiFormatInfo = d3d11::GetDXGIFormatInfo(mDXGIFormat);
+//    GLuint outputPixelSize = dxgiFormatInfo.pixelBytes;
 
-    const d3d11::TextureFormat &d3dFormatInfo = d3d11::GetTextureFormatInfo(mInternalFormat);
-    LoadImageFunction loadFunction = d3dFormatInfo.loadFunctions.at(type);
+  //  const d3d11::TextureFormat &d3dFormatInfo = d3d11::GetTextureFormatInfo(mInternalFormat);
+  //  LoadImageFunction loadFunction = d3dFormatInfo.loadFunctions.at(type);
 
-    D3D11_MAPPED_SUBRESOURCE mappedImage;
-    HRESULT result = map(D3D11_MAP_WRITE, &mappedImage);
-    if (FAILED(result))
+    //D3D11_MAPPED_SUBRESOURCE mappedImage;
+    //HRESULT result = map(D3D11_MAP_WRITE_DISCARD, &mappedImage);
+    //if (FAILED(result))
+    //{
+    //    ERR("Could not map image for loading.");
+    //    return;
+    //}
+
+    //
+
+    //uint8_t* offsetMappedData = (reinterpret_cast<uint8_t*>(mappedImage.pData) + (yoffset * mappedImage.RowPitch + xoffset * outputPixelSize + zoffset * mappedImage.DepthPitch));
+    //loadFunction(width, height, depth,
+    //             reinterpret_cast<const uint8_t*>(input), inputRowPitch, inputDepthPitch,
+    //             offsetMappedData, mappedImage.RowPitch, mappedImage.DepthPitch);
+
+    if (mTS)
     {
-        ERR("Could not map image for loading.");
-        return;
+        ID3D11DeviceContext *immediateContext = mRenderer->getDeviceContext();
+
+        ID3D11Resource *tex = TextureStorage11::makeTextureStorage11(mTS)->getResource();
+
+        D3D11_BOX destBox;
+        destBox.front = 0;
+        destBox.back = 1;
+        destBox.left = xoffset;
+        destBox.right = width + xoffset;
+        destBox.top = yoffset;
+        destBox.bottom = yoffset + height;
+
+        immediateContext->UpdateSubresource(tex, 0, &destBox, input, inputRowPitch, inputDepthPitch);
     }
 
-    uint8_t* offsetMappedData = (reinterpret_cast<uint8_t*>(mappedImage.pData) + (yoffset * mappedImage.RowPitch + xoffset * outputPixelSize + zoffset * mappedImage.DepthPitch));
-    loadFunction(width, height, depth,
-                 reinterpret_cast<const uint8_t*>(input), inputRowPitch, inputDepthPitch,
-                 offsetMappedData, mappedImage.RowPitch, mappedImage.DepthPitch);
 
     unmap();
 }
@@ -531,17 +552,26 @@ void Image11::createStagingTexture()
 
 HRESULT Image11::map(D3D11_MAP mapType, D3D11_MAPPED_SUBRESOURCE *map)
 {
-    createStagingTexture();
+    if (!mTS)
+        createStagingTexture();
 
     // We must recover from the TextureStorage if necessary, even for D3D11_MAP_WRITE.
     recoverFromAssociatedStorage();
 
     HRESULT result = E_FAIL;
 
-    if (mStagingTexture)
+    ID3D11Resource *tex = mStagingTexture;
+
+    if (mTS)
+    {
+        TextureStorage11 *ts11 = TextureStorage11::makeTextureStorage11(mTS);
+        tex = ts11->getResource();
+    }
+
+    if (tex)
     {
         ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
-        result = deviceContext->Map(mStagingTexture, mStagingSubresource, mapType, 0, map);
+        result = deviceContext->Map(tex, 0, mapType, 0, map);
 
         // this can fail if the device is removed (from TDR)
         if (d3d11::isDeviceLostError(result))
@@ -559,11 +589,19 @@ HRESULT Image11::map(D3D11_MAP mapType, D3D11_MAPPED_SUBRESOURCE *map)
 
 void Image11::unmap()
 {
-    if (mStagingTexture)
-    {
-        ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
-        deviceContext->Unmap(mStagingTexture, mStagingSubresource);
-    }
+    //ID3D11Resource *tex = mStagingTexture;
+
+    //if (mTS)
+    //{
+    //    TextureStorage11 *ts11 = TextureStorage11::makeTextureStorage11(mTS);
+    //    tex = ts11->getResource();
+    //}
+
+    //if (tex)
+    //{
+    //    ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
+    //    deviceContext->Unmap(tex, 0);
+    //}
 }
 
 }

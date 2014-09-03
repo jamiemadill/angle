@@ -23,6 +23,8 @@
 #include "common/mathutil.h"
 #include "common/utilities.h"
 
+#include "libGLESv2/renderer/d3d/d3d11/Image11.h"
+
 namespace rx
 {
 
@@ -138,8 +140,20 @@ bool TextureD3D::subImage(GLint xoffset, GLint yoffset, GLint zoffset, GLsizei w
 
     if (pixelData != NULL)
     {
+        // Hack
+        bool a = dynamic_cast<Image11*>(image) != NULL;
+        if (a)
+        {
+            image->setHack(getNativeTexture()->getStorageInstance());
+        }
+
         image->loadData(xoffset, yoffset, zoffset, width, height, depth, unpack.alignment, type, pixelData);
         mDirtyImages = true;
+
+        if (a)
+        {
+            return false;
+        }
     }
 
     return true;
