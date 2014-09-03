@@ -192,10 +192,14 @@ void TexSubImageBenchmark::beginDrawBenchmark()
 
 void TexSubImageBenchmark::drawBenchmark()
 {
-    glTexSubImage2D(GL_TEXTURE_2D, 0,
-        rand() % (mParams.imageWidth - mParams.subImageWidth),
-        rand() % (mParams.imageHeight - mParams.subImageHeight),
-        mParams.subImageWidth, mParams.subImageHeight, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
+    for (int i = 0; i < 7; i++)
+    {
+        glTexSubImage2D(GL_TEXTURE_2D, 0,
+            rand() % (mParams.imageWidth - mParams.subImageWidth),
+            rand() % (mParams.imageHeight - mParams.subImageHeight),
+            mParams.subImageWidth, mParams.subImageHeight, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
+    }
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+
 }

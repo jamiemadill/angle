@@ -24,6 +24,7 @@ namespace rx
 {
 
 class Renderer;
+class TextureStorage;
 
 class Image
 {
@@ -38,6 +39,8 @@ class Image
     GLenum getActualFormat() const { return mActualFormat; }
     GLenum getTarget() const { return mTarget; }
     bool isRenderableFormat() const { return mRenderable; }
+
+    virtual void setHack(TextureStorage *ts) {}
 
     void markDirty() {mDirty = true;}
     void markClean() {mDirty = false;}

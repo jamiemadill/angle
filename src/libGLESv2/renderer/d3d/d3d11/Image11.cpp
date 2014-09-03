@@ -31,6 +31,7 @@ Image11::Image11()
     mAssociatedStorageLevel = 0;
     mAssociatedStorageLayerTarget = 0;
     mRecoveredFromStorageCount = 0;
+    mTS = NULL;
 }
 
 Image11::~Image11()
@@ -253,6 +254,24 @@ void Image11::loadData(GLint xoffset, GLint yoffset, GLint zoffset, GLsizei widt
     const gl::InternalFormat &formatInfo = gl::GetInternalFormatInfo(mInternalFormat);
     GLsizei inputRowPitch = formatInfo.computeRowPitch(type, width, unpackAlignment);
     GLsizei inputDepthPitch = formatInfo.computeDepthPitch(type, width, height, unpackAlignment);
+
+    if (mTS)
+    {
+        ID3D11DeviceContext *immediateContext = mRenderer->getDeviceContext();
+
+        ID3D11Resource *tex = TextureStorage11::makeTextureStorage11(mTS)->getResource();
+
+        D3D11_BOX destBox;
+        destBox.front = 0;
+        destBox.back = 1;
+        destBox.left = xoffset;
+        destBox.right = width + xoffset;
+        destBox.top = yoffset;
+        destBox.bottom = yoffset + height;
+
+        immediateContext->UpdateSubresource(tex, 0, &destBox, input, inputRowPitch, inputDepthPitch);
+        return;
+    }
 
     const d3d11::DXGIFormat &dxgiFormatInfo = d3d11::GetDXGIFormatInfo(mDXGIFormat);
     GLuint outputPixelSize = dxgiFormatInfo.pixelBytes;
@@ -559,7 +578,7 @@ HRESULT Image11::map(D3D11_MAP mapType, D3D11_MAPPED_SUBRESOURCE *map)
 
 void Image11::unmap()
 {
-    if (mStagingTexture)
+    if (!mTS && mStagingTexture)
     {
         ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
         deviceContext->Unmap(mStagingTexture, mStagingSubresource);

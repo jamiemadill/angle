@@ -59,9 +59,13 @@ class Image11 : public ImageD3D
     bool isAssociatedStorageValid(TextureStorage11* textureStorage) const;
     void disassociateStorage();
 
+    void setHack(TextureStorage *ts) { mTS = ts; }
+
   protected:
     HRESULT map(D3D11_MAP mapType, D3D11_MAPPED_SUBRESOURCE *map);
     void unmap();
+
+    TextureStorage *mTS;
 
   private:
     DISALLOW_COPY_AND_ASSIGN(Image11);
