@@ -23,48 +23,48 @@ unsigned int iterationCounts[] = { 10 };
 
 int main(int argc, char **argv)
 {
-    std::vector<BufferSubDataParams> subDataParams;
+    //std::vector<BufferSubDataParams> subDataParams;
 
-    for (size_t platIt = 0; platIt < ArraySize(platforms); platIt++)
-    {
-        for (size_t typeIt = 0; typeIt < ArraySize(vertexTypes); typeIt++)
-        {
-            for (size_t compIt = 0; compIt < ArraySize(componentCounts); compIt++)
-            {
-                for (size_t normIt = 0; normIt < ArraySize(vertexNorms); normIt++)
-                {
-                    // No normalized float data
-                    if (vertexTypes[typeIt] == GL_FLOAT && vertexNorms[normIt] == GL_TRUE)
-                    {
-                        continue;
-                    }
+    //for (size_t platIt = 0; platIt < ArraySize(platforms); platIt++)
+    //{
+    //    for (size_t typeIt = 0; typeIt < ArraySize(vertexTypes); typeIt++)
+    //    {
+    //        for (size_t compIt = 0; compIt < ArraySize(componentCounts); compIt++)
+    //        {
+    //            for (size_t normIt = 0; normIt < ArraySize(vertexNorms); normIt++)
+    //            {
+    //                // No normalized float data
+    //                if (vertexTypes[typeIt] == GL_FLOAT && vertexNorms[normIt] == GL_TRUE)
+    //                {
+    //                    continue;
+    //                }
 
-                    for (size_t updateIt = 0; updateIt < ArraySize(updateSizes); updateIt++)
-                    {
-                        for (size_t bufszIt = 0; bufszIt < ArraySize(bufferSizes); bufszIt++)
-                        {
-                            for (size_t itIt = 0; itIt < ArraySize(iterationCounts); itIt++)
-                            {
-                                BufferSubDataParams params;
-                                params.requestedRenderer = platforms[platIt];
-                                params.vertexType = vertexTypes[typeIt];
-                                params.vertexComponentCount = componentCounts[compIt];
-                                params.vertexNormalized = vertexNorms[normIt];
-                                params.updateSize = updateSizes[updateIt];
-                                params.bufferSize = bufferSizes[bufszIt];
-                                params.iterations = iterationCounts[itIt];
+    //                for (size_t updateIt = 0; updateIt < ArraySize(updateSizes); updateIt++)
+    //                {
+    //                    for (size_t bufszIt = 0; bufszIt < ArraySize(bufferSizes); bufszIt++)
+    //                    {
+    //                        for (size_t itIt = 0; itIt < ArraySize(iterationCounts); itIt++)
+    //                        {
+    //                            BufferSubDataParams params;
+    //                            params.requestedRenderer = platforms[platIt];
+    //                            params.vertexType = vertexTypes[typeIt];
+    //                            params.vertexComponentCount = componentCounts[compIt];
+    //                            params.vertexNormalized = vertexNorms[normIt];
+    //                            params.updateSize = updateSizes[updateIt];
+    //                            params.bufferSize = bufferSizes[bufszIt];
+    //                            params.iterations = iterationCounts[itIt];
 
-                                subDataParams.push_back(params);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    //                            subDataParams.push_back(params);
+    //                        }
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
+    //}
 
-    // Enumerates permutations
-    RunBenchmarks<BufferSubDataBenchmark>(subDataParams);
+    //// Enumerates permutations
+    //RunBenchmarks<BufferSubDataBenchmark>(subDataParams);
 
     std::vector<TexSubImageParams> subImageParams;
 
