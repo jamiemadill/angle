@@ -88,7 +88,16 @@ bool TexSubImageBenchmark::initializeBenchmark()
         uniform sampler2D s_texture;
         void main()
         {
-            gl_FragColor = texture2D(s_texture, v_texCoord);
+            vec4 color = vec4(0);
+
+            color += texture2D(s_texture, v_texCoord + vec2(0.01));
+            color += texture2D(s_texture, v_texCoord - vec2(0.01));
+            color += texture2D(s_texture, v_texCoord + vec2(0.02));
+            color += texture2D(s_texture, v_texCoord - vec2(0.02));
+            color += texture2D(s_texture, v_texCoord + vec2(0.03));
+            color += texture2D(s_texture, v_texCoord - vec2(0.03));
+
+            gl_FragColor = color;
         }
     );
 
@@ -188,14 +197,21 @@ void TexSubImageBenchmark::beginDrawBenchmark()
 
     // Set the texture sampler to texture unit to 0
     glUniform1i(mSamplerLoc, 0);
+
+    glDisable(GL_DEPTH_TEST);
 }
 
 void TexSubImageBenchmark::drawBenchmark()
 {
-    glTexSubImage2D(GL_TEXTURE_2D, 0,
-        rand() % (mParams.imageWidth - mParams.subImageWidth),
-        rand() % (mParams.imageHeight - mParams.subImageHeight),
-        mParams.subImageWidth, mParams.subImageHeight, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
+    for (int i = 0; i < 24; i++)
+    {
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+        glTexSubImage2D(GL_TEXTURE_2D, 0,
+            rand() % (mParams.imageWidth - mParams.subImageWidth),
+            rand() % (mParams.imageHeight - mParams.subImageHeight),
+            mParams.subImageWidth, mParams.subImageHeight, GL_RGBA, GL_UNSIGNED_BYTE, mPixels);
+    }
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+
 }
