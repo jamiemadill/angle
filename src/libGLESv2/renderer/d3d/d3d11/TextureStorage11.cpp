@@ -395,6 +395,33 @@ void TextureStorage11::verifySwizzleExists(GLenum swizzleRed, GLenum swizzleGree
     }
 }
 
+void TextureStorage11::setData(const gl::ImageIndex &index, const gl::Box &destBox, GLenum internalFormat, GLenum type,
+                               const gl::PixelUnpackState &unpack, uint8_t *pixelData)
+{
+    ID3D11Resource *resource = getResource();
+    ASSERT(resource);
+
+    UINT destSubresource = getSubresourceIndex(index.mipIndex, index.hasLayer() ? index.layerIndex : 0);
+
+    const gl::InternalFormat &internalFormatInfo = gl::GetInternalFormatInfo(internalFormat);
+
+    UINT srcRowPitch = internalFormatInfo.computeRowPitch(type, destBox.width, unpack.alignment);
+    UINT srcDepthPitch = internalFormatInfo.computeDepthPitch(type, destBox.width, destBox.height, unpack.alignment);
+    
+    D3D11_BOX destD3DBox;
+    destD3DBox.left = destBox.x;
+    destD3DBox.right = destBox.x + destBox.width;
+    destD3DBox.top = destBox.y;
+    destD3DBox.bottom = destBox.y + destBox.height;
+    destD3DBox.front = 0;
+    destD3DBox.back = 1;
+
+    // FIXME: handle data conversions
+
+    ID3D11DeviceContext *immediateContext = mRenderer->getDeviceContext();
+    immediateContext->UpdateSubresource(resource, destSubresource, &destD3DBox, pixelData, srcRowPitch, srcDepthPitch);
+}
+
 TextureStorage11_2D::TextureStorage11_2D(Renderer *renderer, SwapChain11 *swapchain)
     : TextureStorage11(renderer, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE),
       mTexture(swapchain->getOffscreenTexture()),
