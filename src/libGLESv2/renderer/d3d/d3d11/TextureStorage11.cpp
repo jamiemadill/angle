@@ -396,7 +396,7 @@ void TextureStorage11::verifySwizzleExists(GLenum swizzleRed, GLenum swizzleGree
 }
 
 void TextureStorage11::setData(const gl::ImageIndex &index, const gl::Box &destBox, GLenum internalFormat, GLenum type,
-                               const gl::PixelUnpackState &unpack, uint8_t *pixelData)
+                               const gl::PixelUnpackState &unpack, const uint8_t *pixelData)
 {
     ID3D11Resource *resource = getResource();
     ASSERT(resource);

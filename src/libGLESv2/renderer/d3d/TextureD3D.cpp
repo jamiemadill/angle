@@ -23,6 +23,11 @@
 #include "common/mathutil.h"
 #include "common/utilities.h"
 
+#include "libGLESv2/ProgramBinary.h"
+
+// TODO: place this in workarounds library
+#define ANGLE_TEXSUBDATA_PERF_WORKAROUND ANGLE_WORKAROUND_DISABLED
+
 namespace rx
 {
 
@@ -123,7 +128,7 @@ void TextureD3D::setImage(const gl::PixelUnpackState &unpack, GLenum type, const
 bool TextureD3D::subImage(GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth,
                           GLenum format, GLenum type, const gl::PixelUnpackState &unpack, const void *pixels, const gl::ImageIndex &index)
 {
-    const void *pixelData = pixels;
+    const uint8_t *pixelData = static_cast<const uint8_t *>(pixels);
 
     // CPU readback & copy where direct GPU copy is not supported
     if (unpack.pixelBuffer.id() != 0)
@@ -133,13 +138,28 @@ bool TextureD3D::subImage(GLint xoffset, GLint yoffset, GLint zoffset, GLsizei w
         // TODO: setImage/subImage is the only place outside of renderer that asks for a buffers raw data.
         // This functionality should be moved into renderer and the getData method of BufferImpl removed.
         const void *bufferData = pixelBuffer->getImplementation()->getData();
-        pixelData = static_cast<const unsigned char *>(bufferData) + offset;
+        pixelData = static_cast<const uint8_t *>(bufferData) + offset;
     }
 
     if (pixelData != NULL)
     {
         Image *image = getImage(index);
         ASSERT(image);
+
+#if (ANGLE_TEXSUBDATA_PERF_WORKAROUND == ANGLE_WORKAROUND_ENABLED)
+        gl::Box sourceBox;
+        sourceBox.x = xoffset;
+        sourceBox.y = yoffset;
+        sourceBox.z = zoffset;
+        sourceBox.width = width;
+        sourceBox.height = height;
+        sourceBox.depth = depth;
+
+        getNativeTexture()->setData(index, sourceBox, image->getInternalFormat(), type, unpack, pixelData);
+
+        // Skip commit
+        return false;
+#endif
 
         image->loadData(xoffset, yoffset, zoffset, width, height, depth, unpack.alignment, type, pixelData);
         mDirtyImages = true;
