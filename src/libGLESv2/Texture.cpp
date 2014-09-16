@@ -286,7 +286,7 @@ void Texture2D::storage(GLsizei levels, GLenum internalformat, GLsizei width, GL
 }
 
 // Tests for 2D texture sampling completeness. [OpenGL ES 2.0.24] section 3.8.2 page 85.
-bool Texture2D::isSamplerComplete(const SamplerState &samplerState, const TextureCapsMap &textureCaps, const Extensions &extensions, int clientVersion) const
+bool Texture2D::isSamplerComplete(const SamplerState &samplerState, const TextureCapsMap &textureCaps, const Extensions &extensions, int clientVersion)
 {
     GLsizei width = getBaseLevelWidth();
     GLsizei height = getBaseLevelHeight();
@@ -427,7 +427,8 @@ bool Texture2D::isLevelComplete(int level) const
 }
 
 TextureCubeMap::TextureCubeMap(rx::TextureImpl *impl, GLuint id)
-    : Texture(impl, id, GL_TEXTURE_CUBE_MAP)
+    : Texture(impl, id, GL_TEXTURE_CUBE_MAP),
+      mCachedSamplerComplete(false)
 {
 }
 
@@ -469,36 +470,43 @@ GLenum TextureCubeMap::getActualFormat(GLenum target, GLint level) const
 
 void TextureCubeMap::setImagePosX(GLint level, GLsizei width, GLsizei height, GLenum internalFormat, GLenum format, GLenum type, const PixelUnpackState &unpack, const void *pixels)
 {
+    mCachedSamplerComplete = false;
     mTexture->setImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X, level, width, height, 1, internalFormat, format, type, unpack, pixels);
 }
 
 void TextureCubeMap::setImageNegX(GLint level, GLsizei width, GLsizei height, GLenum internalFormat, GLenum format, GLenum type, const PixelUnpackState &unpack, const void *pixels)
 {
+    mCachedSamplerComplete = false;
     mTexture->setImage(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, level, width, height, 1, internalFormat, format, type, unpack, pixels);
 }
 
 void TextureCubeMap::setImagePosY(GLint level, GLsizei width, GLsizei height, GLenum internalFormat, GLenum format, GLenum type, const PixelUnpackState &unpack, const void *pixels)
 {
+    mCachedSamplerComplete = false;
     mTexture->setImage(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, level, width, height, 1, internalFormat, format, type, unpack, pixels);
 }
 
 void TextureCubeMap::setImageNegY(GLint level, GLsizei width, GLsizei height, GLenum internalFormat, GLenum format, GLenum type, const PixelUnpackState &unpack, const void *pixels)
 {
+    mCachedSamplerComplete = false;
     mTexture->setImage(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, level, width, height, 1, internalFormat, format, type, unpack, pixels);
 }
 
 void TextureCubeMap::setImagePosZ(GLint level, GLsizei width, GLsizei height, GLenum internalFormat, GLenum format, GLenum type, const PixelUnpackState &unpack, const void *pixels)
 {
+    mCachedSamplerComplete = false;
     mTexture->setImage(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, level, width, height, 1, internalFormat, format, type, unpack, pixels);
 }
 
 void TextureCubeMap::setImageNegZ(GLint level, GLsizei width, GLsizei height, GLenum internalFormat, GLenum format, GLenum type, const PixelUnpackState &unpack, const void *pixels)
 {
+    mCachedSamplerComplete = false;
     mTexture->setImage(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, level, width, height, 1, internalFormat, format, type, unpack, pixels);
 }
 
 void TextureCubeMap::setCompressedImage(GLenum target, GLint level, GLenum format, GLsizei width, GLsizei height, GLsizei imageSize, const void *pixels)
 {
+    mCachedSamplerComplete = false;
     mTexture->setCompressedImage(target, level, format, width, height, 1, imageSize, pixels);
 }
 
@@ -562,8 +570,13 @@ void TextureCubeMap::storage(GLsizei levels, GLenum internalformat, GLsizei size
 }
 
 // Tests for texture sampling completeness
-bool TextureCubeMap::isSamplerComplete(const SamplerState &samplerState, const TextureCapsMap &textureCaps, const Extensions &extensions, int clientVersion) const
+bool TextureCubeMap::isSamplerComplete(const SamplerState &samplerState, const TextureCapsMap &textureCaps, const Extensions &extensions, int clientVersion)
 {
+    if (mCachedSamplerComplete)
+    {
+        return true;
+    }
+
     int size = getBaseLevelWidth();
 
     bool mipmapping = IsMipmapFiltered(samplerState);
@@ -596,6 +609,7 @@ bool TextureCubeMap::isSamplerComplete(const SamplerState &samplerState, const T
         }
     }
 
+    mCachedSamplerComplete = true;
     return true;
 }
 
@@ -761,7 +775,7 @@ void Texture3D::storage(GLsizei levels, GLenum internalformat, GLsizei width, GL
     mTexture->storage(GL_TEXTURE_3D, levels, internalformat, width, height, depth);
 }
 
-bool Texture3D::isSamplerComplete(const SamplerState &samplerState, const TextureCapsMap &textureCaps, const Extensions &extensions, int clientVersion) const
+bool Texture3D::isSamplerComplete(const SamplerState &samplerState, const TextureCapsMap &textureCaps, const Extensions &extensions, int clientVersion)
 {
     GLsizei width = getBaseLevelWidth();
     GLsizei height = getBaseLevelHeight();
@@ -919,7 +933,7 @@ void Texture2DArray::storage(GLsizei levels, GLenum internalformat, GLsizei widt
     mTexture->storage(GL_TEXTURE_2D_ARRAY, levels, internalformat, width, height, depth);
 }
 
-bool Texture2DArray::isSamplerComplete(const SamplerState &samplerState, const TextureCapsMap &textureCaps, const Extensions &extensions, int clientVersion) const
+bool Texture2DArray::isSamplerComplete(const SamplerState &samplerState, const TextureCapsMap &textureCaps, const Extensions &extensions, int clientVersion)
 {
     GLsizei width = getBaseLevelWidth();
     GLsizei height = getBaseLevelHeight();
