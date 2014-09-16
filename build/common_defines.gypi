@@ -48,6 +48,13 @@
     },
     'configurations':
     {
+        'Debug_Base':
+        {
+            'defines':
+            [
+                '_DEBUG'
+            ],
+        },
         'Debug':
         {
             'msvs_settings':
@@ -67,9 +74,12 @@
                     ],
                 },
             },
+        },
+        'Release_Base':
+        {
             'defines':
             [
-                '_DEBUG'
+                'NDEBUG'
             ],
         },
         'Release':
@@ -91,10 +101,6 @@
                     ],
                 },
             },
-            'defines':
-            [
-                'NDEBUG'
-            ],
         },
     },
     'conditions':
