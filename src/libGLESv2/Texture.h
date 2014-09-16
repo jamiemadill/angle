@@ -136,6 +136,7 @@ class Texture2D : public Texture
     bool isLevelComplete(int level) const;
 
     egl::Surface *mSurface;
+    bool mCachedSamplerComplete;
 };
 
 class TextureCubeMap : public Texture

@@ -181,7 +181,8 @@ const rx::Image *Texture::getBaseLevelImage() const
 }
 
 Texture2D::Texture2D(rx::TextureImpl *impl, GLuint id)
-    : Texture(impl, id, GL_TEXTURE_2D)
+    : Texture(impl, id, GL_TEXTURE_2D),
+      mCachedSamplerComplete(false)
 {
     mSurface = NULL;
 }
@@ -229,6 +230,7 @@ GLenum Texture2D::getActualFormat(GLint level) const
 
 void Texture2D::setImage(GLint level, GLsizei width, GLsizei height, GLenum internalFormat, GLenum format, GLenum type, const PixelUnpackState &unpack, const void *pixels)
 {
+    mCachedSamplerComplete = false;
     releaseTexImage();
 
     mTexture->setImage(GL_TEXTURE_2D, level, width, height, 1, internalFormat, format, type, unpack, pixels);
@@ -236,6 +238,7 @@ void Texture2D::setImage(GLint level, GLsizei width, GLsizei height, GLenum inte
 
 void Texture2D::bindTexImage(egl::Surface *surface)
 {
+    mCachedSamplerComplete = false;
     releaseTexImage();
 
     mTexture->bindTexImage(surface);
@@ -246,6 +249,7 @@ void Texture2D::bindTexImage(egl::Surface *surface)
 
 void Texture2D::releaseTexImage()
 {
+    mCachedSamplerComplete = false;
     if (mSurface)
     {
         mSurface->setBoundTexture(NULL);
@@ -257,6 +261,7 @@ void Texture2D::releaseTexImage()
 
 void Texture2D::setCompressedImage(GLint level, GLenum format, GLsizei width, GLsizei height, GLsizei imageSize, const void *pixels)
 {
+    mCachedSamplerComplete = false;
     releaseTexImage();
 
     mTexture->setCompressedImage(GL_TEXTURE_2D, level, format, width, height, 1, imageSize, pixels);
@@ -274,6 +279,7 @@ void Texture2D::subImageCompressed(GLint level, GLint xoffset, GLint yoffset, GL
 
 void Texture2D::copyImage(GLint level, GLenum format, GLint x, GLint y, GLsizei width, GLsizei height, Framebuffer *source)
 {
+    mCachedSamplerComplete = false;
     releaseTexImage();
 
     mTexture->copyImage(GL_TEXTURE_2D, level, format, x, y, width, height, source);
@@ -281,6 +287,7 @@ void Texture2D::copyImage(GLint level, GLenum format, GLint x, GLint y, GLsizei 
 
 void Texture2D::storage(GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
 {
+    mCachedSamplerComplete = false;
     mImmutable = true;
 
     mTexture->storage(GL_TEXTURE_2D, levels, internalformat, width, height, 1);
@@ -289,6 +296,11 @@ void Texture2D::storage(GLsizei levels, GLenum internalformat, GLsizei width, GL
 // Tests for 2D texture sampling completeness. [OpenGL ES 2.0.24] section 3.8.2 page 85.
 bool Texture2D::isSamplerComplete(const SamplerState &samplerState, const TextureCapsMap &textureCaps, const Extensions &extensions, int clientVersion)
 {
+    if (mCachedSamplerComplete)
+    {
+        return true;
+    }
+
     GLsizei width = getBaseLevelWidth();
     GLsizei height = getBaseLevelHeight();
 
@@ -347,6 +359,7 @@ bool Texture2D::isSamplerComplete(const SamplerState &samplerState, const Textur
         }
     }
 
+    mCachedSamplerComplete = true;
     return true;
 }
 
