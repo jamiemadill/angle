@@ -147,7 +147,7 @@ struct DepthStencilState
 
 struct SamplerState
 {
-    SamplerState();
+    void init();
 
     GLenum minFilter;
     GLenum magFilter;

@@ -54,6 +54,7 @@ Texture::Texture(rx::TextureImpl *impl, GLuint id, GLenum target)
       mImmutable(false),
       mTarget(target)
 {
+    mSamplerState.init();
 }
 
 Texture::~Texture()

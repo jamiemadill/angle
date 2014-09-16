@@ -140,6 +140,16 @@ Renderer9::Renderer9(egl::Display *display, EGLNativeDisplayType hDc, EGLint req
     mAppliedVertexShader = NULL;
     mAppliedPixelShader = NULL;
     mAppliedProgramSerial = 0;
+
+    for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_VERTEX_TEXTURE_IMAGE_UNITS; i++)
+    {
+        mCurVertexSamplerStates[i].init();
+    }
+
+    for (unsigned int i = 0; i < gl::MAX_TEXTURE_IMAGE_UNITS; i++)
+    {
+        mCurPixelSamplerStates[i].init();
+    }
 }
 
 Renderer9::~Renderer9()

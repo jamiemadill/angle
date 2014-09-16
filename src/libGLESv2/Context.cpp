@@ -1453,11 +1453,12 @@ void Context::applyTextures(SamplerType shaderType, Texture *textures[], Texture
     for (size_t samplerIndex = 0; samplerIndex < textureCount; samplerIndex++)
     {
         Texture *texture = textures[samplerIndex];
-        const SamplerState &sampler = samplers[samplerIndex];
         TextureType textureType = textureTypes[samplerIndex];
 
         if (texture)
         {
+            const SamplerState &sampler = samplers[samplerIndex];
+
             // TODO: std::binary_search may become unavailable using older versions of GCC
             if (texture->isSamplerComplete(sampler, mTextureCaps, mExtensions, mClientVersion) &&
                 !std::binary_search(framebufferSerials.begin(), framebufferSerials.begin() + framebufferSerialCount, texture->getTextureSerial()))

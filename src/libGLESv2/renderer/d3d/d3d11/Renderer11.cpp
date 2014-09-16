@@ -111,6 +111,16 @@ Renderer11::Renderer11(egl::Display *display, EGLNativeDisplayType hDc, EGLint r
     mAppliedGeometryShader = NULL;
     mCurPointGeometryShader = NULL;
     mAppliedPixelShader = NULL;
+
+    for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_VERTEX_TEXTURE_IMAGE_UNITS; i++)
+    {
+        mCurVertexSamplerStates[i].init();
+    }
+
+    for (unsigned int i = 0; i < gl::MAX_TEXTURE_IMAGE_UNITS; i++)
+    {
+        mCurPixelSamplerStates[i].init();
+    }
 }
 
 Renderer11::~Renderer11()
