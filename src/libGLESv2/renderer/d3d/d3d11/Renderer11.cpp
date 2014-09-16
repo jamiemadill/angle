@@ -1385,29 +1385,6 @@ void Renderer11::applyUniforms(const gl::ProgramBinary &programBinary)
 {
     const std::vector<gl::LinkedUniform*> &uniformArray = programBinary.getUniforms();
 
-    unsigned int totalRegisterCountVS = 0;
-    unsigned int totalRegisterCountPS = 0;
-
-    bool vertexUniformsDirty = false;
-    bool pixelUniformsDirty = false;
-
-    for (size_t uniformIndex = 0; uniformIndex < uniformArray.size(); uniformIndex++)
-    {
-        const gl::LinkedUniform &uniform = *uniformArray[uniformIndex];
-
-        if (uniform.isReferencedByVertexShader() && !uniform.isSampler())
-        {
-            totalRegisterCountVS += uniform.registerCount;
-            vertexUniformsDirty = (vertexUniformsDirty || uniform.dirty);
-        }
-
-        if (uniform.isReferencedByFragmentShader() && !uniform.isSampler())
-        {
-            totalRegisterCountPS += uniform.registerCount;
-            pixelUniformsDirty = (pixelUniformsDirty || uniform.dirty);
-        }
-    }
-
     const ProgramD3D *programD3D = ProgramD3D::makeProgramD3D(programBinary.getImplementation());
     const UniformStorage11 *vertexUniformStorage = UniformStorage11::makeUniformStorage11(&programD3D->getVertexUniformStorage());
     const UniformStorage11 *fragmentUniformStorage = UniformStorage11::makeUniformStorage11(&programD3D->getFragmentUniformStorage());
@@ -1417,48 +1394,48 @@ void Renderer11::applyUniforms(const gl::ProgramBinary &programBinary)
     ID3D11Buffer *vertexConstantBuffer = vertexUniformStorage->getConstantBuffer();
     ID3D11Buffer *pixelConstantBuffer = fragmentUniformStorage->getConstantBuffer();
 
-    float (*mapVS)[4] = NULL;
-    float (*mapPS)[4] = NULL;
-
-    if (totalRegisterCountVS > 0 && vertexUniformsDirty)
-    {
-        D3D11_MAPPED_SUBRESOURCE map = {0};
-        HRESULT result = mDeviceContext->Map(vertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-        UNUSED_ASSERTION_VARIABLE(result);
-        ASSERT(SUCCEEDED(result));
-        mapVS = (float(*)[4])map.pData;
-    }
-
-    if (totalRegisterCountPS > 0 && pixelUniformsDirty)
-    {
-        D3D11_MAPPED_SUBRESOURCE map = {0};
-        HRESULT result = mDeviceContext->Map(pixelConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-        UNUSED_ASSERTION_VARIABLE(result);
-        ASSERT(SUCCEEDED(result));
-        mapPS = (float(*)[4])map.pData;
-    }
+    float(*mapVS)[4] = NULL;
+    float(*mapPS)[4] = NULL;
 
     for (size_t uniformIndex = 0; uniformIndex < uniformArray.size(); uniformIndex++)
     {
-        gl::LinkedUniform *uniform = uniformArray[uniformIndex];
+        const gl::LinkedUniform &uniform = *uniformArray[uniformIndex];
 
-        if (!uniform->isSampler())
+        unsigned int componentCount = (4 - uniform.registerElement);
+
+        // we assume that uniforms from structs are arranged in struct order in our uniforms list. otherwise we would
+        // overwrite previously written regions of memory.
+
+        if (uniform.isReferencedByVertexShader() && !uniform.isSampler())
         {
-            unsigned int componentCount = (4 - uniform->registerElement);
-
-            // we assume that uniforms from structs are arranged in struct order in our uniforms list. otherwise we would
-            // overwrite previously written regions of memory.
-
-            if (uniform->isReferencedByVertexShader() && mapVS)
+            if (!mapVS)
             {
-                memcpy(&mapVS[uniform->vsRegisterIndex][uniform->registerElement], uniform->data, uniform->registerCount * sizeof(float) * componentCount);
+                D3D11_MAPPED_SUBRESOURCE map = { 0 };
+                HRESULT result = mDeviceContext->Map(vertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+                UNUSED_ASSERTION_VARIABLE(result);
+                ASSERT(SUCCEEDED(result));
+                mapVS = (float(*)[4])map.pData;
             }
 
-            if (uniform->isReferencedByFragmentShader() && mapPS)
-            {
-                memcpy(&mapPS[uniform->psRegisterIndex][uniform->registerElement], uniform->data, uniform->registerCount * sizeof(float) * componentCount);
-            }
+            ASSERT(mapVS);
+            memcpy(&mapVS[uniform.vsRegisterIndex][uniform.registerElement], uniform.data, uniform.registerCount * sizeof(float) * componentCount);
         }
+
+        if (uniform.isReferencedByFragmentShader() && !uniform.isSampler())
+        {
+            if (!mapPS)
+            {
+                D3D11_MAPPED_SUBRESOURCE map = { 0 };
+                HRESULT result = mDeviceContext->Map(pixelConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+                UNUSED_ASSERTION_VARIABLE(result);
+                ASSERT(SUCCEEDED(result));
+                mapPS = (float(*)[4])map.pData;
+            }
+
+            ASSERT(mapPS);
+            memcpy(&mapPS[uniform.psRegisterIndex][uniform.registerElement], uniform.data, uniform.registerCount * sizeof(float) * componentCount);
+        }
+
     }
 
     if (mapVS)
