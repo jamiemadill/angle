@@ -1112,6 +1112,11 @@ void TextureD3D_Cube::setCompleteTexStorage(TextureStorage *newCompleteTexStorag
 
 void TextureD3D_Cube::updateStorage()
 {
+    if (!mDirtyImages)
+    {
+        return;
+    }
+
     ASSERT(mTexStorage != NULL);
     GLint storageLevels = mTexStorage->getLevelCount();
     for (int face = 0; face < 6; face++)
@@ -1124,6 +1129,8 @@ void TextureD3D_Cube::updateStorage()
             }
         }
     }
+
+    mDirtyImages = false;
 }
 
 bool TextureD3D_Cube::ensureRenderTarget()
