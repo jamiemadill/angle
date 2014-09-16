@@ -25,6 +25,11 @@ class Renderer;
 class Renderer11;
 class TextureStorage11;
 
+namespace d3d11
+{
+struct TextureFormat;
+}
+
 class Image11 : public ImageD3D
 {
   public:
@@ -82,6 +87,8 @@ class Image11 : public ImageD3D
     int mAssociatedStorageLevel;
     int mAssociatedStorageLayerTarget;
     unsigned int mRecoveredFromStorageCount;
+
+    const d3d11::TextureFormat *mTextureFormatInfo;
 };
 
 }

@@ -31,6 +31,7 @@ Image11::Image11()
     mAssociatedStorageLevel = 0;
     mAssociatedStorageLayerTarget = 0;
     mRecoveredFromStorageCount = 0;
+    mTextureFormatInfo = NULL;
 }
 
 Image11::~Image11()
@@ -91,7 +92,7 @@ bool Image11::isDirty() const
     // AND mStagingTexture doesn't exist AND mStagingTexture doesn't need to be recovered from TextureStorage
     // AND the texture doesn't require init data (i.e. a blank new texture will suffice)
     // then isDirty should still return false.
-    if (mDirty && !mStagingTexture && !mRecoverFromStorage && !(d3d11::GetTextureFormatInfo(mInternalFormat).dataInitializerFunction != NULL))
+    if (mDirty && !mStagingTexture && !mRecoverFromStorage && !(mTextureFormatInfo->dataInitializerFunction != NULL))
     {
         return false;
     }
@@ -221,14 +222,14 @@ bool Image11::redefine(Renderer *renderer, GLenum target, GLenum internalformat,
         mTarget = target;
 
         // compute the d3d format that will be used
-        const d3d11::TextureFormat &formatInfo = d3d11::GetTextureFormatInfo(internalformat);
-        const d3d11::DXGIFormat &dxgiFormatInfo = d3d11::GetDXGIFormatInfo(formatInfo.texFormat);
-        mDXGIFormat = formatInfo.texFormat;
+        mTextureFormatInfo = &d3d11::GetTextureFormatInfo(mInternalFormat);
+        const d3d11::DXGIFormat &dxgiFormatInfo = d3d11::GetDXGIFormatInfo(mTextureFormatInfo->texFormat);
+        mDXGIFormat = mTextureFormatInfo->texFormat;
         mActualFormat = dxgiFormatInfo.internalFormat;
-        mRenderable = (formatInfo.rtvFormat != DXGI_FORMAT_UNKNOWN);
+        mRenderable = (mTextureFormatInfo->rtvFormat != DXGI_FORMAT_UNKNOWN);
 
         SafeRelease(mStagingTexture);
-        mDirty = (formatInfo.dataInitializerFunction != NULL);
+        mDirty = (mTextureFormatInfo->dataInitializerFunction != NULL);
 
         return true;
     }
@@ -257,8 +258,7 @@ void Image11::loadData(GLint xoffset, GLint yoffset, GLint zoffset, GLsizei widt
     const d3d11::DXGIFormat &dxgiFormatInfo = d3d11::GetDXGIFormatInfo(mDXGIFormat);
     GLuint outputPixelSize = dxgiFormatInfo.pixelBytes;
 
-    const d3d11::TextureFormat &d3dFormatInfo = d3d11::GetTextureFormatInfo(mInternalFormat);
-    LoadImageFunction loadFunction = d3dFormatInfo.loadFunctions.at(type);
+    LoadImageFunction loadFunction = mTextureFormatInfo->loadFunctions.at(type);
 
     D3D11_MAPPED_SUBRESOURCE mappedImage;
     HRESULT result = map(D3D11_MAP_WRITE, &mappedImage);
@@ -291,8 +291,7 @@ void Image11::loadCompressedData(GLint xoffset, GLint yoffset, GLint zoffset, GL
     ASSERT(xoffset % outputBlockWidth == 0);
     ASSERT(yoffset % outputBlockHeight == 0);
 
-    const d3d11::TextureFormat &d3dFormatInfo = d3d11::GetTextureFormatInfo(mInternalFormat);
-    LoadImageFunction loadFunction = d3dFormatInfo.loadFunctions.at(GL_UNSIGNED_BYTE);
+    LoadImageFunction loadFunction = mTextureFormatInfo->loadFunctions.at(GL_UNSIGNED_BYTE);
 
     D3D11_MAPPED_SUBRESOURCE mappedImage;
     HRESULT result = map(D3D11_MAP_WRITE, &mappedImage);
@@ -455,7 +454,7 @@ void Image11::createStagingTexture()
             desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
             desc.MiscFlags = 0;
 
-            if (d3d11::GetTextureFormatInfo(mInternalFormat).dataInitializerFunction != NULL)
+            if (mTextureFormatInfo->dataInitializerFunction != NULL)
             {
                 std::vector<D3D11_SUBRESOURCE_DATA> initialData;
                 std::vector< std::vector<BYTE> > textureData;
@@ -496,7 +495,7 @@ void Image11::createStagingTexture()
             desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
             desc.MiscFlags = 0;
 
-            if (d3d11::GetTextureFormatInfo(mInternalFormat).dataInitializerFunction != NULL)
+            if (mTextureFormatInfo->dataInitializerFunction != NULL)
             {
                 std::vector<D3D11_SUBRESOURCE_DATA> initialData;
                 std::vector< std::vector<BYTE> > textureData;
