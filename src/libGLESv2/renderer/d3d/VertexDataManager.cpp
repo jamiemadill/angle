@@ -90,6 +90,24 @@ GLenum VertexDataManager::prepareVertexData(const gl::VertexAttribute attribs[],
         return GL_OUT_OF_MEMORY;
     }
 
+    bool directStorageOK[gl::MAX_VERTEX_ATTRIBS] = { false };
+
+    for (int attributeIndex = 0; attributeIndex < gl::MAX_VERTEX_ATTRIBS; attributeIndex++)
+    {
+        if (attribs[attributeIndex].enabled)
+        {
+            gl::Buffer *buffer = attribs[attributeIndex].buffer.get();
+
+            if (buffer != NULL)
+            {
+                BufferD3D *bufferImpl = BufferD3D::makeBufferD3D(buffer->getImplementation());
+                StaticVertexBufferInterface *staticBuffer = bufferImpl->getStaticVertexBuffer();
+                directStorageOK[attributeIndex] = staticBuffer->directStoragePossible(attribs[attributeIndex],
+                                                                                      currentValues[attributeIndex]);
+            }
+        }
+    }
+
     // Invalidate static buffers that don't contain matching attributes
     for (int attributeIndex = 0; attributeIndex < gl::MAX_VERTEX_ATTRIBS; attributeIndex++)
     {
@@ -97,7 +115,7 @@ GLenum VertexDataManager::prepareVertexData(const gl::VertexAttribute attribs[],
 
         if (translated[attributeIndex].active && attribs[attributeIndex].enabled)
         {
-            invalidateMatchingStaticData(attribs[attributeIndex], currentValues[attributeIndex]);
+            invalidateMatchingStaticData(attribs[attributeIndex], directStorageOK[attributeIndex]);
         }
     }
 
@@ -106,7 +124,7 @@ GLenum VertexDataManager::prepareVertexData(const gl::VertexAttribute attribs[],
     {
         if (translated[i].active && attribs[i].enabled)
         {
-            if (!reserveSpaceForAttrib(attribs[i], currentValues[i], count, instances))
+            if (!reserveSpaceForAttrib(attribs[i], directStorageOK[i], count, instances))
             {
                 return GL_OUT_OF_MEMORY;
             }
@@ -122,8 +140,8 @@ GLenum VertexDataManager::prepareVertexData(const gl::VertexAttribute attribs[],
 
             if (attribs[i].enabled)
             {
-                result = storeAttribute(attribs[i], currentValues[i], &translated[i],
-                                        start, count, instances);
+                result = storeAttribute(attribs[i], currentValues[i], directStorageOK[i],
+                                        &translated[i], start, count, instances);
             }
             else
             {
@@ -162,7 +180,7 @@ GLenum VertexDataManager::prepareVertexData(const gl::VertexAttribute attribs[],
 }
 
 void VertexDataManager::invalidateMatchingStaticData(const gl::VertexAttribute &attrib,
-                                                     const gl::VertexAttribCurrentValueData &currentValue) const
+                                                     bool directStorage) const
 {
     gl::Buffer *buffer = attrib.buffer.get();
 
@@ -174,7 +192,7 @@ void VertexDataManager::invalidateMatchingStaticData(const gl::VertexAttribute &
         if (staticBuffer &&
             staticBuffer->getBufferSize() > 0 &&
             !staticBuffer->lookupAttribute(attrib, NULL) &&
-            !staticBuffer->directStoragePossible(attrib, currentValue))
+            !directStorage)
         {
             bufferImpl->invalidateStaticData();
         }
@@ -182,17 +200,17 @@ void VertexDataManager::invalidateMatchingStaticData(const gl::VertexAttribute &
 }
 
 bool VertexDataManager::reserveSpaceForAttrib(const gl::VertexAttribute &attrib,
-                                              const gl::VertexAttribCurrentValueData &currentValue,
+                                              bool directStorage,
                                               GLsizei count,
                                               GLsizei instances) const
 {
     gl::Buffer *buffer = attrib.buffer.get();
     BufferD3D *bufferImpl = buffer ? BufferD3D::makeBufferD3D(buffer->getImplementation()) : NULL;
-    StaticVertexBufferInterface *staticBuffer = bufferImpl ? bufferImpl->getStaticVertexBuffer() : NULL;
-    VertexBufferInterface *vertexBuffer = staticBuffer ? staticBuffer : static_cast<VertexBufferInterface*>(mStreamingBuffer);
 
-    if (!vertexBuffer->directStoragePossible(attrib, currentValue))
+    if (!directStorage)
     {
+        StaticVertexBufferInterface *staticBuffer = bufferImpl ? bufferImpl->getStaticVertexBuffer() : NULL;
+
         if (staticBuffer)
         {
             if (staticBuffer->getBufferSize() == 0)
@@ -221,6 +239,7 @@ bool VertexDataManager::reserveSpaceForAttrib(const gl::VertexAttribute &attrib,
 
 GLenum VertexDataManager::storeAttribute(const gl::VertexAttribute &attrib,
                                          const gl::VertexAttribCurrentValueData &currentValue,
+                                         bool directStorage,
                                          TranslatedAttribute *translated,
                                          GLint start,
                                          GLsizei count,
@@ -232,7 +251,6 @@ GLenum VertexDataManager::storeAttribute(const gl::VertexAttribute &attrib,
     BufferD3D *storage = buffer ? BufferD3D::makeBufferD3D(buffer->getImplementation()) : NULL;
     StaticVertexBufferInterface *staticBuffer = storage ? storage->getStaticVertexBuffer() : NULL;
     VertexBufferInterface *vertexBuffer = staticBuffer ? staticBuffer : static_cast<VertexBufferInterface*>(mStreamingBuffer);
-    bool directStorage = vertexBuffer->directStoragePossible(attrib, currentValue);
 
     unsigned int streamOffset = 0;
     unsigned int outputElementSize = 0;
