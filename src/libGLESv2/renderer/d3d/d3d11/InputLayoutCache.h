@@ -12,6 +12,7 @@
 
 #include "libGLESv2/Constants.h"
 #include "common/angleutils.h"
+#include "libGLESv2/angletypes.h"
 
 #include <GLES2/gl2.h>
 
@@ -71,17 +72,36 @@ class InputLayoutCache
         unsigned long long lastUsedTime;
     };
 
+    struct FormatKey
+    {
+        int elementCount;
+        struct {
+            gl::VertexFormat format;
+            GLuint divisor;
+        } elements[gl::MAX_VERTEX_ATTRIBS];
+
+        const char *begin() const
+        {
+            return reinterpret_cast<const char*>(&elementCount);
+        }
+
+        const char *end() const
+        {
+            return reinterpret_cast<const char*>(&elements[elementCount]);
+        }
+    };
+
     ID3D11InputLayout *mCurrentIL;
     ID3D11Buffer *mCurrentBuffers[gl::MAX_VERTEX_ATTRIBS];
     UINT mCurrentVertexStrides[gl::MAX_VERTEX_ATTRIBS];
     UINT mCurrentVertexOffsets[gl::MAX_VERTEX_ATTRIBS];
 
-    static std::size_t hashInputLayout(const InputLayoutKey &inputLayout);
-    static bool compareInputLayouts(const InputLayoutKey &a, const InputLayoutKey &b);
+    static std::size_t hashInputLayout(const FormatKey &inputLayout);
+    static bool compareInputLayouts(const FormatKey &a, const FormatKey &b);
 
-    typedef std::size_t (*InputLayoutHashFunction)(const InputLayoutKey &);
-    typedef bool (*InputLayoutEqualityFunction)(const InputLayoutKey &, const InputLayoutKey &);
-    typedef std::unordered_map<InputLayoutKey,
+    typedef std::size_t (*InputLayoutHashFunction)(const FormatKey &);
+    typedef bool(*InputLayoutEqualityFunction)(const FormatKey &, const FormatKey &);
+    typedef std::unordered_map<FormatKey,
                                InputLayoutCounterPair,
                                InputLayoutHashFunction,
                                InputLayoutEqualityFunction> InputLayoutMap;

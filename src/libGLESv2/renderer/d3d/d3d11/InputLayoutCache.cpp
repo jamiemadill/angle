@@ -97,7 +97,8 @@ GLenum InputLayoutCache::applyVertexBuffers(TranslatedAttribute attributes[gl::M
         return GL_INVALID_OPERATION;
     }
 
-    InputLayoutKey ilKey = { 0 };
+    FormatKey formatKey;
+    formatKey.elementCount = 0;
 
     static const char* semanticName = "TEXCOORD";
 
@@ -105,30 +106,19 @@ GLenum InputLayoutCache::applyVertexBuffers(TranslatedAttribute attributes[gl::M
     {
         if (attributes[i].active)
         {
-            D3D11_INPUT_CLASSIFICATION inputClass = attributes[i].divisor > 0 ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA;
-
-            gl::VertexFormat vertexFormat(*attributes[i].attribute, attributes[i].currentValueType);
-            const d3d11::VertexFormat &vertexFormatInfo = d3d11::GetVertexFormatInfo(vertexFormat);
-
-            // Record the type of the associated vertex shader vector in our key
-            // This will prevent mismatched vertex shaders from using the same input layout
-            GLint attributeSize;
-            programBinary->getActiveAttribute(ilKey.elementCount, 0, NULL, &attributeSize, &ilKey.elements[ilKey.elementCount].glslElementType, NULL);
-
-            ilKey.elements[ilKey.elementCount].desc.SemanticName = semanticName;
-            ilKey.elements[ilKey.elementCount].desc.SemanticIndex = sortedSemanticIndices[i];
-            ilKey.elements[ilKey.elementCount].desc.Format = vertexFormatInfo.nativeFormat;
-            ilKey.elements[ilKey.elementCount].desc.InputSlot = i;
-            ilKey.elements[ilKey.elementCount].desc.AlignedByteOffset = 0;
-            ilKey.elements[ilKey.elementCount].desc.InputSlotClass = inputClass;
-            ilKey.elements[ilKey.elementCount].desc.InstanceDataStepRate = attributes[i].divisor;
-            ilKey.elementCount++;
+            formatKey.elements[i].format = gl::VertexFormat(*attributes[i].attribute, attributes[i].currentValueType);
+            formatKey.elements[i].divisor = attributes[i].divisor;
+            formatKey.elementCount++;
+        }
+        else
+        {
+            formatKey.elements[i].divisor = 0;
         }
     }
 
     ID3D11InputLayout *inputLayout = NULL;
 
-    InputLayoutMap::iterator keyIter = mInputLayoutMap.find(ilKey);
+    InputLayoutMap::iterator keyIter = mInputLayoutMap.find(formatKey);
     if (keyIter != mInputLayoutMap.end())
     {
         inputLayout = keyIter->second.inputLayout;
@@ -136,6 +126,32 @@ GLenum InputLayoutCache::applyVertexBuffers(TranslatedAttribute attributes[gl::M
     }
     else
     {
+        InputLayoutKey ilKey = { 0 };
+        for (unsigned int i = 0; i < gl::MAX_VERTEX_ATTRIBS; i++)
+        {
+            if (attributes[i].active)
+            {
+                D3D11_INPUT_CLASSIFICATION inputClass = attributes[i].divisor > 0 ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA;
+
+                gl::VertexFormat vertexFormat(*attributes[i].attribute, attributes[i].currentValueType);
+                const d3d11::VertexFormat &vertexFormatInfo = d3d11::GetVertexFormatInfo(vertexFormat);
+
+                // Record the type of the associated vertex shader vector in our key
+                // This will prevent mismatched vertex shaders from using the same input layout
+                GLint attributeSize;
+                programBinary->getActiveAttribute(ilKey.elementCount, 0, NULL, &attributeSize, &ilKey.elements[ilKey.elementCount].glslElementType, NULL);
+
+                ilKey.elements[ilKey.elementCount].desc.SemanticName = semanticName;
+                ilKey.elements[ilKey.elementCount].desc.SemanticIndex = sortedSemanticIndices[i];
+                ilKey.elements[ilKey.elementCount].desc.Format = vertexFormatInfo.nativeFormat;
+                ilKey.elements[ilKey.elementCount].desc.InputSlot = i;
+                ilKey.elements[ilKey.elementCount].desc.AlignedByteOffset = 0;
+                ilKey.elements[ilKey.elementCount].desc.InputSlotClass = inputClass;
+                ilKey.elements[ilKey.elementCount].desc.InstanceDataStepRate = attributes[i].divisor;
+                ilKey.elementCount++;
+            }
+        }
+
         gl::VertexFormat shaderInputLayout[gl::MAX_VERTEX_ATTRIBS];
         GetInputLayout(attributes, shaderInputLayout);
         ShaderExecutable11 *shader = ShaderExecutable11::makeShaderExecutable11(programBinary->getVertexExecutableForInputLayout(shaderInputLayout));
@@ -174,7 +190,7 @@ GLenum InputLayoutCache::applyVertexBuffers(TranslatedAttribute attributes[gl::M
         inputCounterPair.inputLayout = inputLayout;
         inputCounterPair.lastUsedTime = mCounter++;
 
-        mInputLayoutMap.insert(std::make_pair(ilKey, inputCounterPair));
+        mInputLayoutMap.insert(std::make_pair(formatKey, inputCounterPair));
     }
 
     if (inputLayout != mCurrentIL)
@@ -225,7 +241,7 @@ GLenum InputLayoutCache::applyVertexBuffers(TranslatedAttribute attributes[gl::M
     return GL_NO_ERROR;
 }
 
-std::size_t InputLayoutCache::hashInputLayout(const InputLayoutKey &inputLayout)
+std::size_t InputLayoutCache::hashInputLayout(const FormatKey &inputLayout)
 {
     static const unsigned int seed = 0xDEADBEEF;
 
@@ -234,7 +250,7 @@ std::size_t InputLayoutCache::hashInputLayout(const InputLayoutKey &inputLayout)
     return hash;
 }
 
-bool InputLayoutCache::compareInputLayouts(const InputLayoutKey &a, const InputLayoutKey &b)
+bool InputLayoutCache::compareInputLayouts(const FormatKey &a, const FormatKey &b)
 {
     if (a.elementCount != b.elementCount)
     {
