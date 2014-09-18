@@ -218,6 +218,8 @@
                         'perf_tests/SimpleBenchmarks.cpp',
                         'perf_tests/TexSubImage.cpp',
                         'perf_tests/TexSubImage.h',
+                        'perf_tests/UniformUpdates.cpp',
+                        'perf_tests/UniformUpdates.h',
                     ],
                 },
             ],

@@ -12,7 +12,7 @@ SimpleBenchmark::SimpleBenchmark(const std::string &name, size_t width, size_t h
       mName(name),
       mRunning(false),
       mDrawIterations(10),
-      mRunTimeSeconds(5.0)
+      mRunTimeSeconds(10.0)
 {
     mOSWindow.reset(CreateOSWindow());
     mEGLWindow.reset(new EGLWindow(width, height, glesMajorVersion, requestedRenderer));

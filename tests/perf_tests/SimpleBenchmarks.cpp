@@ -8,10 +8,11 @@
 #include "BufferSubData.h"
 #include "TexSubImage.h"
 #include "PointSprites.h"
+#include "UniformUpdates.h"
 
 EGLint platforms[] =
 {
-    EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE,
+//    EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE,
     EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE
 };
 
@@ -24,7 +25,7 @@ unsigned int iterationCounts[] = { 10 };
 unsigned int updatesEveryNFrames[] = { 1, 4 };
 
 int main(int argc, char **argv)
-{
+{/*
     std::vector<BufferSubDataParams> subDataParams;
 
     for (size_t platIt = 0; platIt < ArraySize(platforms); platIt++)
@@ -118,4 +119,19 @@ int main(int argc, char **argv)
     }
 
     RunBenchmarks<PointSpritesBenchmark>(pointSpriteParams);
+*/
+    std::vector<UniformUpdatesParams> uniformUpdatesParams;
+
+    for (size_t platIt = 0; platIt < ArraySize(platforms); platIt++)
+    {
+        UniformUpdatesParams params;
+
+        params.requestedRenderer = platforms[platIt];
+        params.iterations = 10;
+        params.numUniforms = 120;
+
+        uniformUpdatesParams.push_back(params);
+    }
+
+    RunBenchmarks<UniformUpdatesBenchmark>(uniformUpdatesParams);
 }
