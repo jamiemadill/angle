@@ -13,6 +13,7 @@
 #include "libGLESv2/renderer/Workarounds.h"
 #include "libGLESv2/ProgramBinary.h"
 #include "libGLESv2/Framebuffer.h"
+#include "libGLESv2/ImageIndex.h"
 
 #include "common/debug.h"
 
