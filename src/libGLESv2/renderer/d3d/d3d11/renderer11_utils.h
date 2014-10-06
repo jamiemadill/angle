@@ -18,6 +18,7 @@
 namespace gl
 {
 class FramebufferAttachment;
+struct ImageIndex;
 }
 
 namespace rx
