@@ -966,7 +966,7 @@ void Context::getIntegerv(GLenum pname, GLint *params)
         *params = static_cast<GLint>(mExtensionStrings.size());
         break;
       default:
-        mState.getIntegerv(pname, params);
+        mState.getIntegerv(mClientVersion, pname, params);
         break;
     }
 }
@@ -1318,7 +1318,7 @@ bool Context::getIndexedQueryParameterInfo(GLenum target, GLenum *type, unsigned
 Error Context::applyRenderTarget(GLenum drawMode, bool ignoreViewport)
 {
     Framebuffer *framebufferObject = mState.getDrawFramebuffer();
-    ASSERT(framebufferObject && framebufferObject->completeness() == GL_FRAMEBUFFER_COMPLETE);
+    ASSERT(framebufferObject && framebufferObject->completeness(mClientVersion) == GL_FRAMEBUFFER_COMPLETE);
 
     gl::Error error = mRenderer->applyRenderTarget(framebufferObject);
     if (error.isError())
@@ -1340,7 +1340,7 @@ Error Context::applyRenderTarget(GLenum drawMode, bool ignoreViewport)
 Error Context::applyState(GLenum drawMode)
 {
     Framebuffer *framebufferObject = mState.getDrawFramebuffer();
-    int samples = framebufferObject->getSamples();
+    int samples = framebufferObject->getSamples(mClientVersion);
 
     RasterizerState rasterizer = mState.getRasterizerState();
     rasterizer.pointDrawMode = (drawMode == GL_POINTS);
@@ -1993,7 +1993,7 @@ const Extensions &Context::getExtensions() const
 void Context::getCurrentReadFormatType(GLenum *internalFormat, GLenum *format, GLenum *type)
 {
     Framebuffer *framebuffer = mState.getReadFramebuffer();
-    ASSERT(framebuffer && framebuffer->completeness() == GL_FRAMEBUFFER_COMPLETE);
+    ASSERT(framebuffer && framebuffer->completeness(mClientVersion) == GL_FRAMEBUFFER_COMPLETE);
 
     FramebufferAttachment *attachment = framebuffer->getReadColorbuffer();
     ASSERT(attachment);

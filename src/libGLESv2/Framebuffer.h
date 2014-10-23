@@ -68,10 +68,10 @@ class Framebuffer
     bool isEnabledColorAttachment(unsigned int colorAttachment) const;
     bool hasEnabledColorAttachment() const;
     bool hasStencil() const;
-    int getSamples() const;
+    int getSamples(GLint clientVesion) const;
     bool usingExtendedDrawBuffers() const;
 
-    virtual GLenum completeness() const;
+    virtual GLenum completeness(GLint clientVesion) const;
     bool hasValidDepthStencil() const;
 
     Error invalidate(const Caps &caps, GLsizei numAttachments, const GLenum *attachments);
@@ -105,7 +105,7 @@ class DefaultFramebuffer : public Framebuffer
   public:
     DefaultFramebuffer(rx::Renderer *Renderer, Colorbuffer *colorbuffer, DepthStencilbuffer *depthStencil);
 
-    virtual GLenum completeness() const;
+    GLenum completeness(GLint clientVesion) const override;
     virtual FramebufferAttachment *getAttachment(GLenum attachment) const;
 
   private:

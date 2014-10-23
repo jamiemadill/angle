@@ -621,7 +621,7 @@ GLenum GL_APIENTRY glCheckFramebufferStatus(GLenum target)
 
         gl::Framebuffer *framebuffer = context->getState().getTargetFramebuffer(target);
         ASSERT(framebuffer);
-        return framebuffer->completeness();
+        return framebuffer->completeness(context->getClientVersion());
     }
 
     return 0;
@@ -636,7 +636,7 @@ void GL_APIENTRY glClear(GLbitfield mask)
     {
         gl::Framebuffer *framebufferObject = context->getState().getDrawFramebuffer();
 
-        if (!framebufferObject || framebufferObject->completeness() != GL_FRAMEBUFFER_COMPLETE)
+        if (!framebufferObject || framebufferObject->completeness(context->getClientVersion()) != GL_FRAMEBUFFER_COMPLETE)
         {
             context->recordError(gl::Error(GL_INVALID_FRAMEBUFFER_OPERATION));
             return;
@@ -8281,7 +8281,7 @@ void GL_APIENTRY glInvalidateFramebuffer(GLenum target, GLsizei numAttachments, 
         }
 
         gl::Framebuffer *framebuffer = context->getState().getTargetFramebuffer(target);
-        if (framebuffer && framebuffer->completeness() == GL_FRAMEBUFFER_COMPLETE)
+        if (framebuffer && framebuffer->completeness(context->getClientVersion()) == GL_FRAMEBUFFER_COMPLETE)
         {
             gl::Error error = framebuffer->invalidate(context->getCaps(), numAttachments, attachments);
             if (error.isError())
@@ -8314,7 +8314,7 @@ void GL_APIENTRY glInvalidateSubFramebuffer(GLenum target, GLsizei numAttachment
         }
 
         gl::Framebuffer *framebuffer = context->getState().getTargetFramebuffer(target);
-        if (framebuffer && framebuffer->completeness() == GL_FRAMEBUFFER_COMPLETE)
+        if (framebuffer && framebuffer->completeness(context->getClientVersion()) == GL_FRAMEBUFFER_COMPLETE)
         {
             gl::Error error = framebuffer->invalidateSub(numAttachments, attachments, x, y, width, height);
             if (error.isError())

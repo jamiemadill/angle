@@ -386,14 +386,13 @@ bool Framebuffer::usingExtendedDrawBuffers() const
     return false;
 }
 
-GLenum Framebuffer::completeness() const
+GLenum Framebuffer::completeness(GLint clientVersion) const
 {
     int width = 0;
     int height = 0;
     unsigned int colorbufferSize = 0;
     int samples = -1;
     bool missingAttachment = true;
-    GLuint clientVersion = mRenderer->getCurrentClientVersion();
 
     for (unsigned int colorAttachment = 0; colorAttachment < IMPLEMENTATION_MAX_DRAW_BUFFERS; colorAttachment++)
     {
@@ -614,7 +613,6 @@ Error Framebuffer::invalidate(const Caps &caps, GLsizei numAttachments, const GL
 
 Error Framebuffer::invalidateSub(GLsizei numAttachments, const GLenum *attachments, GLint x, GLint y, GLsizei width, GLsizei height)
 {
-    ASSERT(completeness() == GL_FRAMEBUFFER_COMPLETE);
     for (GLsizei attachIndex = 0; attachIndex < numAttachments; ++attachIndex)
     {
         GLenum attachmentTarget = attachments[attachIndex];
@@ -655,9 +653,9 @@ DefaultFramebuffer::DefaultFramebuffer(rx::Renderer *renderer, Colorbuffer *colo
     mReadBufferState = GL_BACK;
 }
 
-int Framebuffer::getSamples() const
+int Framebuffer::getSamples(GLint clientVersion) const
 {
-    if (completeness() == GL_FRAMEBUFFER_COMPLETE)
+    if (completeness(clientVersion) == GL_FRAMEBUFFER_COMPLETE)
     {
         // for a complete framebuffer, all attachments must have the same sample count
         // in this case return the first nonzero sample size
@@ -705,7 +703,7 @@ ColorbufferInfo Framebuffer::getColorbuffersForRender() const
     return colorbuffersForRender;
 }
 
-GLenum DefaultFramebuffer::completeness() const
+GLenum DefaultFramebuffer::completeness(GLint /*clientVersion*/) const
 {
     // The default framebuffer *must* always be complete, though it may not be
     // subject to the same rules as application FBOs. ie, it could have 0x0 size.
