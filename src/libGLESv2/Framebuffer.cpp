@@ -70,7 +70,7 @@ unsigned int GetAttachmentSerial(gl::FramebufferAttachment *attachment)
 namespace gl
 {
 
-Framebuffer::Framebuffer(rx::Renderer *renderer, GLuint id)
+Framebuffer::Framebuffer(Renderer *renderer, GLuint id)
     : mRenderer(renderer),
       mId(id),
       mReadBufferState(GL_COLOR_ATTACHMENT0_EXT),

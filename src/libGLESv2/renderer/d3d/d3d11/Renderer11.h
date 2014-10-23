@@ -13,11 +13,11 @@
 #include "libGLESv2/angletypes.h"
 #include "common/mathutil.h"
 
-#include "libGLESv2/renderer/Renderer.h"
+#include "libGLESv2/renderer/RenderTarget.h"
+#include "libGLESv2/renderer/d3d/RendererD3D.h"
 #include "libGLESv2/renderer/d3d/HLSLCompiler.h"
 #include "libGLESv2/renderer/d3d/d3d11/RenderStateCache.h"
 #include "libGLESv2/renderer/d3d/d3d11/InputLayoutCache.h"
-#include "libGLESv2/renderer/RenderTarget.h"
 
 namespace gl
 {
@@ -42,13 +42,13 @@ enum
     MAX_FRAGMENT_UNIFORM_VECTORS_D3D11 = 1024
 };
 
-class Renderer11 : public Renderer
+class Renderer11 : public RendererD3D
 {
   public:
     Renderer11(egl::Display *display, EGLNativeDisplayType hDc, EGLint requestedDisplay);
     virtual ~Renderer11();
 
-    static Renderer11 *makeRenderer11(Renderer *renderer);
+    static Renderer11 *makeRenderer11(RendererImpl *renderer);
 
     virtual EGLint initialize();
     virtual bool resetDevice();

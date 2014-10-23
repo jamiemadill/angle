@@ -9,10 +9,8 @@
 
 #include "libGLESv2/Context.h"
 
-#include "libGLESv2/main.h"
 #include "common/utilities.h"
 #include "common/platform.h"
-#include "libGLESv2/formatutils.h"
 #include "libGLESv2/Buffer.h"
 #include "libGLESv2/Fence.h"
 #include "libGLESv2/Framebuffer.h"
@@ -21,24 +19,29 @@
 #include "libGLESv2/Program.h"
 #include "libGLESv2/ProgramBinary.h"
 #include "libGLESv2/Query.h"
-#include "libGLESv2/Texture.h"
 #include "libGLESv2/ResourceManager.h"
-#include "libGLESv2/renderer/d3d/IndexDataManager.h"
-#include "libGLESv2/renderer/Renderer.h"
-#include "libGLESv2/VertexArray.h"
 #include "libGLESv2/Sampler.h"
-#include "libGLESv2/validationES.h"
+#include "libGLESv2/Texture.h"
 #include "libGLESv2/TransformFeedback.h"
+#include "libGLESv2/VertexArray.h"
+#include "libGLESv2/formatutils.h"
+#include "libGLESv2/main.h"
+#include "libGLESv2/validationES.h"
+#include "libGLESv2/renderer/Renderer.h"
 
 #include "libEGL/Surface.h"
 
 #include <sstream>
 #include <iterator>
 
+// TODO(jmadill): phase these out
+#include "libGLESv2/renderer/d3d/IndexDataManager.h"
+#include "libGLESv2/renderer/d3d/RendererD3D.h"
+
 namespace gl
 {
 
-Context::Context(int clientVersion, const gl::Context *shareContext, rx::Renderer *renderer, bool notifyResets, bool robustAccess)
+Context::Context(int clientVersion, const Context *shareContext, Renderer *renderer, bool notifyResets, bool robustAccess)
     : mRenderer(renderer)
 {
     ASSERT(robustAccess == false);   // Unimplemented

@@ -110,7 +110,7 @@ bool UnsetSRVsWithResource(std::vector<ID3D11ShaderResourceView *> &srvs, const 
 }
 
 Renderer11::Renderer11(egl::Display *display, EGLNativeDisplayType hDc, EGLint requestedDisplay)
-    : Renderer(display),
+    : RendererD3D(display),
       mDc(hDc),
       mRequestedDisplay(requestedDisplay)
 {
@@ -151,7 +151,7 @@ Renderer11::~Renderer11()
     release();
 }
 
-Renderer11 *Renderer11::makeRenderer11(Renderer *renderer)
+Renderer11 *Renderer11::makeRenderer11(RendererImpl *renderer)
 {
     ASSERT(HAS_DYNAMIC_TYPE(rx::Renderer11*, renderer));
     return static_cast<rx::Renderer11*>(renderer);
