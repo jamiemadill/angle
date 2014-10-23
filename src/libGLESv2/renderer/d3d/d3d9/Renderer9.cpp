@@ -100,7 +100,7 @@ enum
 };
 
 Renderer9::Renderer9(egl::Display *display, EGLNativeDisplayType hDc, EGLint requestedDisplay)
-    : Renderer(display),
+    : RendererD3D(display),
       mDc(hDc)
 {
     mD3d9Module = NULL;
@@ -178,7 +178,7 @@ void Renderer9::release()
     mD3d9Module = NULL;
 }
 
-Renderer9 *Renderer9::makeRenderer9(Renderer *renderer)
+Renderer9 *Renderer9::makeRenderer9(RendererImpl *renderer)
 {
     ASSERT(HAS_DYNAMIC_TYPE(rx::Renderer9*, renderer));
     return static_cast<rx::Renderer9*>(renderer);
