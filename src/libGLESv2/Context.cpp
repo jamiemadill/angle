@@ -167,13 +167,16 @@ Context::~Context()
     }
     mIncompleteTextures.clear();
 
-    for (TextureMap::iterator i = mZeroTextures.begin(); i != mZeroTextures.end(); i++)
+    for (auto &zeroTexture : mZeroTextures)
     {
-        i->second.set(NULL);
+        zeroTexture.second.set(NULL);
     }
     mZeroTextures.clear();
 
-    mResourceManager->release();
+    if (mResourceManager)
+    {
+        mResourceManager->release();
+    }
 }
 
 void Context::makeCurrent(egl::Surface *surface)
@@ -2432,6 +2435,11 @@ void Context::initCaps(GLuint clientVersion)
     }
 
     mExtensions.maxSamples = maxSamples;
+}
+
+Data Context::getData() const
+{
+    return Data(mClientVersion, mState, mCaps, mTextureCaps, mExtensions, mResourceManager);
 }
 
 }
