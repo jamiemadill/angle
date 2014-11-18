@@ -8,6 +8,7 @@
 
 #include "libGLESv2/renderer/d3d/RendererD3D.h"
 
+#include "libEGL/Display.h"
 #include "libGLESv2/renderer/d3d/IndexDataManager.h"
 #include "libGLESv2/Framebuffer.h"
 #include "libGLESv2/FramebufferAttachment.h"
@@ -21,7 +22,8 @@ namespace rx
 {
 
 RendererD3D::RendererD3D(egl::Display *display)
-    : mDisplay(display)
+    : mDisplay(display),
+      mDeviceLost(false)
 {
 }
 
@@ -791,6 +793,17 @@ gl::Error RendererD3D::readPixels(const gl::Data &data, GLint x, GLint y, GLsize
 
     return readPixels(framebuffer, x, y, width, height, format, type, outputPitch, data.state->getPackState(),
                       reinterpret_cast<uint8_t*>(pixels));
+}
+
+bool RendererD3D::isDeviceLost() const
+{
+    return mDeviceLost;
+}
+
+void RendererD3D::notifyDeviceLost()
+{
+    mDeviceLost = true;
+    mDisplay->notifyDeviceLost();
 }
 
 }
