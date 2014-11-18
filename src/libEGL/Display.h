@@ -26,6 +26,8 @@ class Context;
 namespace egl
 {
 class Surface;
+class SurfaceImpl;
+class DisplayImpl;
 
 class Display
 {
@@ -76,11 +78,17 @@ class Display
 
     Error restoreLostDevice();
 
+    static std::string generateClientExtensionString();
+
+    void initDisplayExtensionString();
+    void initVendorString();
+
+    DisplayImpl *initializeImpl();
+
+    DisplayImpl *mImplementation;
+
     EGLNativeDisplayType mDisplayId;
     AttributeMap mAttributeMap;
-
-    typedef std::set<Surface*> SurfaceSet;
-    SurfaceSet mSurfaceSet;
 
     ConfigSet mConfigSet;
 
@@ -89,14 +97,11 @@ class Display
 
     rx::Renderer *mRenderer;
 
-    static std::string generateClientExtensionString();
-
-    void initDisplayExtensionString();
     std::string mDisplayExtensionString;
 
-    void initVendorString();
     std::string mVendorString;
 };
+
 }
 
 #endif   // LIBEGL_DISPLAY_H_
