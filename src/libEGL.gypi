@@ -44,6 +44,8 @@
             'libEGL/Config.h',
             'libEGL/Display.cpp',
             'libEGL/Display.h',
+            'libEGL/DisplayImpl.cpp',
+            'libEGL/DisplayImpl.h',
             'libEGL/Error.cpp',
             'libEGL/Error.h',
             'libEGL/Surface.cpp',
@@ -60,6 +62,8 @@
         'angle_libegl_win32_sources':
         [
             'common/win32/NativeWindow.cpp',
+            'libEGL/DisplayD3D.cpp',
+            'libEGL/DisplayD3D.h',
             'libEGL/SurfaceD3D.cpp',
             'libEGL/SurfaceD3D.h',
         ],
