@@ -50,7 +50,7 @@ class Renderer11 : public RendererD3D
 {
   public:
     Renderer11(egl::Display *display, EGLNativeDisplayType hDc, const egl::AttributeMap &attributes);
-    virtual ~Renderer11();
+    ~Renderer11() override;
 
     static Renderer11 *makeRenderer11(Renderer *renderer);
 
@@ -114,7 +114,7 @@ class Renderer11 : public RendererD3D
     virtual bool getShareHandleSupport() const;
     virtual bool getPostSubBufferSupport() const;
 
-    virtual int getMajorShaderModel() const;
+    int getMajorShaderModel() const override;
     virtual int getMinSwapInterval() const;
     virtual int getMaxSwapInterval() const;
 

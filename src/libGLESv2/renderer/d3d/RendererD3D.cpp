@@ -813,4 +813,16 @@ std::string RendererD3D::getVendorString() const
     return std::string("");
 }
 
+bool RendererD3D::supportsOpenGLVersion(EGLint clientVersion) const
+{
+    // We only support ES3 on D3D11+
+    if (clientVersion == 3)
+    {
+        return (getMajorShaderModel() >= 4);
+    }
+
+    ASSERT(clientVersion == 2);
+    return true;
+}
+
 }

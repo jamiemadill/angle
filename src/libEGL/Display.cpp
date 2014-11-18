@@ -440,8 +440,8 @@ Error Display::createContext(EGLConfig configHandle, EGLint clientVersion, const
         }
     }
 
-    //TODO(jmadill): shader model is not cross-platform
-    if (clientVersion > 2 && mRenderer->getMajorShaderModel() < 4)
+    // Check for our OpenGL support
+    if (!mRenderer->supportsOpenGLVersion(clientVersion))
     {
         return Error(EGL_BAD_CONFIG);
     }

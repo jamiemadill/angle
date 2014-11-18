@@ -149,9 +149,10 @@ class Renderer
     virtual std::string getVendorString() const = 0;
 
     // TODO(jmadill): needed by egl::Display, probably should be removed
-    virtual int getMajorShaderModel() const = 0;
     virtual int getMinSwapInterval() const = 0;
     virtual int getMaxSwapInterval() const = 0;
+
+    virtual bool supportsOpenGLVersion(EGLint clientVersion) const = 0;
 
     egl::Display *getDisplay() const { return mDisplay; }
 

@@ -38,7 +38,7 @@ class RendererD3D : public Renderer
 {
   public:
     explicit RendererD3D(egl::Display *display);
-    virtual ~RendererD3D();
+    ~RendererD3D() override;
 
     static RendererD3D *makeRendererD3D(Renderer *renderer);
 
@@ -67,10 +67,12 @@ class RendererD3D : public Renderer
 
     bool isDeviceLost() const override;
     std::string getVendorString() const override;
+    bool supportsOpenGLVersion(EGLint clientVersion) const override;
 
     // Direct3D Specific methods
     virtual GUID getAdapterIdentifier() const = 0;
     virtual bool getLUID(LUID *adapterLuid) const = 0;
+    virtual int getMajorShaderModel() const = 0;
 
     virtual SwapChain *createSwapChain(NativeWindow nativeWindow, HANDLE shareHandle, GLenum backBufferFormat, GLenum depthBufferFormat) = 0;
 

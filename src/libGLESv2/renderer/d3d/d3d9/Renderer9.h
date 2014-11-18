@@ -40,7 +40,7 @@ class Renderer9 : public RendererD3D
 {
   public:
     Renderer9(egl::Display *display, EGLNativeDisplayType hDc, const egl::AttributeMap &attributes);
-    virtual ~Renderer9();
+    ~Renderer9() override;
 
     static Renderer9 *makeRenderer9(Renderer *renderer);
 
@@ -117,7 +117,7 @@ class Renderer9 : public RendererD3D
     virtual bool getShareHandleSupport() const;
     virtual bool getPostSubBufferSupport() const;
 
-    virtual int getMajorShaderModel() const;
+    int getMajorShaderModel() const override;
     DWORD getCapsDeclTypes() const;
     virtual int getMinSwapInterval() const;
     virtual int getMaxSwapInterval() const;
