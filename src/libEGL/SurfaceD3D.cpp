@@ -39,8 +39,8 @@ SurfaceD3D *SurfaceD3D::createOffscreen(Display *display, const Config *config, 
                           textureFormat, textureType, shareHandle, NULL);
 }
 
-SurfaceD3D *SurfaceD3D::createWindow(Display *display, const Config *config, EGLNativeWindowType window,
-                                     EGLint fixedSize, EGLint width, EGLint height, EGLint postSubBufferSupported)
+SurfaceD3D *SurfaceD3D::createFromWindow(Display *display, const Config *config, EGLNativeWindowType window,
+                                         EGLint fixedSize, EGLint width, EGLint height, EGLint postSubBufferSupported)
 {
     return new SurfaceD3D(display, config, width, height, fixedSize, postSubBufferSupported,
                           EGL_NO_TEXTURE, EGL_NO_TEXTURE, static_cast<EGLClientBuffer>(0), window);

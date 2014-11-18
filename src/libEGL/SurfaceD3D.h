@@ -25,9 +25,9 @@ class Surface;
 class SurfaceD3D : public SurfaceImpl
 {
   public:
-    static SurfaceD3D *createWindow(Display *display, const egl::Config *config,
-                                    EGLNativeWindowType window, EGLint fixedSize,
-                                    EGLint width, EGLint height, EGLint postSubBufferSupported);
+    static SurfaceD3D *createFromWindow(Display *display, const egl::Config *config,
+                                        EGLNativeWindowType window, EGLint fixedSize,
+                                        EGLint width, EGLint height, EGLint postSubBufferSupported);
     static SurfaceD3D *createOffscreen(Display *display, const egl::Config *config,
                                        EGLClientBuffer shareHandle, EGLint width, EGLint height,
                                        EGLenum textureFormat, EGLenum textureTarget);
