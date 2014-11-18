@@ -11,6 +11,9 @@
 
 #include "common/utilities.h"
 #include "common/platform.h"
+#include "libEGL/Display.h"
+#include "libEGL/Surface.h"
+#include "libEGL/SurfaceD3D.h"
 #include "libGLESv2/Buffer.h"
 #include "libGLESv2/Fence.h"
 #include "libGLESv2/Framebuffer.h"
@@ -28,9 +31,6 @@
 #include "libGLESv2/main.h"
 #include "libGLESv2/validationES.h"
 #include "libGLESv2/renderer/Renderer.h"
-
-#include "libEGL/Display.h"
-#include "libEGL/Surface.h"
 
 #include <sstream>
 #include <iterator>

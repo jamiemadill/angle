@@ -41,6 +41,7 @@
 
 #include "libEGL/Display.h"
 #include "libEGL/Surface.h"
+#include "libEGL/SurfaceD3D.h"
 
 #include "common/utilities.h"
 #include "common/tls.h"
@@ -2390,7 +2391,10 @@ gl::Error Renderer11::createRenderTarget(int width, int height, GLenum format, G
 
 DefaultAttachmentImpl *Renderer11::createDefaultAttachment(GLenum type, egl::Surface *surface)
 {
-    SwapChain11 *swapChain = SwapChain11::makeSwapChain11(surface->getSwapChain());
+    // TODO(jmadill): use make method when available
+    egl::SurfaceD3D *surfaceD3D = static_cast<egl::SurfaceD3D*>(surface->getImplementation());
+
+    SwapChain11 *swapChain = SwapChain11::makeSwapChain11(surfaceD3D->getSwapChain());
     switch (type)
     {
       case GL_BACK:
