@@ -276,7 +276,7 @@ Error Display::createWindowSurface(EGLNativeWindowType window, EGLConfig config,
         return Error(EGL_BAD_ALLOC);
     }
 
-    if (mRenderer->testDeviceLost(false))
+    if (mRenderer->testDeviceLost())
     {
         Error error = restoreLostDevice();
         if (error.isError())
@@ -393,7 +393,7 @@ Error Display::createOffscreenSurface(EGLConfig config, HANDLE shareHandle, cons
         return Error(EGL_BAD_ATTRIBUTE);
     }
 
-    if (mRenderer->testDeviceLost(false))
+    if (mRenderer->testDeviceLost())
     {
         Error error = restoreLostDevice();
         if (error.isError())
@@ -426,7 +426,7 @@ Error Display::createContext(EGLConfig configHandle, EGLint clientVersion, const
         *outContext = EGL_NO_CONTEXT;
         return Error(EGL_SUCCESS);
     }
-    else if (mRenderer->testDeviceLost(false))   // Lost device
+    else if (mRenderer->testDeviceLost())   // Lost device
     {
         Error error = restoreLostDevice();
         if (error.isError())
