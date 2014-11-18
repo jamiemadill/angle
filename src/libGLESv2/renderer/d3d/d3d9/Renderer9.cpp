@@ -143,7 +143,7 @@ Renderer9::~Renderer9()
     if (mDevice)
     {
         // If the device is lost, reset it first to prevent leaving the driver in an unstable state
-        if (testDeviceLost(false))
+        if (testDeviceLost())
         {
             resetDevice();
         }
@@ -529,7 +529,7 @@ gl::Error Renderer9::sync(bool block)
         // explicitly check for device loss
         // some drivers seem to return S_FALSE even if the device is lost
         // instead of D3DERR_DEVICELOST like they should
-        if (result == S_FALSE && testDeviceLost(false))
+        if (result == S_FALSE && testDeviceLost())
         {
             result = D3DERR_DEVICELOST;
         }
@@ -2161,7 +2161,7 @@ bool Renderer9::isDeviceLost()
 }
 
 // set notify to true to broadcast a message to all contexts of the device loss
-bool Renderer9::testDeviceLost(bool notify)
+bool Renderer9::testDeviceLost()
 {
     HRESULT status = getDeviceStatusCode();
     bool isLost = FAILED(status);
@@ -2174,10 +2174,6 @@ bool Renderer9::testDeviceLost(bool notify)
         // Note that we don't want to clear the device loss status here
         // -- this needs to be done by resetDevice
         mDeviceLost = true;
-        if (notify)
-        {
-            notifyDeviceLost();
-        }
     }
 
     return isLost;
@@ -2225,7 +2221,7 @@ bool Renderer9::resetDevice()
     D3DPRESENT_PARAMETERS presentParameters = getDefaultPresentParameters();
 
     HRESULT result = D3D_OK;
-    bool lost = testDeviceLost(false);
+    bool lost = testDeviceLost();
     bool removedDevice = (getDeviceStatusCode() == D3DERR_DEVICEREMOVED);
 
     // Device Removed is a feature which is only present with D3D9Ex
@@ -2245,7 +2241,7 @@ bool Renderer9::resetDevice()
         {
             Sleep(500);   // Give the graphics driver some CPU time
             result = mDeviceEx->ResetEx(&presentParameters, NULL);
-            lost = testDeviceLost(false);
+            lost = testDeviceLost();
         }
         else
         {
@@ -2260,7 +2256,7 @@ bool Renderer9::resetDevice()
             {
                 result = mDevice->Reset(&presentParameters);
             }
-            lost = testDeviceLost(false);
+            lost = testDeviceLost();
         }
     }
 
