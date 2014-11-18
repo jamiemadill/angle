@@ -157,6 +157,7 @@ class RendererD3D : public Renderer
 
     // Device lost
     virtual void notifyDeviceLost();
+    virtual bool resetDevice() = 0;
 
   protected:
     virtual gl::Error drawArrays(GLenum mode, GLsizei count, GLsizei instances, bool transformFeedbackActive) = 0;
