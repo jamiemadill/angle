@@ -175,8 +175,6 @@ Renderer11::Renderer11(egl::Display *display, EGLNativeDisplayType hDc, const eg
     mD3d11Module = NULL;
     mDxgiModule = NULL;
 
-    mDeviceLost = false;
-
     mDevice = NULL;
     mDeviceContext = NULL;
     mDxgiAdapter = NULL;
@@ -1817,11 +1815,6 @@ void Renderer11::notifyDeviceLost()
 {
     mDeviceLost = true;
     mDisplay->notifyDeviceLost();
-}
-
-bool Renderer11::isDeviceLost()
-{
-    return mDeviceLost;
 }
 
 // set notify to true to broadcast a message to all contexts of the device loss
