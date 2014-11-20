@@ -152,8 +152,11 @@ void Display::terminate()
         destroyContext(*mContextSet.begin());
     }
 
-    glDestroyRenderer(mRenderer);
-    mRenderer = NULL;
+    if (mRenderer)
+    {
+        glDestroyRenderer(mRenderer);
+        mRenderer = NULL;
+    }
 
     mConfigSet.mSet.clear();
 }
