@@ -12,7 +12,13 @@
 #include "libANGLE/Constants.h"
 #include "libANGLE/RefCountObject.h"
 
-#include <cstdint>
+#include <stdint.h>
+
+#ifdef ANGLE_USE_UNORDERED_MAP
+#include <unordered_map>
+#else
+#include <map>
+#endif
 
 namespace gl
 {
@@ -260,6 +266,18 @@ enum VendorID : uint32_t
     VENDOR_ID_INTEL = 0x8086,
     VENDOR_ID_NVIDIA = 0x10DE,
 };
+
+#ifdef ANGLE_USE_UNORDERED_MAP
+
+template <typename KeyT, typename ValueT>
+using UnorderedMap = std::unordered_map<KeyT, ValueT>;
+
+#else
+
+template <typename KeyT, typename ValueT>
+using UnorderedMap = std::map<KeyT, ValueT>;
+
+#endif
 
 }
 

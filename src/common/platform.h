@@ -76,4 +76,8 @@
 #   undef far
 #endif
 
+#if !defined(ANGLE_PLATFORM_APPLE)
+#define ANGLE_USE_UNORDERED_MAP 1
+#endif
+
 #endif // COMMON_PLATFORM_H_

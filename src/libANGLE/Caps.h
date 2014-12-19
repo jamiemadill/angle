@@ -8,9 +8,9 @@
 #define LIBANGLE_CAPS_H_
 
 #include "angle_gl.h"
+#include "libANGLE/angletypes.h"
 
 #include <set>
-#include <unordered_map>
 #include <vector>
 #include <string>
 
@@ -45,7 +45,7 @@ struct TextureCaps
 class TextureCapsMap
 {
   public:
-    typedef std::unordered_map<GLenum, TextureCaps>::const_iterator const_iterator;
+    typedef rx::UnorderedMap<GLenum, TextureCaps>::const_iterator const_iterator;
 
     void insert(GLenum internalFormat, const TextureCaps &caps);
     void remove(GLenum internalFormat);
@@ -58,7 +58,7 @@ class TextureCapsMap
     size_t size() const;
 
   private:
-    typedef std::unordered_map<GLenum, TextureCaps> InternalFormatToCapsMap;
+    typedef rx::UnorderedMap<GLenum, TextureCaps> InternalFormatToCapsMap;
     InternalFormatToCapsMap mCapsMap;
 };
 

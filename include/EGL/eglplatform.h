@@ -109,6 +109,15 @@ typedef Display *EGLNativeDisplayType;
 typedef Pixmap   EGLNativePixmapType;
 typedef Window   EGLNativeWindowType;
 
+#elif defined(__GNUC__) && ( defined(__APPLE_CPP__) || defined(__APPLE_CC__) || defined(__MACOS_CLASSIC__) )
+    // this line is taken from the TargetConditionals.h file in any on the iOS or Mac OS X platforms
+
+struct appleEGLWindow;
+
+typedef int                     EGLNativeDisplayType;
+typedef void                   *EGLNativePixmapType;
+typedef struct appleEGLWindow  *EGLNativeWindowType;
+
 #else
 #error "Platform not recognized"
 #endif
