@@ -16,8 +16,6 @@
 
 #include "angle_gl.h"
 
-#include <unordered_map>
-
 namespace rx
 {
 class Renderer;
@@ -82,30 +80,30 @@ class ResourceManager
     rx::Renderer *mRenderer;
     std::size_t mRefCount;
 
-    typedef std::unordered_map<GLuint, Buffer*> BufferMap;
+    typedef rx::UnorderedMap<GLuint, Buffer*> BufferMap;
     BufferMap mBufferMap;
     HandleAllocator mBufferHandleAllocator;
 
-    typedef std::unordered_map<GLuint, Shader*> ShaderMap;
+    typedef rx::UnorderedMap<GLuint, Shader*> ShaderMap;
     ShaderMap mShaderMap;
 
-    typedef std::unordered_map<GLuint, Program*> ProgramMap;
+    typedef rx::UnorderedMap<GLuint, Program*> ProgramMap;
     ProgramMap mProgramMap;
     HandleAllocator mProgramShaderHandleAllocator;
 
-    typedef std::unordered_map<GLuint, Texture*> TextureMap;
+    typedef rx::UnorderedMap<GLuint, Texture*> TextureMap;
     TextureMap mTextureMap;
     HandleAllocator mTextureHandleAllocator;
 
-    typedef std::unordered_map<GLuint, Renderbuffer*> RenderbufferMap;
+    typedef rx::UnorderedMap<GLuint, Renderbuffer*> RenderbufferMap;
     RenderbufferMap mRenderbufferMap;
     HandleAllocator mRenderbufferHandleAllocator;
 
-    typedef std::unordered_map<GLuint, Sampler*> SamplerMap;
+    typedef rx::UnorderedMap<GLuint, Sampler*> SamplerMap;
     SamplerMap mSamplerMap;
     HandleAllocator mSamplerHandleAllocator;
 
-    typedef std::unordered_map<GLuint, FenceSync*> FenceMap;
+    typedef rx::UnorderedMap<GLuint, FenceSync*> FenceMap;
     FenceMap mFenceSyncMap;
     HandleAllocator mFenceSyncHandleAllocator;
 };
