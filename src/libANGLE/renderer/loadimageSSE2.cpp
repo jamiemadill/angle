@@ -17,7 +17,8 @@ void LoadA8ToBGRA8_SSE2(size_t width, size_t height, size_t depth,
                         const uint8_t *input, size_t inputRowPitch, size_t inputDepthPitch,
                         uint8_t *output, size_t outputRowPitch, size_t outputDepthPitch)
 {
-#if defined(_M_ARM)
+    // TODO(jmadill): possible OSX support
+#if defined(_M_ARM) || defined(ANGLE_PLATFORM_APPLE)
     // Ensure that this function is reported as not implemented for ARM builds because
     // the instructions below are not present for that architecture.
     UNIMPLEMENTED();
@@ -67,7 +68,8 @@ void LoadRGBA8ToBGRA8_SSE2(size_t width, size_t height, size_t depth,
                            const uint8_t *input, size_t inputRowPitch, size_t inputDepthPitch,
                            uint8_t *output, size_t outputRowPitch, size_t outputDepthPitch)
 {
-#if defined(_M_ARM)
+    // TODO(jmadill): possible OSX support
+#if defined(_M_ARM) || defined(ANGLE_PLATFORM_APPLE)
     // Ensure that this function is reported as not implemented for ARM builds because
     // the instructions below are not present for that architecture.
     UNIMPLEMENTED();
