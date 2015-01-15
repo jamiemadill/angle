@@ -141,9 +141,6 @@ class Renderer11 : public RendererD3D
     virtual ProgramImpl *createProgram();
 
     // Shader operations
-    virtual gl::Error loadExecutable(const void *function, size_t length, ShaderType type,
-                                     const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
-                                     bool separatedOutputBuffers, ShaderExecutable **outExecutable);
     virtual Concurrency::task<gl::Error> compileToExecutable(gl::InfoLog &infoLog, const std::string &shaderHLSL, ShaderType type,
                                           const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
                                           bool separatedOutputBuffers, D3DWorkaroundType workaround,
@@ -214,6 +211,8 @@ class Renderer11 : public RendererD3D
 
     bool isES3Capable() const { return mFeatureLevel >= D3D_FEATURE_LEVEL_10_0; };
     D3D_FEATURE_LEVEL getFeatureLevel() const { return mFeatureLevel; };
+
+    ShaderExecutable *createShaderExecutable(const uint8_t *function, size_t length) override;
 
   private:
     DISALLOW_COPY_AND_ASSIGN(Renderer11);

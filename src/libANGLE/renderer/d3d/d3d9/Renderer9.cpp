@@ -2622,45 +2622,6 @@ ProgramImpl *Renderer9::createProgram()
     return new ProgramD3D(this);
 }
 
-gl::Error Renderer9::loadExecutable(const void *function, size_t length, ShaderType type,
-                                    const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
-                                    bool separatedOutputBuffers, ShaderExecutable **outExecutable)
-{
-    // Transform feedback is not supported in ES2 or D3D9
-    ASSERT(transformFeedbackVaryings.size() == 0);
-
-    switch (type)
-    {
-      case SHADER_VERTEX:
-        {
-            IDirect3DVertexShader9 *vshader = NULL;
-            gl::Error error = createVertexShader((DWORD*)function, length, &vshader);
-            if (error.isError())
-            {
-                return error;
-            }
-            *outExecutable = new ShaderExecutable9(function, length, vshader);
-        }
-        break;
-      case SHADER_PIXEL:
-        {
-            IDirect3DPixelShader9 *pshader = NULL;
-            gl::Error error = createPixelShader((DWORD*)function, length, &pshader);
-            if (error.isError())
-            {
-                return error;
-            }
-            *outExecutable = new ShaderExecutable9(function, length, pshader);
-        }
-        break;
-      default:
-        UNREACHABLE();
-        return gl::Error(GL_INVALID_OPERATION);
-    }
-
-    return gl::Error(GL_NO_ERROR);
-}
-
 task<gl::Error> Renderer9::compileToExecutable(gl::InfoLog &infoLog, const std::string &shaderHLSL, ShaderType type,
                                          const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
                                          bool separatedOutputBuffers, D3DWorkaroundType workaround,

@@ -275,6 +275,13 @@ enum VendorID : uint32_t
     VENDOR_ID_NVIDIA = 0x10DE,
 };
 
+enum ShaderType
+{
+    SHADER_VERTEX,
+    SHADER_PIXEL,
+    SHADER_GEOMETRY
+};
+
 }
 
 #endif // LIBANGLE_ANGLETYPES_H_

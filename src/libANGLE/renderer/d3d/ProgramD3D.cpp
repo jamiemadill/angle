@@ -583,21 +583,15 @@ LinkResult ProgramD3D::load(gl::InfoLog &infoLog, gl::BinaryInputStream *stream)
         unsigned int vertexShaderSize = stream->readInt<unsigned int>();
         const unsigned char *vertexShaderFunction = binary + stream->offset();
 
-        ShaderExecutable *shaderExecutable = NULL;
-        gl::Error error = mRenderer->loadExecutable(vertexShaderFunction, vertexShaderSize,
-                                                    SHADER_VERTEX,
-                                                    mTransformFeedbackLinkedVaryings,
-                                                    (mTransformFeedbackBufferMode == GL_SEPARATE_ATTRIBS),
-                                                    &shaderExecutable);
+        ShaderExecutable *shaderExecutable = mRenderer->createShaderExecutable(vertexShaderFunction, vertexShaderSize);
+        gl::Error error = shaderExecutable->finishLoad(SHADER_VERTEX,
+                                                       mTransformFeedbackLinkedVaryings,
+                                                       (mTransformFeedbackBufferMode == GL_SEPARATE_ATTRIBS));
         if (error.isError())
         {
-            return LinkResult(false, error);
-        }
-
-        if (!shaderExecutable)
-        {
             infoLog.append("Could not create vertex shader.");
-            return LinkResult(false, gl::Error(GL_NO_ERROR));
+            SafeDelete(shaderExecutable);
+            return LinkResult(false, error);
         }
 
         // generated converted input layout
@@ -622,20 +616,15 @@ LinkResult ProgramD3D::load(gl::InfoLog &infoLog, gl::BinaryInputStream *stream)
 
         const size_t pixelShaderSize = stream->readInt<unsigned int>();
         const unsigned char *pixelShaderFunction = binary + stream->offset();
-        ShaderExecutable *shaderExecutable = NULL;
-        gl::Error error = mRenderer->loadExecutable(pixelShaderFunction, pixelShaderSize, SHADER_PIXEL,
-                                                    mTransformFeedbackLinkedVaryings,
-                                                    (mTransformFeedbackBufferMode == GL_SEPARATE_ATTRIBS),
-                                                    &shaderExecutable);
+        ShaderExecutable *shaderExecutable = mRenderer->createShaderExecutable(pixelShaderFunction, pixelShaderSize);
+        gl::Error error = shaderExecutable->finishLoad(SHADER_PIXEL,
+                                                       mTransformFeedbackLinkedVaryings,
+                                                       (mTransformFeedbackBufferMode == GL_SEPARATE_ATTRIBS));
         if (error.isError())
         {
-            return LinkResult(false, error);
-        }
-
-        if (!shaderExecutable)
-        {
             infoLog.append("Could not create pixel shader.");
-            return LinkResult(false, gl::Error(GL_NO_ERROR));
+            SafeDelete(shaderExecutable);
+            return LinkResult(false, error);
         }
 
         // add new binary
@@ -649,20 +638,18 @@ LinkResult ProgramD3D::load(gl::InfoLog &infoLog, gl::BinaryInputStream *stream)
     if (geometryShaderSize > 0)
     {
         const unsigned char *geometryShaderFunction = binary + stream->offset();
-        gl::Error error = mRenderer->loadExecutable(geometryShaderFunction, geometryShaderSize, SHADER_GEOMETRY,
-                                                    mTransformFeedbackLinkedVaryings,
-                                                    (mTransformFeedbackBufferMode == GL_SEPARATE_ATTRIBS),
-                                                    &mGeometryExecutable);
+
+        mGeometryExecutable = mRenderer->createShaderExecutable(geometryShaderFunction, geometryShaderSize);
+        gl::Error error = mGeometryExecutable->finishLoad(SHADER_GEOMETRY,
+                                                          mTransformFeedbackLinkedVaryings,
+                                                          (mTransformFeedbackBufferMode == GL_SEPARATE_ATTRIBS));
         if (error.isError())
         {
+            infoLog.append("Could not create geometry shader.");
+            SafeDelete(mGeometryExecutable);
             return LinkResult(false, error);
         }
 
-        if (!mGeometryExecutable)
-        {
-            infoLog.append("Could not create geometry shader.");
-            return LinkResult(false, gl::Error(GL_NO_ERROR));
-        }
         stream->skip(geometryShaderSize);
     }
 

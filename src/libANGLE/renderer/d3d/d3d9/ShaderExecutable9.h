@@ -18,8 +18,7 @@ namespace rx
 class ShaderExecutable9 : public ShaderExecutable
 {
   public:
-    ShaderExecutable9(const void *function, size_t length, IDirect3DPixelShader9 *executable);
-    ShaderExecutable9(const void *function, size_t length, IDirect3DVertexShader9 *executable);
+    ShaderExecutable9(Renderer9 *renderer, const uint8_t *function, size_t length);
     virtual ~ShaderExecutable9();
 
     static ShaderExecutable9 *makeShaderExecutable9(ShaderExecutable *executable);
@@ -27,9 +26,14 @@ class ShaderExecutable9 : public ShaderExecutable
     IDirect3DPixelShader9 *getPixelShader() const;
     IDirect3DVertexShader9 *getVertexShader() const;
 
+    gl::Error ShaderExecutable9::finishLoad(ShaderType type,
+                                            const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
+                                            bool separatedOutputBuffers) override;
+
   private:
     DISALLOW_COPY_AND_ASSIGN(ShaderExecutable9);
 
+    Renderer9 *mRenderer;
     IDirect3DPixelShader9 *mPixelExecutable;
     IDirect3DVertexShader9 *mVertexExecutable;
 };

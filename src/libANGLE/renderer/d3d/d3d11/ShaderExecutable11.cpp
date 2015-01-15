@@ -8,36 +8,21 @@
 // executable implementation details.
 
 #include "libANGLE/renderer/d3d/d3d11/ShaderExecutable11.h"
+
+#include "common/utilities.h"
 #include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
 
 namespace rx
 {
 
-ShaderExecutable11::ShaderExecutable11(const void *function, size_t length, ID3D11PixelShader *executable)
-    : ShaderExecutable(function, length)
+ShaderExecutable11::ShaderExecutable11(Renderer11 *renderer, const uint8_t *function, size_t length)
+    : ShaderExecutable(function, length),
+      mRenderer(renderer),
+      mPixelExecutable(nullptr),
+      mVertexExecutable(nullptr),
+      mGeometryExecutable(nullptr),
+      mStreamOutExecutable(nullptr)
 {
-    mPixelExecutable = executable;
-    mVertexExecutable = NULL;
-    mGeometryExecutable = NULL;
-    mStreamOutExecutable = NULL;
-}
-
-ShaderExecutable11::ShaderExecutable11(const void *function, size_t length, ID3D11VertexShader *executable, ID3D11GeometryShader *streamOut)
-    : ShaderExecutable(function, length)
-{
-    mVertexExecutable = executable;
-    mPixelExecutable = NULL;
-    mGeometryExecutable = NULL;
-    mStreamOutExecutable = streamOut;
-}
-
-ShaderExecutable11::ShaderExecutable11(const void *function, size_t length, ID3D11GeometryShader *executable)
-    : ShaderExecutable(function, length)
-{
-    mGeometryExecutable = executable;
-    mVertexExecutable = NULL;
-    mPixelExecutable = NULL;
-    mStreamOutExecutable = NULL;
 }
 
 ShaderExecutable11::~ShaderExecutable11()
@@ -52,6 +37,97 @@ ShaderExecutable11 *ShaderExecutable11::makeShaderExecutable11(ShaderExecutable 
 {
     ASSERT(HAS_DYNAMIC_TYPE(ShaderExecutable11*, executable));
     return static_cast<ShaderExecutable11*>(executable);
+}
+
+gl::Error ShaderExecutable11::finishLoad(ShaderType shaderType,
+                                         const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
+                                         bool separatedOutputBuffers)
+{
+    ID3D11Device *device = mRenderer->getDevice();
+
+    switch (shaderType)
+    {
+      case SHADER_VERTEX:
+        {
+            ID3D11VertexShader *vertexShader = NULL;
+            ID3D11GeometryShader *streamOutShader = NULL;
+
+            HRESULT result = device->CreateVertexShader(getFunction(), getLength(), NULL, &vertexShader);
+            ASSERT(SUCCEEDED(result));
+            if (FAILED(result))
+            {
+                return gl::Error(GL_OUT_OF_MEMORY, "Failed to create vertex shader, result: 0x%X.", result);
+            }
+
+            if (transformFeedbackVaryings.size() > 0)
+            {
+                std::vector<D3D11_SO_DECLARATION_ENTRY> soDeclaration;
+                for (size_t i = 0; i < transformFeedbackVaryings.size(); i++)
+                {
+                    const gl::LinkedVarying &varying = transformFeedbackVaryings[i];
+                    GLenum transposedType = gl::TransposeMatrixType(varying.type);
+
+                    for (size_t j = 0; j < varying.semanticIndexCount; j++)
+                    {
+                        D3D11_SO_DECLARATION_ENTRY entry = { 0 };
+                        entry.Stream = 0;
+                        entry.SemanticName = varying.semanticName.c_str();
+                        entry.SemanticIndex = varying.semanticIndex + j;
+                        entry.StartComponent = 0;
+                        entry.ComponentCount = gl::VariableColumnCount(transposedType);
+                        entry.OutputSlot = (separatedOutputBuffers ? i : 0);
+                        soDeclaration.push_back(entry);
+                    }
+                }
+
+                result = device->CreateGeometryShaderWithStreamOutput(getFunction(), getLength(),
+                                                                      soDeclaration.data(), soDeclaration.size(),
+                                                                      NULL, 0, 0, NULL, &streamOutShader);
+                ASSERT(SUCCEEDED(result));
+                if (FAILED(result))
+                {
+                    return gl::Error(GL_OUT_OF_MEMORY, "Failed to create steam output shader, result: 0x%X.", result);
+                }
+            }
+
+            mVertexExecutable = vertexShader;
+            mStreamOutExecutable = streamOutShader;
+        }
+        break;
+      case SHADER_PIXEL:
+        {
+            ID3D11PixelShader *pixelShader = NULL;
+
+            HRESULT result = device->CreatePixelShader(getFunction(), getLength(), NULL, &pixelShader);
+            ASSERT(SUCCEEDED(result));
+            if (FAILED(result))
+            {
+                return gl::Error(GL_OUT_OF_MEMORY, "Failed to create pixel shader, result: 0x%X.", result);
+            }
+
+            mPixelExecutable = pixelShader;
+        }
+        break;
+      case SHADER_GEOMETRY:
+        {
+            ID3D11GeometryShader *geometryShader = NULL;
+
+            HRESULT result = device->CreateGeometryShader(getFunction(), getLength(), NULL, &geometryShader);
+            ASSERT(SUCCEEDED(result));
+            if (FAILED(result))
+            {
+                return gl::Error(GL_OUT_OF_MEMORY, "Failed to create geometry shader, result: 0x%X.", result);
+            }
+
+            mGeometryExecutable = geometryShader;
+        }
+        break;
+      default:
+        UNREACHABLE();
+        return gl::Error(GL_INVALID_OPERATION);
+    }
+
+    return gl::Error(GL_NO_ERROR);
 }
 
 ID3D11VertexShader *ShaderExecutable11::getVertexShader() const

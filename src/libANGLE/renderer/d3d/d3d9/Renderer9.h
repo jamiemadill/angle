@@ -150,9 +150,6 @@ class Renderer9 : public RendererD3D
     virtual ProgramImpl *createProgram();
 
     // Shader operations
-    virtual gl::Error loadExecutable(const void *function, size_t length, ShaderType type,
-                                     const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
-                                     bool separatedOutputBuffers, ShaderExecutable **outExecutable);
     virtual Concurrency::task<gl::Error> compileToExecutable(gl::InfoLog &infoLog, const std::string &shaderHLSL, ShaderType type,
                                           const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
                                           bool separatedOutputBuffers, D3DWorkaroundType workaround,
@@ -205,6 +202,8 @@ class Renderer9 : public RendererD3D
     virtual GLenum getVertexComponentType(const gl::VertexFormat &vertexFormat) const;
 
     gl::Error copyToRenderTarget(IDirect3DSurface9 *dest, IDirect3DSurface9 *source, bool fromManaged);
+
+    ShaderExecutable *createShaderExecutable(const uint8_t *function, size_t length) override;
 
   private:
     DISALLOW_COPY_AND_ASSIGN(Renderer9);

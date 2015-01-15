@@ -20,11 +20,12 @@ class UniformStorage11;
 class ShaderExecutable11 : public ShaderExecutable
 {
   public:
-    ShaderExecutable11(const void *function, size_t length, ID3D11PixelShader *executable);
-    ShaderExecutable11(const void *function, size_t length, ID3D11VertexShader *executable, ID3D11GeometryShader *streamOut);
-    ShaderExecutable11(const void *function, size_t length, ID3D11GeometryShader *executable);
+    ShaderExecutable11(Renderer11 *renderer, const uint8_t *function, size_t length);
+    ~ShaderExecutable11() override;
 
-    virtual ~ShaderExecutable11();
+    gl::Error finishLoad(ShaderType shaderType,
+                         const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
+                         bool separatedOutputBuffers) override;
 
     static ShaderExecutable11 *makeShaderExecutable11(ShaderExecutable *executable);
 
@@ -36,6 +37,7 @@ class ShaderExecutable11 : public ShaderExecutable
   private:
     DISALLOW_COPY_AND_ASSIGN(ShaderExecutable11);
 
+    Renderer11 *mRenderer;
     ID3D11PixelShader *mPixelExecutable;
     ID3D11VertexShader *mVertexExecutable;
     ID3D11GeometryShader *mGeometryExecutable;

@@ -37,13 +37,6 @@ class TextureStorage;
 class UniformStorage;
 class VertexBuffer;
 
-enum ShaderType
-{
-    SHADER_VERTEX,
-    SHADER_PIXEL,
-    SHADER_GEOMETRY
-};
-
 class RendererD3D : public Renderer
 {
   public:
@@ -122,9 +115,6 @@ class RendererD3D : public Renderer
     virtual gl::Error createRenderTarget(int width, int height, GLenum format, GLsizei samples, RenderTarget **outRT) = 0;
 
     // Shader operations
-    virtual gl::Error loadExecutable(const void *function, size_t length, ShaderType type,
-                                     const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
-                                     bool separatedOutputBuffers, ShaderExecutable **outExecutable) = 0;
     virtual Concurrency::task<gl::Error> compileToExecutable(gl::InfoLog &infoLog, const std::string &shaderHLSL, ShaderType type,
                                                              const std::vector<gl::LinkedVarying> &transformFeedbackVaryings,
                                                              bool separatedOutputBuffers, D3DWorkaroundType workaround,
@@ -150,6 +140,8 @@ class RendererD3D : public Renderer
 
     virtual VertexBuffer *createVertexBuffer() = 0;
     virtual IndexBuffer *createIndexBuffer() = 0;
+
+    virtual ShaderExecutable *createShaderExecutable(const uint8_t *function, size_t length) = 0;
 
     // Device lost
     void notifyDeviceLost() override;
