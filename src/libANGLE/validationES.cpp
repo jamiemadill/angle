@@ -224,7 +224,7 @@ bool ValidBufferParameter(const Context *context, GLenum pname)
 
 bool ValidMipLevel(const Context *context, GLenum target, GLint level)
 {
-    size_t maxDimension = 0;
+    GLuint maxDimension = 0;
     switch (target)
     {
       case GL_TEXTURE_2D:                  maxDimension = context->getCaps().max2DTextureSize;       break;
@@ -240,7 +240,7 @@ bool ValidMipLevel(const Context *context, GLenum target, GLint level)
       default: UNREACHABLE();
     }
 
-    return level <= gl::log2(maxDimension);
+    return level <= static_cast<GLint>(gl::log2(maxDimension));
 }
 
 bool ValidImageSize(const Context *context, GLenum target, GLint level,
@@ -1788,7 +1788,7 @@ bool ValidateFramebufferTexture2D(Context *context, GLenum target, GLenum attach
         {
           case GL_TEXTURE_2D:
             {
-                if (level > gl::log2(caps.max2DTextureSize))
+                if (static_cast<GLuint>(level) > gl::log2(caps.max2DTextureSize))
                 {
                     context->recordError(Error(GL_INVALID_VALUE));
                     return false;
@@ -1808,7 +1808,7 @@ bool ValidateFramebufferTexture2D(Context *context, GLenum target, GLenum attach
           case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
           case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
             {
-                if (level > gl::log2(caps.maxCubeMapTextureSize))
+                if (static_cast<GLuint>(level) > gl::log2(caps.maxCubeMapTextureSize))
                 {
                     context->recordError(Error(GL_INVALID_VALUE));
                     return false;

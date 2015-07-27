@@ -13,6 +13,7 @@
 #include "libANGLE/Caps.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/Framebuffer.h"
+#include "libANGLE/State.h"
 #include "libANGLE/Uniform.h"
 #include "libANGLE/angletypes.h"
 #include "libANGLE/renderer/ImplFactory.h"
@@ -32,8 +33,6 @@ class Surface;
 namespace gl
 {
 class Buffer;
-class StateChangeBits;
-struct Data;
 }
 
 namespace rx
@@ -79,7 +78,7 @@ class Renderer : public ImplFactory
     const gl::Extensions &getRendererExtensions() const;
     const gl::Limitations &getRendererLimitations() const;
 
-    virtual void syncState(const gl::State &state, gl::StateChangeBits *dirtyBits) {}
+    virtual void syncState(const gl::State &state, gl::State::DirtyBitSet *dirtyBits) {}
 
   private:
     void ensureCapsInitialized() const;

@@ -11,18 +11,11 @@
 
 #include "common/debug.h"
 #include "libANGLE/Error.h"
+#include "libANGLE/State.h"
 #include "libANGLE/angletypes.h"
 #include "libANGLE/renderer/gl/functionsgl_typedefs.h"
 
 #include <map>
-
-namespace gl
-{
-struct Caps;
-struct Data;
-class State;
-class StateChangeBits;
-}
 
 namespace rx
 {
@@ -58,7 +51,7 @@ class StateManagerGL final : angle::NonCopyable
     gl::Error setDrawElementsState(const gl::Data &data, GLsizei count, GLenum type, const GLvoid *indices,
                                    const GLvoid **outIndices);
 
-    void syncState(const gl::State &state, gl::StateChangeBits *dirtyBits);
+    void syncState(const gl::State &state, gl::State::DirtyBitSet *dirtyBits);
 
   private:
     gl::Error setGenericDrawState(const gl::Data &data);

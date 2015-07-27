@@ -41,10 +41,12 @@ inline bool isPow2(int x)
     return (x & (x - 1)) == 0 && (x != 0);
 }
 
-inline int log2(int x)
+// Assumes T is an integer type
+template <typename T>
+T log2(T x)
 {
-    int r = 0;
-    while ((x >> r) > 1) r++;
+    T r(0);
+    while ((x >> r) > static_cast<T>(1)) r++;
     return r;
 }
 

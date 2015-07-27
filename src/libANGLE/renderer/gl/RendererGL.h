@@ -77,7 +77,7 @@ class RendererGL : public Renderer
     std::string getVendorString() const override;
     std::string getRendererDescription() const override;
 
-    void syncState(const gl::State &state, gl::StateChangeBits *dirtyBits) override;
+    void syncState(const gl::State &state, gl::State::DirtyBitSet *dirtyBits) override;
 
     const gl::Version &getMaxSupportedESVersion() const;
 

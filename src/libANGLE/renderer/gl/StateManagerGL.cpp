@@ -8,6 +8,7 @@
 
 #include "libANGLE/renderer/gl/StateManagerGL.h"
 
+#include "common/mathutil.h"
 #include "libANGLE/Data.h"
 #include "libANGLE/Framebuffer.h"
 #include "libANGLE/VertexArray.h"
@@ -450,19 +451,6 @@ gl::Error StateManagerGL::setGenericDrawState(const gl::Data &data)
     const gl::Program *program = state.getProgram();
     const ProgramGL *programGL = GetImplAs<ProgramGL>(program);
     useProgram(programGL->getProgramID());
-
-    const gl::VertexArray *vao = state.getVertexArray();
-    const std::vector<gl::VertexAttribute> &attribs = vao->getVertexAttributes();
-    const std::vector<GLuint> &activeAttribs = programGL->getActiveAttributeLocations();
-
-    for (size_t activeAttribIndex = 0; activeAttribIndex < activeAttribs.size(); activeAttribIndex++)
-    {
-        GLuint location = activeAttribs[activeAttribIndex];
-        if (!attribs[location].enabled)
-        {
-            setAttributeCurrentData(location, state.getVertexAttribCurrentValue(location));
-        }
-    }
 
     const std::vector<SamplerBindingGL> &appliedSamplerUniforms = programGL->getAppliedSamplerUniforms();
     for (const SamplerBindingGL &samplerUniform : appliedSamplerUniforms)
@@ -924,9 +912,9 @@ void StateManagerGL::setClearStencil(GLint clearStencil)
     }
 }
 
-void StateManagerGL::syncState(const gl::State &state, gl::StateChangeBits *dirtyBits)
+void StateManagerGL::syncState(const gl::State &state, gl::State::DirtyBitSet *dirtyBits)
 {
-    for (uint64_t dirtyBit : *dirtyBits)
+    for (uint64_t dirtyBit : dirtyBits->stateBits)
     {
         switch (dirtyBit)
         {
@@ -1080,6 +1068,12 @@ void StateManagerGL::syncState(const gl::State &state, gl::StateChangeBits *dirt
                 // TODO(jmadill): implement this
                 break;
         }
+    }
+
+    for (uint64_t dirtyBit : dirtyBits->currentValueBits)
+    {
+        size_t index = static_cast<size_t>(gl::log2(dirtyBit));
+        setAttributeCurrentData(index, state.getVertexAttribCurrentValue(static_cast<unsigned int>(index)));
     }
 }
 

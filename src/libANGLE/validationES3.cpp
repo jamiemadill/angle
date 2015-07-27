@@ -991,7 +991,7 @@ bool ValidateFramebufferTextureLayer(Context *context, GLenum target, GLenum att
         {
           case GL_TEXTURE_2D_ARRAY:
             {
-                if (level > gl::log2(caps.max2DTextureSize))
+                if (static_cast<GLuint>(level) > gl::log2(caps.max2DTextureSize))
                 {
                     context->recordError(Error(GL_INVALID_VALUE));
                     return false;
@@ -1007,7 +1007,7 @@ bool ValidateFramebufferTextureLayer(Context *context, GLenum target, GLenum att
 
           case GL_TEXTURE_3D:
             {
-                if (level > gl::log2(caps.max3DTextureSize))
+                if (static_cast<GLuint>(level) > gl::log2(caps.max3DTextureSize))
                 {
                     context->recordError(Error(GL_INVALID_VALUE));
                     return false;

@@ -309,7 +309,13 @@ class State : angle::NonCopyable
         DIRTY_BIT_MASK_ALL                          = ANGLE_BIT(50) - 1,
     };
 
-    StateChangeBits *getDirtyBits() { return &mDirtyBits; }
+    struct DirtyBitSet
+    {
+        StateChangeBits stateBits;
+        StateChangeBits currentValueBits;
+    };
+
+    DirtyBitSet *getDirtyBits() { return &mDirtyBits; }
 
   private:
     // Cached values from Context's caps
@@ -380,7 +386,7 @@ class State : angle::NonCopyable
 
     bool mPrimitiveRestart;
 
-    StateChangeBits mDirtyBits;
+    DirtyBitSet mDirtyBits;
 };
 
 }
