@@ -26,6 +26,7 @@
             '<(angle_path)/src/libANGLE/ImageIndexIterator_unittest.cpp',
             '<(angle_path)/src/libANGLE/Program_unittest.cpp',
             '<(angle_path)/src/libANGLE/ResourceManager_unittest.cpp',
+            '<(angle_path)/src/libANGLE/StateChangeBits_unittest.cpp',
             '<(angle_path)/src/libANGLE/Surface_unittest.cpp',
             '<(angle_path)/src/libANGLE/TransformFeedback_unittest.cpp',
             '<(angle_path)/src/libANGLE/renderer/BufferImpl_mock.h',
