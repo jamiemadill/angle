@@ -306,12 +306,19 @@ class State : angle::NonCopyable
         DIRTY_BIT_PROGRAM_BINDING,
         DIRTY_BIT_PROGRAM_OBJECT,
         DIRTY_BIT_INVALID,
-        DIRTY_BIT_MAX = DIRTY_BIT_INVALID,
+        DIRTY_BIT_STATE_MAX = DIRTY_BIT_INVALID,
     };
 
-    typedef angle::IterableBitSet<DIRTY_BIT_MAX> DirtyBits;
-    const DirtyBits &getDirtyBits() const { return mDirtyBits; }
-    void clearDirtyBits() { mDirtyBits.reset(); }
+    typedef angle::IterableBitSet<DIRTY_BIT_STATE_MAX> StateDirtyBits;
+    typedef angle::IterableBitSet<MAX_VERTEX_ATTRIBS> CurrentValueDirtyBits;
+    const StateDirtyBits &getStateDirtyBits() const { return mStateDirtyBits; }
+    const CurrentValueDirtyBits &getCurrentValueDirtyBits() const { return mCurrentValueDirtyBits; }
+    void clearDirtyBits()
+    {
+        mStateDirtyBits.reset();
+        mCurrentValueDirtyBits.reset();
+    }
+
   private:
     // Cached values from Context's caps
     GLuint mMaxDrawBuffers;
@@ -381,7 +388,8 @@ class State : angle::NonCopyable
 
     bool mPrimitiveRestart;
 
-    DirtyBits mDirtyBits;
+    StateDirtyBits mStateDirtyBits;
+    CurrentValueDirtyBits mCurrentValueDirtyBits;
 };
 
 }
