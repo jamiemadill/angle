@@ -84,6 +84,10 @@ void ANGLETest::drawQuad(GLuint program, const std::string& positionAttribName, 
          1.0f * quadScale,  1.0f * quadScale, quadDepth,
     };
 
+    GLint previousBinding;
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previousBinding);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0u);
     glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, vertices);
     glEnableVertexAttribArray(positionLocation);
 
@@ -93,6 +97,7 @@ void ANGLETest::drawQuad(GLuint program, const std::string& positionAttribName, 
     glVertexAttribPointer(positionLocation, 4, GL_FLOAT, GL_FALSE, 0, NULL);
 
     glUseProgram(0);
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(previousBinding));
 }
 
 GLuint ANGLETest::compileShader(GLenum type, const std::string &source)

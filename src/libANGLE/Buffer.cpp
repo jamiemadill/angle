@@ -27,10 +27,12 @@ Buffer::Buffer(rx::BufferImpl *impl, GLuint id)
       mMapOffset(0),
       mMapLength(0)
 {
+    printf("Alloc %p\n", this);
 }
 
 Buffer::~Buffer()
 {
+    printf("Free %p\n", this);
     SafeDelete(mBuffer);
 }
 
