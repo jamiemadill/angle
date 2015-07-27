@@ -1237,6 +1237,7 @@ bool Context::getIndexedQueryParameterInfo(GLenum target, GLenum *type, unsigned
 
 Error Context::drawArrays(GLenum mode, GLint first, GLsizei count, GLsizei instances)
 {
+    syncRendererState();
     Error error = mRenderer->drawArrays(getData(), mode, first, count, instances);
     if (error.isError())
     {
@@ -1263,6 +1264,7 @@ Error Context::drawElements(GLenum mode, GLsizei count, GLenum type,
                             const GLvoid *indices, GLsizei instances,
                             const RangeUI &indexRange)
 {
+    syncRendererState();
     return mRenderer->drawElements(getData(), mode, count, type, indices, instances, indexRange);
 }
 
@@ -1659,6 +1661,11 @@ void Context::initCaps(GLuint clientVersion)
 
         mTextureCaps.insert(format, formatCaps);
     }
+}
+
+void Context::syncRendererState()
+{
+    mRenderer->syncState(mState, mState.getDirtyBits());
 }
 
 }

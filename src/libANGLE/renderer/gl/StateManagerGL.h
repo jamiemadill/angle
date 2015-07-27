@@ -21,6 +21,7 @@ namespace gl
 struct Caps;
 struct Data;
 class State;
+class StateChangeBits;
 }
 
 namespace rx
@@ -28,7 +29,7 @@ namespace rx
 
 class FunctionsGL;
 
-class StateManagerGL : angle::NonCopyable
+class StateManagerGL final : angle::NonCopyable
 {
   public:
     StateManagerGL(const FunctionsGL *functions, const gl::Caps &rendererCaps);
@@ -56,6 +57,8 @@ class StateManagerGL : angle::NonCopyable
     gl::Error setDrawArraysState(const gl::Data &data, GLint first, GLsizei count);
     gl::Error setDrawElementsState(const gl::Data &data, GLsizei count, GLenum type, const GLvoid *indices,
                                    const GLvoid **outIndices);
+
+    void syncState(const gl::State &state, gl::StateChangeBits *dirtyBits);
 
   private:
     gl::Error setGenericDrawState(const gl::Data &data);
@@ -190,6 +193,8 @@ class StateManagerGL : angle::NonCopyable
     float mClearDepth;
     GLint mClearStencil;
 };
+
+void SetUnpackState(StateManagerGL *stateManager, const gl::PixelUnpackState &unpack);
 
 }
 

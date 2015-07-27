@@ -32,6 +32,7 @@ class Surface;
 namespace gl
 {
 class Buffer;
+class StateChangeBits;
 struct Data;
 }
 
@@ -77,6 +78,8 @@ class Renderer : public ImplFactory
     const gl::TextureCapsMap &getRendererTextureCaps() const;
     const gl::Extensions &getRendererExtensions() const;
     const gl::Limitations &getRendererLimitations() const;
+
+    virtual void syncState(const gl::State &state, gl::StateChangeBits *dirtyBits) {}
 
   private:
     void ensureCapsInitialized() const;

@@ -10,14 +10,15 @@
 #define LIBANGLE_STATE_H_
 
 #include "common/angleutils.h"
+#include "libANGLE/Program.h"
 #include "libANGLE/RefCountObject.h"
-#include "libANGLE/angletypes.h"
-#include "libANGLE/VertexAttribute.h"
 #include "libANGLE/Renderbuffer.h"
+#include "libANGLE/Sampler.h"
+#include "libANGLE/StateChangeBits.h"
 #include "libANGLE/Texture.h"
 #include "libANGLE/TransformFeedback.h"
-#include "libANGLE/Program.h"
-#include "libANGLE/Sampler.h"
+#include "libANGLE/VertexAttribute.h"
+#include "libANGLE/angletypes.h"
 
 namespace gl
 {
@@ -252,6 +253,64 @@ class State : angle::NonCopyable
 
     bool hasMappedBuffer(GLenum target) const;
 
+    enum DirtyBitType : uint64_t
+    {
+        DIRTY_BIT_NONE                              = 0,
+        DIRTY_BIT_SCISSOR_TEST_ENABLED              = ANGLE_BIT(0),
+        DIRTY_BIT_SCISSOR                           = ANGLE_BIT(1),
+        DIRTY_BIT_VIEWPORT                          = ANGLE_BIT(2),
+        DIRTY_BIT_DEPTH_RANGE                       = ANGLE_BIT(3),
+        DIRTY_BIT_BLEND_ENABLED                     = ANGLE_BIT(4),
+        DIRTY_BIT_BLEND_COLOR                       = ANGLE_BIT(5),
+        DIRTY_BIT_BLEND_FUNCS                       = ANGLE_BIT(6),
+        DIRTY_BIT_BLEND_EQUATIONS                   = ANGLE_BIT(7),
+        DIRTY_BIT_COLOR_MASK                        = ANGLE_BIT(8),
+        DIRTY_BIT_SAMPLE_ALPHA_TO_COVERAGE_ENABLED  = ANGLE_BIT(9),
+        DIRTY_BIT_SAMPLE_COVERAGE_ENABLED           = ANGLE_BIT(10),
+        DIRTY_BIT_SAMPLE_COVERAGE                   = ANGLE_BIT(11),
+        DIRTY_BIT_DEPTH_TEST_ENABLED                = ANGLE_BIT(12),
+        DIRTY_BIT_DEPTH_FUNC                        = ANGLE_BIT(13),
+        DIRTY_BIT_DEPTH_MASK                        = ANGLE_BIT(14),
+        DIRTY_BIT_STENCIL_TEST_ENABLED              = ANGLE_BIT(15),
+        DIRTY_BIT_STENCIL_FUNCS_FRONT               = ANGLE_BIT(16),
+        DIRTY_BIT_STENCIL_FUNCS_BACK                = ANGLE_BIT(17),
+        DIRTY_BIT_STENCIL_OPS_FRONT                 = ANGLE_BIT(18),
+        DIRTY_BIT_STENCIL_OPS_BACK                  = ANGLE_BIT(19),
+        DIRTY_BIT_STENCIL_WRITEMASK_FRONT           = ANGLE_BIT(20),
+        DIRTY_BIT_STENCIL_WRITEMASK_BACK            = ANGLE_BIT(21),
+        DIRTY_BIT_CULL_FACE_ENABLED                 = ANGLE_BIT(22),
+        DIRTY_BIT_CULL_FACE                         = ANGLE_BIT(23),
+        DIRTY_BIT_FRONT_FACE                        = ANGLE_BIT(24),
+        DIRTY_BIT_POLYGON_OFFSET_FILL_ENABLED       = ANGLE_BIT(25),
+        DIRTY_BIT_POLYGON_OFFSET                    = ANGLE_BIT(26),
+        DIRTY_BIT_MULTISAMPLE_ENABLED               = ANGLE_BIT(27),
+        DIRTY_BIT_RASTERIZER_DISCARD_ENABLED        = ANGLE_BIT(28),
+        DIRTY_BIT_LINE_WIDTH                        = ANGLE_BIT(29),
+        DIRTY_BIT_PRIMITIVE_RESTART_ENABLED         = ANGLE_BIT(30),
+        DIRTY_BIT_CLEAR_COLOR                       = ANGLE_BIT(31),
+        DIRTY_BIT_CLEAR_DEPTH                       = ANGLE_BIT(32),
+        DIRTY_BIT_CLEAR_STENCIL                     = ANGLE_BIT(33),
+        DIRTY_BIT_UNPACK_ALIGNMENT                  = ANGLE_BIT(34),
+        DIRTY_BIT_UNPACK_ROW_LENGTH                 = ANGLE_BIT(35),
+        DIRTY_BIT_PACK_ALIGNMENT                    = ANGLE_BIT(36),
+        DIRTY_BIT_PACK_REVERSE_ROW_ORDER            = ANGLE_BIT(37),
+        DIRTY_BIT_DITHER_ENABLED                    = ANGLE_BIT(38),
+        DIRTY_BIT_GENERATE_MIPMAP_HINT              = ANGLE_BIT(39),
+        DIRTY_BIT_SHADER_DERIVATIVE_HINT            = ANGLE_BIT(40),
+        DIRTY_BIT_READ_FRAMEBUFFER_BINDING          = ANGLE_BIT(41),
+        DIRTY_BIT_READ_FRAMEBUFFER_OBJECT           = ANGLE_BIT(42),
+        DIRTY_BIT_DRAW_FRAMEBUFFER_BINDING          = ANGLE_BIT(43),
+        DIRTY_BIT_DRAW_FRAMEBUFFER_OBJECT           = ANGLE_BIT(44),
+        DIRTY_BIT_RENDERBUFFER_BINDING              = ANGLE_BIT(45),
+        DIRTY_BIT_VERTEX_ARRAY_BINDING              = ANGLE_BIT(46),
+        DIRTY_BIT_VERTEX_ARRAY_OBJECT               = ANGLE_BIT(47),
+        DIRTY_BIT_MASK_PROGRAM_BINDING              = ANGLE_BIT(48),
+        DIRTY_BIT_MASK_PROGRAM_OBJECT               = ANGLE_BIT(49),
+        DIRTY_BIT_MASK_ALL                          = ANGLE_BIT(50) - 1,
+    };
+
+    StateChangeBits *getDirtyBits() { return &mDirtyBits; }
+
   private:
     // Cached values from Context's caps
     GLuint mMaxDrawBuffers;
@@ -320,6 +379,8 @@ class State : angle::NonCopyable
     PixelPackState mPack;
 
     bool mPrimitiveRestart;
+
+    StateChangeBits mDirtyBits;
 };
 
 }

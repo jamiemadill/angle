@@ -324,4 +324,9 @@ void RendererGL::generateCaps(gl::Caps *outCaps, gl::TextureCapsMap* outTextureC
     nativegl_gl::GenerateCaps(mFunctions, outCaps, outTextureCaps, outExtensions, &mMaxSupportedESVersion);
 }
 
+void RendererGL::syncState(const gl::State &state, gl::StateChangeBits *dirtyBits)
+{
+    mStateManager->syncState(state, dirtyBits);
+}
+
 }
