@@ -22,6 +22,8 @@ class VertexArrayImpl : angle::NonCopyable
     VertexArrayImpl(const gl::VertexArray::Data &data) : mData(data) { }
     virtual ~VertexArrayImpl() { }
 
+    virtual void syncState(gl::StateChangeBits *dirtyBits) {}
+
   protected:
     const gl::VertexArray::Data &mData;
 };

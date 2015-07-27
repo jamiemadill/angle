@@ -9,6 +9,8 @@
 #ifndef LIBANGLE_RENDERER_GL_VERTEXARRAYGL_H_
 #define LIBANGLE_RENDERER_GL_VERTEXARRAYGL_H_
 
+#include <bitset>
+
 #include "libANGLE/renderer/VertexArrayImpl.h"
 
 namespace rx
@@ -29,6 +31,8 @@ class VertexArrayGL : public VertexArrayImpl
 
     GLuint getVertexArrayID() const;
     GLuint getAppliedElementArrayBufferID() const;
+
+    void syncState(gl::StateChangeBits *dirtyBits) override;
 
   private:
     gl::Error syncDrawState(const std::vector<GLuint> &activeAttribLoations, GLint first, GLsizei count,
@@ -51,6 +55,10 @@ class VertexArrayGL : public VertexArrayImpl
     gl::Error streamAttributes(const std::vector<GLuint> &activeAttribLoations, size_t streamingDataSize,
                                size_t maxAttributeDataSize, const gl::RangeUI &indexRange) const;
 
+    void updateNeedsStreaming(size_t attribIndex);
+    void updateAttribEnabled(size_t attribIndex);
+    void updateAttribPointer(size_t attribIndex);
+
     const FunctionsGL *mFunctions;
     StateManagerGL *mStateManager;
 
@@ -64,6 +72,8 @@ class VertexArrayGL : public VertexArrayImpl
 
     mutable size_t mStreamingArrayBufferSize;
     mutable GLuint mStreamingArrayBuffer;
+
+    std::bitset<gl::MAX_VERTEX_ATTRIBS> mAttributesNeedStreaming;
 };
 
 }

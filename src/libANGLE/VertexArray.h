@@ -15,6 +15,7 @@
 
 #include "libANGLE/RefCountObject.h"
 #include "libANGLE/Constants.h"
+#include "libANGLE/State.h"
 #include "libANGLE/VertexAttribute.h"
 
 #include <vector>
@@ -66,6 +67,7 @@ class VertexArray
         size_t getMaxAttribs() const { return mVertexAttributes.size(); }
         size_t getMaxEnabledAttribute() const { return mMaxEnabledAttribute; }
         const std::vector<VertexAttribute> &getVertexAttributes() const { return mVertexAttributes; }
+        const VertexAttribute &getVertexAttribute(size_t index) const { return mVertexAttributes[index]; }
 
       private:
         friend class VertexArray;
@@ -74,12 +76,33 @@ class VertexArray
         size_t mMaxEnabledAttribute;
     };
 
+    StateChangeBits *getDirtyBits() { return &mDirtyBits; }
+
+    enum DirtyBitType : uint64_t
+    {
+        DIRTY_BIT_NONE = 0,
+        // Reserve bits 0-15 for enabled flags
+        DIRTY_BIT_ATTRIB_0_ENABLED = ANGLE_BIT(0),
+        DIRTY_BIT_ATTRIB_15_ENABLED = ANGLE_BIT(15),
+        // Reserve bits 16-31 for attrib pointers
+        DIRTY_BIT_ATTRIB_0_POINTER = ANGLE_BIT(16),
+        DIRTY_BIT_ATTRIB_15_POINTER = ANGLE_BIT(31),
+        // Reserve bits 32-47 for divisors
+        DIRTY_BIT_ATTRIB_0_DIVISOR = ANGLE_BIT(32),
+        DIRTY_BIT_ATTRIB_15_DIVISOR = ANGLE_BIT(47),
+        DIRTY_BIT_ELEMENT_ARRAY_BUFFER = ANGLE_BIT(48),
+        DIRTY_BIT_ALL = ANGLE_BIT(49) - 1,
+    };
+
+    void syncImplState();
+
   private:
     GLuint mId;
 
     rx::VertexArrayImpl *mVertexArray;
 
     Data mData;
+    StateChangeBits mDirtyBits;
 };
 
 }

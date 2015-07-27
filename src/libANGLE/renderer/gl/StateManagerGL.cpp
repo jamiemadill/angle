@@ -1067,6 +1067,11 @@ void StateManagerGL::syncState(const gl::State &state, gl::State::DirtyBitSet *d
             case gl::State::DIRTY_BIT_SHADER_DERIVATIVE_HINT:
                 // TODO(jmadill): implement this
                 break;
+            case gl::State::DIRTY_BIT_VERTEX_ARRAY_BINDING:
+                break;
+            case gl::State::DIRTY_BIT_VERTEX_ARRAY_OBJECT:
+                state.getVertexArray()->syncImplState();
+                break;
         }
     }
 

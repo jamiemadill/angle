@@ -9,6 +9,8 @@
 
 #include <stdint.h>
 
+#include "common/mathutil.h"
+
 namespace gl
 {
 
@@ -67,6 +69,16 @@ class StateChangeBits
     uint64_t mDirtyBits;
 };
 
+} // gl
+
 #define ANGLE_BIT(X) (1ull << X)
 
-} // gl
+namespace angle
+{
+
+inline size_t BitToIndex(uint64_t bit)
+{
+    return static_cast<size_t>(gl::log2(bit));
+}
+
+} // angle
