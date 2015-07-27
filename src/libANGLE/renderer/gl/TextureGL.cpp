@@ -22,17 +22,6 @@
 namespace rx
 {
 
-static void SetUnpackStateForTexImage(StateManagerGL *stateManager, const gl::PixelUnpackState &unpack)
-{
-    const gl::Buffer *unpackBuffer = unpack.pixelBuffer.get();
-    if (unpackBuffer != nullptr)
-    {
-        UNIMPLEMENTED();
-    }
-    stateManager->setPixelUnpackState(unpack.alignment, unpack.rowLength, unpack.skipRows,
-                                      unpack.skipPixels, unpack.imageHeight, unpack.skipImages);
-}
-
 static bool UseTexImage2D(GLenum textureType)
 {
     return textureType == GL_TEXTURE_2D || textureType == GL_TEXTURE_CUBE_MAP;
@@ -88,7 +77,7 @@ gl::Error TextureGL::setImage(GLenum target, size_t level, GLenum internalFormat
     UNUSED_ASSERTION_VARIABLE(&CompatibleTextureTarget); // Reference this function to avoid warnings.
     ASSERT(CompatibleTextureTarget(mTextureType, target));
 
-    SetUnpackStateForTexImage(mStateManager, unpack);
+    SetUnpackState(mStateManager, unpack);
 
     const nativegl::InternalFormat &nativeInternalFormatInfo = nativegl::GetInternalFormatInfo(internalFormat, mFunctions->standard);
 
@@ -115,7 +104,7 @@ gl::Error TextureGL::setSubImage(GLenum target, size_t level, const gl::Box &are
 {
     ASSERT(CompatibleTextureTarget(mTextureType, target));
 
-    SetUnpackStateForTexImage(mStateManager, unpack);
+    SetUnpackState(mStateManager, unpack);
 
     mStateManager->bindTexture(mTextureType, mTextureID);
     if (UseTexImage2D(mTextureType))
@@ -141,7 +130,7 @@ gl::Error TextureGL::setCompressedImage(GLenum target, size_t level, GLenum inte
 {
     ASSERT(CompatibleTextureTarget(mTextureType, target));
 
-    SetUnpackStateForTexImage(mStateManager, unpack);
+    SetUnpackState(mStateManager, unpack);
 
     const nativegl::InternalFormat &nativeInternalFormatInfo = nativegl::GetInternalFormatInfo(internalFormat, mFunctions->standard);
 
@@ -169,7 +158,7 @@ gl::Error TextureGL::setCompressedSubImage(GLenum target, size_t level, const gl
 {
     ASSERT(CompatibleTextureTarget(mTextureType, target));
 
-    SetUnpackStateForTexImage(mStateManager, unpack);
+    SetUnpackState(mStateManager, unpack);
 
     const nativegl::InternalFormat &nativeInternalFormatInfo = nativegl::GetInternalFormatInfo(format, mFunctions->standard);
 
