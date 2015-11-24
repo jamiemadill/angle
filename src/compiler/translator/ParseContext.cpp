@@ -2058,6 +2058,15 @@ TFunction *TParseContext::parseFunctionDeclarator(const TSourceLoc &location, TF
         }
     }
 
+    // We don't allow user defined functions in a non-global scope. Here we use a special check
+    // because we're actually still inside parsing the function 'header'.
+    if (!symbolTable.atGlobalLevelPlusOne())
+    {
+        error(location, "cannot declare user-defined functions in a local scope",
+              function->getName().c_str());
+        recover();
+    }
+
     //
     // Check for previously declared variables using the same name.
     //

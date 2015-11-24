@@ -347,6 +347,7 @@ class TSymbolTable : angle::NonCopyable
     {
         return currentLevel() <= GLOBAL_LEVEL;
     }
+    bool atGlobalLevelPlusOne() const { return currentLevel() == GLOBAL_LEVEL + 1; }
     void push()
     {
         table.push_back(new TSymbolTableLevel);
