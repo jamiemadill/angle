@@ -230,6 +230,11 @@ class OutputHLSL : public TIntermTraverser
     // with the other N parameters of the function. This is used to work around that arrays can't be
     // return values in HLSL.
     std::vector<ArrayHelperFunction> mArrayConstructIntoFunctions;
+
+    // The current function's arguments. We keep this helper struct around to work around a feature
+    // in OpenGL where it allows function parameter shadowing. HLSL does not allow parameter
+    // shadowing, so we decorate all function parameters specially with a "p" prefix.
+    std::set<std::string> mCurrentFunctionArguments;
 };
 
 }

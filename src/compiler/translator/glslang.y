@@ -189,7 +189,7 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
 %type <interm> single_declaration init_declarator_list
 
 %type <interm> parameter_declaration parameter_declarator parameter_type_specifier
-%type <interm.qualifier> parameter_qualifier parameter_type_qualifier 
+%type <interm.qualifier> parameter_qualifier parameter_type_qualifier
 %type <interm.layoutQualifier> layout_qualifier layout_qualifier_id_list layout_qualifier_id
 
 %type <interm.precision> precision_qualifier
@@ -582,19 +582,19 @@ enter_struct
 declaration
     : function_prototype SEMICOLON   {
         TFunction &function = *($1.function);
-        
+
         TIntermAggregate *prototype = new TIntermAggregate;
         prototype->setType(function.getReturnType());
         prototype->setName(function.getMangledName());
         prototype->setFunctionId(function.getUniqueId());
-        
+
         for (size_t i = 0; i < function.getParamCount(); i++)
         {
             const TConstParameter &param = function.getParam(i);
             if (param.name != 0)
             {
                 TVariable variable(param.name, *param.type);
-                
+
                 prototype = context->intermediate.growAggregate(prototype, context->intermediate.addSymbol(variable.getUniqueId(), variable.getName(), variable.getType(), @1), @1);
             }
             else
@@ -602,7 +602,7 @@ declaration
                 prototype = context->intermediate.growAggregate(prototype, context->intermediate.addSymbol(0, "", *param.type, @1), @1);
             }
         }
-        
+
         prototype->setOp(EOpPrototype);
         $$ = prototype;
 
@@ -709,7 +709,7 @@ function_header
         const TType *type = new TType($1);
         function = new TFunction($2.string, type);
         $$ = function;
-        
+
         context->symbolTable.push();
     }
     ;
@@ -938,7 +938,7 @@ type_qualifier
     | interpolation_qualifier {
         context->error(@1, "interpolation qualifier requires a fragment 'in' or vertex 'out' storage qualifier", getInterpolationString($1.qualifier));
         context->recover();
-        
+
         TQualifier qual = context->symbolTable.atGlobalLevel() ? EvqGlobal : EvqTemporary;
         $$.setBasic(EbtVoid, qual, @1);
     }
@@ -1598,14 +1598,14 @@ function_definition
     : function_prototype {
         context->parseFunctionPrototype(@1, $1.function, &$1.intermAggregate);
     }
-    compound_statement_no_new_scope {
+    compound_statement {
         //?? Check that all paths return a value if return type != void ?
         //   May be best done as post process phase on intermediate code
         if (context->getCurrentFunctionType()->getBasicType() != EbtVoid && !context->getFunctionReturnsValue()) {
             context->error(@1, "function does not return a value:", "", $1.function->getName().c_str());
             context->recover();
         }
-        
+
         $$ = context->intermediate.growAggregate($1.intermAggregate, $3, @$);
         context->intermediate.setAggregateOperator($$, EOpFunction, @1);
         $$->getAsAggregate()->setName($1.function->getMangledName().c_str());

@@ -74,6 +74,12 @@ const TConstantUnion *WriteConstantUnionArray(TInfoSinkBase &out,
     return constUnionIterated;
 }
 
+// Special decoration for function arguments, so we can support variable shadowing in GL.
+TString DecorateArgument(const TName &name)
+{
+    return (!name.isInternal() ? "p" : "") + sh::DecorateIfNeeded(name);
+}
+
 } // namespace
 
 namespace sh
@@ -1441,7 +1447,15 @@ void OutputHLSL::visitSymbol(TIntermSymbol *node)
         }
         else
         {
-            out << DecorateIfNeeded(node->getName());
+            const auto &nodeName = node->getName();
+            if (mCurrentFunctionArguments.count(nodeName.getString().c_str()) > 0)
+            {
+                out << DecorateArgument(nodeName);
+            }
+            else
+            {
+                out << DecorateIfNeeded(nodeName);
+            }
         }
     }
 }
@@ -1921,6 +1935,16 @@ bool OutputHLSL::visitAggregate(Visit visit, TIntermAggregate *node)
             TIntermTyped *variable = (*sequence)[0]->getAsTyped();
             ASSERT(sequence->size() == 1);
 
+            const TIntermSymbol *symbolNode = variable->getAsSymbolNode();
+            if (symbolNode)
+            {
+                auto iter = mCurrentFunctionArguments.find(symbolNode->getSymbol().c_str());
+                if (iter != mCurrentFunctionArguments.end())
+                {
+                    mCurrentFunctionArguments.erase(iter);
+                }
+            }
+
             if (variable &&
                 (variable->getQualifier() == EvqTemporary ||
                  variable->getQualifier() == EvqGlobal || variable->getQualifier() == EvqConst))
@@ -2062,6 +2086,12 @@ bool OutputHLSL::visitAggregate(Visit visit, TIntermAggregate *node)
                 {
                     ensureStructDefined(symbol->getType());
 
+                    const auto &argName = symbol->getName();
+                    if (!argName.isInternal())
+                    {
+                        mCurrentFunctionArguments.insert(argName.getString().c_str());
+                    }
+
                     out << argumentString(symbol);
 
                     if (i < arguments->size() - 1)
@@ -2098,7 +2128,7 @@ bool OutputHLSL::visitAggregate(Visit visit, TIntermAggregate *node)
                 node->traverse(this);
                 mOutputLod0Function = false;
             }
-
+            mCurrentFunctionArguments.clear();
             return false;
         }
         break;
@@ -2910,7 +2940,7 @@ TString OutputHLSL::argumentString(const TIntermSymbol *symbol)
     }
     else
     {
-        nameStr = DecorateIfNeeded(name);
+        nameStr = DecorateArgument(name);
     }
 
     if (mOutputType == SH_HLSL11_OUTPUT && IsSampler(type.getBasicType()))
