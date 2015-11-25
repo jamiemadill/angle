@@ -243,8 +243,6 @@
 996 WIN LINUX MAC : dEQP-GLES2.functional.shaders.functions.invalid.double_declare_fragment = FAIL
 1016 WIN LINUX MAC : dEQP-GLES2.functional.shaders.scoping.valid.local_variable_hides_function_parameter_vertex = FAIL
 1016 WIN LINUX MAC : dEQP-GLES2.functional.shaders.scoping.valid.local_variable_hides_function_parameter_fragment = FAIL
-1016 WIN LINUX MAC : dEQP-GLES2.functional.shaders.scoping.invalid.redeclare_function_vertex = FAIL
-1016 WIN LINUX MAC : dEQP-GLES2.functional.shaders.scoping.invalid.redeclare_function_fragment = FAIL
 1020 WIN LINUX MAC : dEQP-GLES2.functional.texture.mipmap.2d.projected.nearest_nearest* = FAIL
 1020 WIN LINUX MAC : dEQP-GLES2.functional.texture.mipmap.2d.projected.linear_nearest* = FAIL
 1025 WIN LINUX MAC : dEQP-GLES2.functional.fragment_ops.random.* = FAIL

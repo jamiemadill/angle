@@ -2029,16 +2029,20 @@ void TParseContext::parseFunctionPrototype(const TSourceLoc &location,
 TFunction *TParseContext::parseFunctionDeclarator(const TSourceLoc &location, TFunction *function)
 {
     //
-    // Multiple declarations of the same function are allowed.
+    // Multiple declarations of the same function are allowed in ESSL 3.00+.
+    // When redeclarations are allowed, return types and parameter qualifiers must match.
     //
     // If this is a definition, the definition production code will check for redefinitions
     // (we don't know at this point if it's a definition or not).
     //
-    // Redeclarations are allowed.  But, return types and parameter qualifiers must match.
-    //
     TFunction *prevDec =
         static_cast<TFunction *>(symbolTable.find(function->getMangledName(), getShaderVersion()));
-    if (prevDec)
+    if (prevDec && mShaderVersion == 100)
+    {
+        error(location, "redeclarations not allowed in ESSL 1.00", function->getName().c_str(),
+              "function");
+    }
+    else if (prevDec)
     {
         if (prevDec->getReturnType() != function->getReturnType())
         {
