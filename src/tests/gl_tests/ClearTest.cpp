@@ -37,8 +37,8 @@ class ClearTestBase : public ANGLETest
   protected:
     ClearTestBase() : mProgram(0)
     {
-        setWindowWidth(128);
-        setWindowHeight(128);
+        setWindowWidth(512);
+        setWindowHeight(512);
         setConfigRedBits(8);
         setConfigGreenBits(8);
         setConfigBlueBits(8);
@@ -405,44 +405,53 @@ TEST_P(ClearTestES3, RepeatedClear)
         ASSERT_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
     }
 
-    // larger fbo bound -- clear to transparent black
-    Vector4 transparentBlack;
-    glClearBufferfv(GL_COLOR, 0, transparentBlack.data());
-
-    glUseProgram(mProgram);
-    GLint uniLoc = glGetUniformLocation(mProgram, "tex");
-    ASSERT_NE(-1, uniLoc);
-    glUniform1i(uniLoc, 0);
-    glBindTexture(GL_TEXTURE_2D, mTextures[0]);
-
-    for (int cellY = 0; cellY < numRowsCols; cellY++)
+    for (unsigned int i = 0; i < 1000; i++)
     {
-        for (int cellX = 0; cellX < numRowsCols; cellX++)
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glBindFramebuffer(GL_FRAMEBUFFER, mFBOs[0]);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, mFBOs[1]);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // larger fbo bound -- clear to transparent black
+        Vector4 transparentBlack;
+        glClearBufferfv(GL_COLOR, 0, transparentBlack.data());
+
+        glUseProgram(mProgram);
+        GLint uniLoc = glGetUniformLocation(mProgram, "tex");
+        ASSERT_NE(-1, uniLoc);
+        glUniform1i(uniLoc, 0);
+        glBindTexture(GL_TEXTURE_2D, mTextures[0]);
+
+        for (int cellY = 0; cellY < numRowsCols; cellY++)
         {
-            int seed = cellX + cellY * numRowsCols;
-            const Vector4 color = RandomVec4(seed, fmtValueMin, fmtValueMax);
+            for (int cellX = 0; cellX < numRowsCols; cellX++)
+            {
+                int seed = cellX + cellY * numRowsCols;
+                const Vector4 color = RandomVec4(seed, fmtValueMin, fmtValueMax);
 
-            glBindFramebuffer(GL_FRAMEBUFFER, mFBOs[0]);
-            glClearBufferfv(GL_COLOR, 0, color.data());
+                glBindFramebuffer(GL_FRAMEBUFFER, mFBOs[0]);
+                glClearBufferfv(GL_COLOR, 0, color.data());
 
-            glBindFramebuffer(GL_FRAMEBUFFER, mFBOs[1]);
-            glViewport(cellX*cellSize, cellY*cellSize, cellSize, cellSize);
+                glBindFramebuffer(GL_FRAMEBUFFER, mFBOs[1]);
+                glViewport(cellX*cellSize, cellY*cellSize, cellSize, cellSize);
 
-            drawQuad(mProgram, "position", 0.5f);
+                drawQuad(mProgram, "position", 0.5f);
 
-            Vector4 scaledColor(color.x * 255.0f, color.y * 255.0f, color.z * 255.0f, color.w * 255.0f);
+                Vector4 scaledColor(color.x * 255.0f, color.y * 255.0f, color.z * 255.0f, color.w * 255.0f);
 
-            //EXPECT_PIXEL_NEAR(cellX*cellSize + 1, cellY*cellSize + 1, static_cast<GLubyte>(scaledColor.x), static_cast<GLubyte>(scaledColor.y), static_cast<GLubyte>(scaledColor.z), static_cast<GLubyte>(scaledColor.w), 2);
-            //swapBuffers();
+                //EXPECT_PIXEL_NEAR(cellX*cellSize + 1, cellY*cellSize + 1, static_cast<GLubyte>(scaledColor.x), static_cast<GLubyte>(scaledColor.y), static_cast<GLubyte>(scaledColor.z), static_cast<GLubyte>(scaledColor.w), 2);
+                //swapBuffers();
+            }
         }
-    }
 
-    glViewport(0, 0, getWindowWidth(), getWindowHeight());
-    glBindTexture(GL_TEXTURE_2D, mTextures[1]);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    drawQuad(mProgram, "position", 0.5f);
-    swapBuffers();
-    ASSERT_GL_NO_ERROR();
+        glViewport(0, 0, getWindowWidth(), getWindowHeight());
+        glBindTexture(GL_TEXTURE_2D, mTextures[1]);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        drawQuad(mProgram, "position", 0.5f);
+        swapBuffers();
+        ASSERT_GL_NO_ERROR();
+    }
 }
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
