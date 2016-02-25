@@ -9,6 +9,10 @@
 #include "libANGLE/renderer/vulkan/DisplayVk.h"
 
 #include "common/debug.h"
+#include "libANGLE/Context.h"
+#include "libANGLE/Display.h"
+#include "libANGLE/renderer/vulkan/RendererVk.h"
+#include "libANGLE/renderer/vulkan/SurfaceVk.h"
 
 namespace rx
 {
@@ -23,28 +27,32 @@ DisplayVk::~DisplayVk()
 
 egl::Error DisplayVk::initialize(egl::Display *display)
 {
-    UNIMPLEMENTED();
-    return egl::Error(EGL_BAD_ACCESS);
+    ASSERT(!mRenderer && display != nullptr);
+    mRenderer.reset(new RendererVk());
+    return mRenderer->initialize(display->getAttributeMap());
 }
 
 void DisplayVk::terminate()
 {
-    UNIMPLEMENTED();
+    mRenderer.reset(nullptr);
 }
 
 SurfaceImpl *DisplayVk::createWindowSurface(const egl::Config *configuration,
                                             EGLNativeWindowType window,
                                             const egl::AttributeMap &attribs)
 {
-    UNIMPLEMENTED();
-    return static_cast<SurfaceImpl *>(0);
+    return new WindowSurfaceVk(mRenderer.get(), window);
 }
 
 SurfaceImpl *DisplayVk::createPbufferSurface(const egl::Config *configuration,
                                              const egl::AttributeMap &attribs)
 {
-    UNIMPLEMENTED();
-    return static_cast<SurfaceImpl *>(0);
+    ASSERT(mRenderer);
+
+    EGLint width  = attribs.get(EGL_WIDTH, 0);
+    EGLint height = attribs.get(EGL_HEIGHT, 0);
+
+    return new OffscreenSurfaceVk(mRenderer.get(), width, height);
 }
 
 SurfaceImpl *DisplayVk::createPbufferFromClientBuffer(const egl::Config *configuration,
@@ -75,34 +83,70 @@ gl::Context *DisplayVk::createContext(const egl::Config *config,
                                       const gl::Context *shareContext,
                                       const egl::AttributeMap &attribs)
 {
-    UNIMPLEMENTED();
-    return static_cast<gl::Context *>(0);
+    ASSERT(mRenderer);
+    return new gl::Context(config, shareContext, mRenderer.get(), attribs);
 }
 
 egl::Error DisplayVk::makeCurrent(egl::Surface *drawSurface,
                                   egl::Surface *readSurface,
                                   gl::Context *context)
 {
-    UNIMPLEMENTED();
-    return egl::Error(EGL_BAD_ACCESS);
+    return egl::Error(EGL_SUCCESS);
 }
 
 egl::ConfigSet DisplayVk::generateConfigs() const
 {
-    UNIMPLEMENTED();
-    return egl::ConfigSet();
+    // TODO(jmadill): Multiple configs, and proper checking of config attribs.
+    egl::Config singleton;
+    singleton.renderTargetFormat    = GL_RGBA8;
+    singleton.depthStencilFormat    = GL_DEPTH24_STENCIL8;
+    singleton.bufferSize            = 32;
+    singleton.redSize               = 8;
+    singleton.greenSize             = 8;
+    singleton.blueSize              = 8;
+    singleton.alphaSize             = 8;
+    singleton.alphaMaskSize         = 0;
+    singleton.bindToTextureRGB      = false;
+    singleton.bindToTextureRGBA     = false;
+    singleton.colorBufferType       = EGL_RGB_BUFFER;
+    singleton.configCaveat          = EGL_NONE;
+    singleton.conformant            = 0;
+    singleton.depthSize             = 24;
+    singleton.level                 = 0;
+    singleton.matchNativePixmap     = EGL_NONE;
+    singleton.maxPBufferWidth       = 0;
+    singleton.maxPBufferHeight      = 0;
+    singleton.maxPBufferPixels      = 0;
+    singleton.maxSwapInterval       = 1;
+    singleton.minSwapInterval       = 1;
+    singleton.nativeRenderable      = EGL_TRUE;
+    singleton.nativeVisualID        = 0;
+    singleton.nativeVisualType      = EGL_NONE;
+    singleton.renderableType        = EGL_OPENGL_ES2_BIT;
+    singleton.sampleBuffers         = 0;
+    singleton.samples               = 0;
+    singleton.surfaceType           = EGL_WINDOW_BIT;
+    singleton.optimalOrientation    = 0;
+    singleton.transparentType       = EGL_NONE;
+    singleton.transparentRedValue   = 0;
+    singleton.transparentGreenValue = 0;
+    singleton.transparentBlueValue  = 0;
+
+    egl::ConfigSet configSet;
+    configSet.add(singleton);
+    return configSet;
 }
 
 bool DisplayVk::isDeviceLost() const
 {
-    UNIMPLEMENTED();
-    return bool();
+    // TODO(jmadill): Figure out how to do device lost in Vulkan.
+    return false;
 }
 
 bool DisplayVk::testDeviceLost()
 {
-    UNIMPLEMENTED();
-    return bool();
+    // TODO(jmadill): Figure out how to do device lost in Vulkan.
+    return false;
 }
 
 egl::Error DisplayVk::restoreLostDevice()
@@ -113,14 +157,14 @@ egl::Error DisplayVk::restoreLostDevice()
 
 bool DisplayVk::isValidNativeWindow(EGLNativeWindowType window) const
 {
-    UNIMPLEMENTED();
-    return bool();
+    // TODO(jmadill): Cross-platform this.
+    return (IsWindow(window) == TRUE);
 }
 
 std::string DisplayVk::getVendorString() const
 {
-    UNIMPLEMENTED();
-    return std::string();
+    // TODO(jmadill): Determine GPU vendor from Renderer.
+    return std::string("Google Inc.");
 }
 
 egl::Error DisplayVk::getDevice(DeviceImpl **device)
@@ -145,12 +189,11 @@ egl::Error DisplayVk::waitNative(EGLint engine,
 
 void DisplayVk::generateExtensions(egl::DisplayExtensions *outExtensions) const
 {
-    UNIMPLEMENTED();
 }
 
 void DisplayVk::generateCaps(egl::Caps *outCaps) const
 {
-    UNIMPLEMENTED();
+    outCaps->textureNPOT = true;
 }
 
 }  // namespace rx

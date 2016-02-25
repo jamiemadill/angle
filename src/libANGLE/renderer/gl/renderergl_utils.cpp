@@ -629,11 +629,6 @@ void GenerateCaps(const FunctionsGL *functions, gl::Caps *caps, gl::TextureCapsM
         extensions->queryCounterBitsTimestamp =
             QueryQueryValue(functions, GL_TIMESTAMP, GL_QUERY_COUNTER_BITS);
     }
-
-    // ANGLE emulates vertex array objects in its GL layer
-    extensions->vertexArrayObject = true;
-
-    extensions->noError = true;
 }
 
 void GenerateWorkarounds(const FunctionsGL *functions, WorkaroundsGL *workarounds)

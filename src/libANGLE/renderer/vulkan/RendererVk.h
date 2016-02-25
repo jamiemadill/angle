@@ -19,7 +19,9 @@ namespace rx
 enum VulkanInitResult : EGLint
 {
     VULKAN_INIT_SUCCESS,
-    VULKAN_INIT_INCOMPATIBLE_DRIVER,
+    VULKAN_INIT_ERROR_LAYERS,
+    VULKAN_INIT_ERROR_EXTENSIONS,
+    VULKAN_INIT_ERROR_CREATE_INSTANCE,
 };
 
 class RendererVk : public Renderer
@@ -28,7 +30,7 @@ class RendererVk : public Renderer
     RendererVk();
     ~RendererVk() override;
 
-    egl::Error initialize();
+    egl::Error initialize(const egl::AttributeMap &attribs);
 
     gl::Error flush() override;
     gl::Error finish() override;
