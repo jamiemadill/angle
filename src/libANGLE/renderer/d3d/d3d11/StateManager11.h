@@ -80,6 +80,7 @@ class StateManager11 final : angle::NonCopyable
 
     void invalidateRenderTarget();
     void invalidateBoundViews();
+    void invalidateInputLayout();
     void invalidateEverything();
     void setRenderTarget(ID3D11RenderTargetView *renderTarget,
                          ID3D11DepthStencilView *depthStencil);

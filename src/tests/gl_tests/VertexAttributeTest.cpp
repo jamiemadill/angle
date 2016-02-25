@@ -396,22 +396,22 @@ TEST_P(VertexAttributeTest, SameBufferManyAttributes)
 
     std::vector<AttribData> datas;
     datas.push_back(AttribData(GL_UNSIGNED_BYTE, 1, GL_FALSE, 1));
-//    datas.push_back(AttribData(GL_UNSIGNED_BYTE, 2, GL_FALSE, 2));
+    //    datas.push_back(AttribData(GL_UNSIGNED_BYTE, 2, GL_FALSE, 2));
     datas.push_back(AttribData(GL_UNSIGNED_BYTE, 2, GL_TRUE, 2));
-    //datas.push_back(AttribData(GL_UNSIGNED_BYTE, 3, GL_FALSE, 3));
-    //datas.push_back(AttribData(GL_UNSIGNED_BYTE, 4, GL_FALSE, 4));
-    //datas.push_back(AttribData(GL_UNSIGNED_BYTE, 1, GL_FALSE, 2));
-    //datas.push_back(AttribData(GL_UNSIGNED_BYTE, 2, GL_FALSE, 4));
-    //datas.push_back(AttribData(GL_UNSIGNED_BYTE, 3, GL_FALSE, 6));
-    //datas.push_back(AttribData(GL_UNSIGNED_BYTE, 4, GL_FALSE, 8));
-    //datas.push_back(AttribData(GL_BYTE, 1, GL_FALSE, 1));
-    //datas.push_back(AttribData(GL_BYTE, 2, GL_FALSE, 2));
-    //datas.push_back(AttribData(GL_BYTE, 3, GL_FALSE, 3));
-    //datas.push_back(AttribData(GL_BYTE, 4, GL_FALSE, 4));
-    //datas.push_back(AttribData(GL_BYTE, 1, GL_FALSE, 2));
-    //datas.push_back(AttribData(GL_BYTE, 2, GL_FALSE, 4));
-    //datas.push_back(AttribData(GL_BYTE, 3, GL_FALSE, 6));
-    //datas.push_back(AttribData(GL_BYTE, 4, GL_FALSE, 8));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 3, GL_FALSE, 3));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 4, GL_FALSE, 4));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 1, GL_FALSE, 2));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 2, GL_FALSE, 4));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 3, GL_FALSE, 6));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 4, GL_FALSE, 8));
+    // datas.push_back(AttribData(GL_BYTE, 1, GL_FALSE, 1));
+    // datas.push_back(AttribData(GL_BYTE, 2, GL_FALSE, 2));
+    // datas.push_back(AttribData(GL_BYTE, 3, GL_FALSE, 3));
+    // datas.push_back(AttribData(GL_BYTE, 4, GL_FALSE, 4));
+    // datas.push_back(AttribData(GL_BYTE, 1, GL_FALSE, 2));
+    // datas.push_back(AttribData(GL_BYTE, 2, GL_FALSE, 4));
+    // datas.push_back(AttribData(GL_BYTE, 3, GL_FALSE, 6));
+    // datas.push_back(AttribData(GL_BYTE, 4, GL_FALSE, 8));
 
     std::vector<GLfloat> expectedFloatData;
     for (GLubyte ub : bufferData)
@@ -431,17 +431,20 @@ TEST_P(VertexAttributeTest, SameBufferManyAttributes)
     for (int i = 0; i < 10; i++)
     {
 
-    for (const auto &data : datas)
-    {
-        glBindBuffer(GL_ARRAY_BUFFER, buffer);
-        glVertexAttribPointer(mTestAttrib, data.size, data.type, data.normalized, data.stride, nullptr);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glVertexAttribPointer(mExpectedAttrib, data.size, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * data.stride, data.normalized ? expectedNormData.data() : expectedFloatData.data());
-        drawQuad(mProgram, "position", 0.5f);
-        EXPECT_PIXEL_EQ(getWindowWidth()/2, getWindowHeight()/2, 255, 255, 255, 255);
-    }
+        for (const auto &data : datas)
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, buffer);
+            glVertexAttribPointer(mTestAttrib, data.size, data.type, data.normalized, data.stride,
+                                  nullptr);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glVertexAttribPointer(
+                mExpectedAttrib, data.size, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * data.stride,
+                data.normalized ? expectedNormData.data() : expectedFloatData.data());
+            drawQuad(mProgram, "position", 0.5f);
+            EXPECT_PIXEL_EQ(getWindowWidth() / 2, getWindowHeight() / 2, 255, 255, 255, 255);
+        }
 
-    swapBuffers();
+        swapBuffers();
     }
 
     glDeleteBuffers(1, &buffer);

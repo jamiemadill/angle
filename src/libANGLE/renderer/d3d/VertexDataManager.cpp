@@ -102,6 +102,55 @@ bool DirectStoragePossible(const gl::VertexAttribute &attrib)
 }
 }  // anonymous namespace
 
+VertexStorageType ClassifyAttributeStorage(const gl::VertexAttribute &attrib)
+{
+    // If attribute is disabled, we use the current value.
+    if (!attrib.enabled)
+    {
+        return VertexStorageType::VERTEX_STORAGE_CURRENT_VALUE;
+    }
+
+    // If specified with immediate data, we must use dynamic storage.
+    auto *buffer = attrib.buffer.get();
+    if (!buffer)
+    {
+        return VertexStorageType::VERTEX_STORAGE_DYNAMIC;
+    }
+
+    // Check if the buffer supports direct storage.
+    if (DirectStoragePossible(attrib))
+    {
+        return VertexStorageType::VERTEX_STORAGE_DIRECT;
+    }
+
+    // Otherwise the storage is static or dynamic.
+    BufferD3D *bufferD3D = GetImplAs<BufferD3D>(buffer);
+    ASSERT(bufferD3D);
+    if (bufferD3D->getStaticVertexBuffer(attrib, D3D_BUFFER_CREATE_IF_NECESSARY))
+    {
+        return VertexStorageType::VERTEX_STORAGE_STATIC;
+    }
+
+    return VertexStorageType::VERTEX_STORAGE_DYNAMIC;
+}
+
+std::vector<size_t> *AttribStorageIndex::getIndexes(VertexStorageType storageType)
+{
+    switch (storageType)
+    {
+        case VertexStorageType::VERTEX_STORAGE_CURRENT_VALUE:
+            return &mCurrentValueAttribIndexes;
+        case VertexStorageType::VERTEX_STORAGE_DYNAMIC:
+            return &mDynamicAttribIndexes;
+        case VertexStorageType::VERTEX_STORAGE_STATIC:
+            return &mStaticAttribIndexes;
+        case VertexStorageType::VERTEX_STORAGE_DIRECT:
+            return &mDirectAttribIndexes;
+        default:
+            return nullptr;
+    }
+}
+
 VertexDataManager::CurrentValueState::CurrentValueState()
     : buffer(nullptr),
       offset(0)
@@ -179,25 +228,30 @@ gl::Error VertexDataManager::prepareVertexData(const gl::State &state,
                                                std::vector<TranslatedAttribute> *translatedAttribs,
                                                GLsizei instances)
 {
-    if (!mStreamingBuffer)
-    {
-        return gl::Error(GL_OUT_OF_MEMORY, "Internal streaming vertex buffer is unexpectedly NULL.");
-    }
+    ASSERT(mStreamingBuffer);
 
     // Compute active enabled and active disable attributes, for speed.
-    // TODO(jmadill): don't recompute if there was no state change
     const gl::VertexArray *vertexArray = state.getVertexArray();
-    const gl::Program *program         = state.getProgram();
     const auto &vertexAttributes       = vertexArray->getVertexAttributes();
 
-    mActiveEnabledAttributes.clear();
-    mActiveDisabledAttributes.clear();
+    AttribStorageIndex attribStorageIndex;
+    const gl::Program *program = state.getProgram();
+
+    for (size_t attribIndex = 0; attribIndex < vertexAttributes.size(); ++attribIndex)
+    {
+        // Skip attrib locations the program doesn't use.
+        if (!program->isAttribLocationActive(attribIndex))
+            continue;
+
+        const auto &attrib = vertexAttributes[attribIndex];
+        auto storageType = ClassifyAttributeStorage(attrib);
+        attribStorageIndex.getIndexes(storageType)->push_back(attribIndex);
+    }
+
     translatedAttribs->clear();
 
     for (size_t attribIndex = 0; attribIndex < vertexAttributes.size(); ++attribIndex)
     {
-        if (program->isAttribLocationActive(attribIndex))
-        {
             // Resize automatically puts in empty attribs
             translatedAttribs->resize(attribIndex + 1);
 

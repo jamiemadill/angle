@@ -55,6 +55,30 @@ struct TranslatedAttribute
     unsigned int divisor;
 };
 
+enum class VertexStorageType
+{
+    VERTEX_STORAGE_UNKNOWN,
+    VERTEX_STORAGE_STATIC,         // Translate the vertex data once and re-use it.
+    VERTEX_STORAGE_DYNAMIC,        // Translate the data every frame into a ring buffer.
+    VERTEX_STORAGE_DIRECT,         // Bind a D3D buffer directly without any translation.
+    VERTEX_STORAGE_CURRENT_VALUE,  // Use a single value for the attribute.
+};
+
+// Given a vertex attribute, return the type of storage it will use.
+VertexStorageType ClassifyAttributeStorage(const gl::VertexAttribute &attrib);
+
+class AttribStorageIndex final : angle::NonCopyable
+{
+  public:
+    std::vector<size_t> *getIndexes(VertexStorageType storageType);
+
+  private:
+    std::vector<size_t> mStaticAttribIndexes;
+    std::vector<size_t> mDynamicAttribIndexes;
+    std::vector<size_t> mCurrentValueAttribIndexes;
+    std::vector<size_t> mDirectAttribIndexes;
+};
+
 class VertexDataManager : angle::NonCopyable
 {
   public:
@@ -103,6 +127,6 @@ class VertexDataManager : angle::NonCopyable
     std::vector<size_t> mActiveDisabledAttributes;
 };
 
-}
+}  // namespace rx
 
 #endif   // LIBANGLE_RENDERER_D3D_VERTEXDATAMANAGER_H_
