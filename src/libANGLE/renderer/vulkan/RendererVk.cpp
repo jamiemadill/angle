@@ -9,18 +9,52 @@
 #include "libANGLE/renderer/vulkan/RendererVk.h"
 
 #include "common/debug.h"
-
 #include "libANGLE/renderer/vulkan/TextureVk.h"
 
 namespace rx
 {
 
-RendererVk::RendererVk() : Renderer()
+RendererVk::RendererVk() : Renderer(), mInstance(nullptr)
 {
 }
 
 RendererVk::~RendererVk()
 {
+    vkDestroyInstance(mInstance, nullptr);
+}
+
+egl::Error RendererVk::initialize()
+{
+    VkApplicationInfo applicationInfo  = {};
+    applicationInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    applicationInfo.pNext              = nullptr;
+    applicationInfo.pApplicationName   = "ANGLE";
+    applicationInfo.applicationVersion = 1;
+    applicationInfo.pEngineName        = "ANGLE";
+    applicationInfo.engineVersion      = 1;
+    applicationInfo.apiVersion         = VK_API_VERSION;
+
+    VkInstanceCreateInfo instanceInfo = {};
+    instanceInfo.sType                = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    instanceInfo.pNext                = nullptr;
+    instanceInfo.flags                = 0;
+    instanceInfo.pApplicationInfo     = &applicationInfo;
+
+    // TODO(jmadill): Layers and extensions.
+    instanceInfo.enabledExtensionCount   = 0;
+    instanceInfo.ppEnabledExtensionNames = nullptr;
+    instanceInfo.enabledLayerCount       = 0;
+    instanceInfo.ppEnabledLayerNames     = nullptr;
+
+    VkResult result = VK_SUCCESS;
+    result = vkCreateInstance(&instanceInfo, nullptr, &mInstance);
+    if (result == VK_ERROR_INCOMPATIBLE_DRIVER)
+    {
+        return egl::Error(EGL_NOT_INITIALIZED, VULKAN_INIT_INCOMPATIBLE_DRIVER,
+                          "Could not find a compatible Vulkan driver.");
+    }
+
+    return egl::Error(EGL_SUCCESS);
 }
 
 gl::Error RendererVk::flush()

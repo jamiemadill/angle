@@ -839,9 +839,27 @@
                     [
                         '<@(libangle_vulkan_sources)',
                     ],
+                    'dependencies':
+                    [
+                        'vulkan_loader',
+                    ],
                     'defines':
                     [
                         'ANGLE_ENABLE_VULKAN',
+                    ],
+                    'export_dependent_settings':
+                    [
+                        'vulkan_loader',
+                    ],
+                    'conditions':
+                    [
+                        ['OS=="win"',
+                        {
+                            'defines':
+                            [
+                                'VK_USE_PLATFORM_WIN32_KHR',
+                            ],
+                        }],
                     ],
                 }],
                 ['angle_build_winrt==0 and OS=="win"',

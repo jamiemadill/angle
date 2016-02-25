@@ -40,6 +40,30 @@
                 'angle_enable_gl%': 1,
             }],
         ],
+        'vulkan_path': '../third_party/Vulkan-LoaderAndValidationLayers',
+        'vulkan_loader_sources':
+        [
+            '<(vulkan_path)/loader/cJSON.c',
+            '<(vulkan_path)/loader/cJSON.h',
+            '<(vulkan_path)/loader/debug_report.c',
+            '<(vulkan_path)/loader/debug_report.h',
+            '<(vulkan_path)/loader/dev_ext_trampoline.c',
+            '<(vulkan_path)/loader/gpa_helper.h',
+            '<(vulkan_path)/loader/loader.c',
+            '<(vulkan_path)/loader/loader.h',
+            '<(vulkan_path)/loader/murmurhash.c',
+            '<(vulkan_path)/loader/murmurhash.h',
+            '<(vulkan_path)/loader/table_ops.h',
+            '<(vulkan_path)/loader/trampoline.c',
+            '<(vulkan_path)/loader/vk_loader_platform.h',
+            '<(vulkan_path)/loader/wsi.c',
+            '<(vulkan_path)/loader/wsi.h',
+        ],
+        'vulkan_loader_win_sources':
+        [
+            '<(vulkan_path)/loader/dirent_on_windows.c',
+            '<(vulkan_path)/loader/dirent_on_windows.h',
+        ],
     },
     'includes':
     [
@@ -201,6 +225,76 @@
                     ],
                 }
             ]
+        }],
+        ['angle_enable_vulkan==1',
+        {
+            'targets':
+            [
+                {
+                    'target_name': 'vulkan_loader',
+                    'type': '<(component)',
+                    'sources':
+                    [
+                        '<@(vulkan_loader_sources)',
+                    ],
+                    'include_dirs':
+                    [
+                        '<(vulkan_path)/include',
+                        '<(vulkan_path)/loader',
+                    ],
+                    'msvs_settings':
+                    {
+                        'VCCLCompilerTool':
+                        {
+                            'AdditionalOptions':
+                            [
+                                '/wd4054', # Type cast from function pointer
+                                '/wd4055', # Type cast from data pointer
+                                '/wd4100', # Unreferenced formal parameter
+                                '/wd4127', # Conditional expression is constant
+                                '/wd4152', # Nonstandard extension used (pointer conversion)
+                                '/wd4706', # Assignment within conditional expression
+                                '/wd4996', # Unsafe stdlib function
+                            ],
+                        },
+                        'VCLinkerTool':
+                        {
+                            'AdditionalDependencies':
+                            [
+                                'shlwapi.lib',
+                            ],
+                        },
+                    },
+                    'direct_dependent_settings':
+                    {
+                        'include_dirs':
+                        [
+                            '<(vulkan_path)/include',
+                            '<(vulkan_path)/loader',
+                        ],
+                        'msvs_settings':
+                        {
+                            'VCLinkerTool':
+                            {
+                                'AdditionalDependencies':
+                                [
+                                    'shlwapi.lib',
+                                ],
+                            },
+                        },
+                    },
+                    'conditions':
+                    [
+                        ['OS=="win"',
+                        {
+                            'sources':
+                            [
+                                '<@(vulkan_loader_win_sources)',
+                            ],
+                        }],
+                    ],
+                },
+            ],
         }],
         ['OS=="win"',
         {
