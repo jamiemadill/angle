@@ -227,6 +227,7 @@ Program::Data::Data()
       mAttachedFragmentShader(nullptr),
       mAttachedVertexShader(nullptr),
       mTransformFeedbackBufferMode(GL_INTERLEAVED_ATTRIBS),
+      mMaxActiveAttribLocation(0),
       mBinaryRetrieveableHint(false)
 {
 }
@@ -309,6 +310,15 @@ GLuint Program::Data::getUniformIndex(const std::string &name) const
     }
 
     return GL_INVALID_INDEX;
+}
+
+void Program::Data::updateMaxAttribLocation()
+{
+    mMaxActiveAttribLocation = 0;
+    for (unsigned long bit : angle::IterateBitSet(mActiveAttribLocationsMask))
+    {
+        mMaxActiveAttribLocation = bit + 1;
+    }
 }
 
 Program::Program(rx::ImplFactory *factory, ResourceManager *manager, GLuint handle)
@@ -518,6 +528,7 @@ void Program::unlink(bool destroy)
 
     mData.mAttributes.clear();
     mData.mActiveAttribLocationsMask.reset();
+    mData.updateMaxAttribLocation();
     mData.mTransformFeedbackVaryingVars.clear();
     mData.mUniforms.clear();
     mData.mUniformLocations.clear();
@@ -569,6 +580,7 @@ Error Program::loadBinary(GLenum binaryFormat, const void *binary, GLsizei lengt
     static_assert(MAX_VERTEX_ATTRIBS <= sizeof(unsigned long) * 8,
                   "Too many vertex attribs for mask");
     mData.mActiveAttribLocationsMask = stream.readInt<unsigned long>();
+    mData.updateMaxAttribLocation();
 
     unsigned int attribCount = stream.readInt<unsigned int>();
     ASSERT(mData.mAttributes.empty());
@@ -1817,6 +1829,7 @@ bool Program::linkAttributes(const gl::Data &data,
         for (int r = 0; r < regs; r++)
         {
             mData.mActiveAttribLocationsMask.set(attribute.location + r);
+            mData.updateMaxAttribLocation();
         }
     }
 

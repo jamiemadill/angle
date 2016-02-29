@@ -176,6 +176,7 @@ class Program final : angle::NonCopyable, public LabeledObject
         {
             return mActiveAttribLocationsMask;
         }
+        unsigned long getMaxActiveAttribLocation() const { return mMaxActiveAttribLocation; }
         const std::map<int, VariableLocation> &getOutputVariables() const
         {
             return mOutputVariables;
@@ -194,6 +195,8 @@ class Program final : angle::NonCopyable, public LabeledObject
       private:
         friend class Program;
 
+        void updateMaxAttribLocation();
+
         std::string mLabel;
 
         Shader *mAttachedFragmentShader;
@@ -208,6 +211,7 @@ class Program final : angle::NonCopyable, public LabeledObject
 
         std::vector<sh::Attribute> mAttributes;
         std::bitset<MAX_VERTEX_ATTRIBS> mActiveAttribLocationsMask;
+        unsigned long mMaxActiveAttribLocation;
 
         // Uniforms are sorted in order:
         //  1. Non-sampler uniforms
@@ -339,6 +343,8 @@ class Program final : angle::NonCopyable, public LabeledObject
     {
         return mData.mActiveAttribLocationsMask;
     }
+
+    unsigned long getMaxActiveAttribLocation() const { return mData.mMaxActiveAttribLocation; }
 
   private:
     void unlink(bool destroy = false);
