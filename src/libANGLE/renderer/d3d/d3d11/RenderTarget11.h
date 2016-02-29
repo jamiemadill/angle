@@ -39,7 +39,7 @@ class RenderTarget11 : public RenderTargetD3D
     void signalDirty() override;
 
   protected:
-    std::set<const NotificationCallback *> mDirtyCallbacks;
+    NotificationSet mDirtyCallbacks;
 };
 
 class TextureRenderTarget11 : public RenderTarget11

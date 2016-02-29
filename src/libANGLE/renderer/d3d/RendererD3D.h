@@ -283,8 +283,6 @@ class RendererD3D : public Renderer, public BufferFactoryD3D
     void initializeDebugAnnotator();
     gl::DebugAnnotator *mAnnotator;
 
-    std::vector<TranslatedAttribute> mTranslatedAttribCache;
-
     bool mPresentPathFastEnabled;
 
   private:
