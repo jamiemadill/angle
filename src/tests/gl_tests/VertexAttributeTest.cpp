@@ -356,6 +356,100 @@ TEST_P(VertexAttributeTest, SimpleBindAttribLocation)
     EXPECT_PIXEL_NEAR(0, 0, 128, 0, 0, 255, 1);
 }
 
+// Test sourcing vertex data in different ways from the same buffer.
+TEST_P(VertexAttributeTest, SameBufferManyAttributes)
+{
+    // TODO(geofflang): Figure out why this is broken on AMD OpenGL
+    if (isAMD() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE)
+    {
+        std::cout << "Test skipped on AMD OpenGL." << std::endl;
+        return;
+    }
+
+    GLuint buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+
+    std::vector<GLubyte> bufferData;
+    for (GLubyte i = 0; i < std::numeric_limits<GLubyte>::max(); ++i)
+    {
+        bufferData.push_back(i);
+    }
+
+    glBufferData(GL_ARRAY_BUFFER, bufferData.size(), bufferData.data(), GL_STATIC_DRAW);
+
+    GLint viewportSize[4];
+    glGetIntegerv(GL_VIEWPORT, viewportSize);
+
+    struct AttribData
+    {
+        AttribData(GLenum typeIn, GLuint sizeIn, GLboolean normalizedIn, GLuint strideIn)
+            : type(typeIn), size(sizeIn), normalized(normalizedIn), stride(strideIn)
+        {
+        }
+
+        GLenum type;
+        GLuint size;
+        GLboolean normalized;
+        GLuint stride;
+    };
+
+    std::vector<AttribData> datas;
+    datas.push_back(AttribData(GL_UNSIGNED_BYTE, 1, GL_FALSE, 1));
+    //    datas.push_back(AttribData(GL_UNSIGNED_BYTE, 2, GL_FALSE, 2));
+    datas.push_back(AttribData(GL_UNSIGNED_BYTE, 2, GL_TRUE, 2));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 3, GL_FALSE, 3));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 4, GL_FALSE, 4));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 1, GL_FALSE, 2));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 2, GL_FALSE, 4));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 3, GL_FALSE, 6));
+    // datas.push_back(AttribData(GL_UNSIGNED_BYTE, 4, GL_FALSE, 8));
+    // datas.push_back(AttribData(GL_BYTE, 1, GL_FALSE, 1));
+    // datas.push_back(AttribData(GL_BYTE, 2, GL_FALSE, 2));
+    // datas.push_back(AttribData(GL_BYTE, 3, GL_FALSE, 3));
+    // datas.push_back(AttribData(GL_BYTE, 4, GL_FALSE, 4));
+    // datas.push_back(AttribData(GL_BYTE, 1, GL_FALSE, 2));
+    // datas.push_back(AttribData(GL_BYTE, 2, GL_FALSE, 4));
+    // datas.push_back(AttribData(GL_BYTE, 3, GL_FALSE, 6));
+    // datas.push_back(AttribData(GL_BYTE, 4, GL_FALSE, 8));
+
+    std::vector<GLfloat> expectedFloatData;
+    for (GLubyte ub : bufferData)
+    {
+        expectedFloatData.push_back(static_cast<GLfloat>(ub));
+    }
+
+    std::vector<GLfloat> expectedNormData;
+    for (GLubyte ub : bufferData)
+    {
+        expectedNormData.push_back(static_cast<GLfloat>(ub) / 255.0f);
+    }
+
+    glEnableVertexAttribArray(mTestAttrib);
+    glEnableVertexAttribArray(mExpectedAttrib);
+
+    for (int i = 0; i < 10; i++)
+    {
+
+        for (const auto &data : datas)
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, buffer);
+            glVertexAttribPointer(mTestAttrib, data.size, data.type, data.normalized, data.stride,
+                                  nullptr);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glVertexAttribPointer(
+                mExpectedAttrib, data.size, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * data.stride,
+                data.normalized ? expectedNormData.data() : expectedFloatData.data());
+            drawQuad(mProgram, "position", 0.5f);
+            EXPECT_PIXEL_EQ(getWindowWidth() / 2, getWindowHeight() / 2, 255, 255, 255, 255);
+        }
+
+        swapBuffers();
+    }
+
+    glDeleteBuffers(1, &buffer);
+}
+
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
 // D3D11 Feature Level 9_3 uses different D3D formats for vertex attribs compared to Feature Levels 10_0+, so we should test them separately.
 ANGLE_INSTANTIATE_TEST(VertexAttributeTest,
