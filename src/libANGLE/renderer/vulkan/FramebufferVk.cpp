@@ -10,6 +10,7 @@
 #include "libANGLE/renderer/vulkan/FramebufferVk.h"
 
 #include "common/debug.h"
+#include "libANGLE/formatutils.h"
 
 namespace rx
 {
@@ -44,8 +45,8 @@ gl::Error FramebufferVk::invalidateSub(size_t count,
 
 gl::Error FramebufferVk::clear(const gl::Data &data, GLbitfield mask)
 {
-    UNIMPLEMENTED();
-    return gl::Error(GL_INVALID_OPERATION);
+    // TODO(jmadill): Implement clear.
+    return gl::Error(GL_NO_ERROR);
 }
 
 gl::Error FramebufferVk::clearBufferfv(const gl::Data &data,
@@ -87,14 +88,20 @@ gl::Error FramebufferVk::clearBufferfi(const gl::Data &data,
 
 GLenum FramebufferVk::getImplementationColorReadFormat() const
 {
-    UNIMPLEMENTED();
-    return GLenum();
+    // TODO(jmadill): Do proper check.
+    const gl::FramebufferAttachment *readAttachment = getData().getReadAttachment();
+    GLenum internalFormat = readAttachment->getInternalFormat();
+    const auto &internalFormatInfo = gl::GetInternalFormatInfo(internalFormat);
+    return internalFormatInfo.format;
 }
 
 GLenum FramebufferVk::getImplementationColorReadType() const
 {
-    UNIMPLEMENTED();
-    return GLenum();
+    // TODO(jmadill): Do proper check.
+    const gl::FramebufferAttachment *readAttachment = getData().getReadAttachment();
+    GLenum internalFormat = readAttachment->getInternalFormat();
+    const auto &internalFormatInfo = gl::GetInternalFormatInfo(internalFormat);
+    return internalFormatInfo.type;
 }
 
 gl::Error FramebufferVk::readPixels(const gl::State &state,
@@ -103,8 +110,8 @@ gl::Error FramebufferVk::readPixels(const gl::State &state,
                                     GLenum type,
                                     GLvoid *pixels) const
 {
-    UNIMPLEMENTED();
-    return gl::Error(GL_INVALID_OPERATION);
+    // TODO(jmadill): ReadPixels
+    return gl::Error(GL_NO_ERROR);
 }
 
 gl::Error FramebufferVk::blit(const gl::State &state,
@@ -126,7 +133,6 @@ bool FramebufferVk::checkStatus() const
 
 void FramebufferVk::syncState(const gl::Framebuffer::DirtyBits &dirtyBits)
 {
-    UNIMPLEMENTED();
 }
 
 }  // namespace rx
