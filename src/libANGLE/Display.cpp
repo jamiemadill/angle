@@ -64,9 +64,30 @@ class DefaultPlatform : public angle::Platform
 public:
     DefaultPlatform() {}
     ~DefaultPlatform() override {}
+
+    void logError(const char *errorMessage) override;
+    void logWarning(const char *warningMessage) override;
+    void logInfo(const char *infoMessage) override;
 };
 
 DefaultPlatform *defaultPlatform = nullptr;
+
+void DefaultPlatform::logError(const char *errorMessage)
+{
+    ERR("%s", errorMessage);
+}
+
+void DefaultPlatform::logWarning(const char *warningMessage)
+{
+    // TODO(jmadill): Fix this
+    ERR("%s", warningMessage);
+}
+
+void DefaultPlatform::logInfo(const char *infoMessage)
+{
+    // TODO(jmadill): Fix this
+    ERR("%s", infoMessage);
+}
 
 void InitDefaultPlatformImpl()
 {

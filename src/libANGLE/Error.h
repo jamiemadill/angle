@@ -90,6 +90,7 @@ class Error final
     explicit inline Error(EGLint errorCode);
     Error(EGLint errorCode, const char *msg, ...);
     Error(EGLint errorCode, EGLint id, const char *msg, ...);
+    Error(EGLint errorCode, EGLint id, const std::string &msg);
     inline Error(const Error &other);
     inline Error(Error &&other);
 
@@ -108,6 +109,22 @@ class Error final
     EGLint mCode;
     EGLint mID;
     mutable std::unique_ptr<std::string> mMessage;
+};
+
+template <typename T>
+class ErrorOrResult
+{
+  public:
+    ErrorOrResult(const Error &error) : mError(error) {}
+    ErrorOrResult(T &&result) : mError(EGL_SUCCESS), mResult(std::move(result)) {}
+
+    bool isError() const { return mError.isError(); }
+    const Error &getError() const { return mError; }
+    T &&getResult() { return std::move(mResult); }
+
+  private:
+    Error mError;
+    T mResult;
 };
 
 }  // namespace egl

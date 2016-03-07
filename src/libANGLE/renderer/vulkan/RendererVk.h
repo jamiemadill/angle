@@ -23,6 +23,10 @@ enum VulkanErrorCode : EGLint
     VULKAN_ERROR_INIT_LAYERS,
     VULKAN_ERROR_INIT_EXTENSIONS,
     VULKAN_ERROR_CREATE_INSTANCE,
+    VULKAN_ERROR_QUERY_PHYSICAL_DEVICE,
+    VULKAN_ERROR_INIT_QUEUE,
+    VULKAN_ERROR_INIT_SURFACE,
+    VULKAN_ERROR_CREATE_DEVICE,
 };
 
 class RendererVk : public Renderer
@@ -122,6 +126,10 @@ class RendererVk : public Renderer
     SamplerImpl *createSampler() override;
 
     VkInstance getInstance() const { return mInstance; }
+    VkPhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
+
+    egl::Error selectGraphicsQueue();
+    egl::ErrorOrResult<bool> selectPresentQueueForSurface(VkSurfaceKHR surface);
 
   private:
     void generateCaps(gl::Caps *outCaps,
@@ -129,7 +137,18 @@ class RendererVk : public Renderer
                       gl::Extensions *outExtensions,
                       gl::Limitations *outLimitations) const override;
 
+    std::vector<const char *> getValidationLayers() const;
+    egl::Error initializeDevice(uint32_t queueFamilyIndex);
+
     VkInstance mInstance;
+    VkPhysicalDevice mPhysicalDevice;
+    VkPhysicalDeviceProperties mPhysicalDeviceProperties;
+    std::vector<VkQueueFamilyProperties> mQueueFamilyProperties;
+    VkQueue mQueue;
+    uint32_t mCurrentQueueFamilyIndex;
+    VkDevice mDevice;
+    bool mEnableValidationLayers;
+    VkDebugReportCallbackEXT mDebugReportCallback;
 };
 
 }  // namespace rx
