@@ -17,10 +17,12 @@
 namespace rx
 {
 
-enum VulkanInitResult : EGLint
+enum VulkanErrorCode : EGLint
 {
-    VULKAN_INIT_SUCCESS,
-    VULKAN_INIT_INCOMPATIBLE_DRIVER,
+    VULKAN_SUCCESS,
+    VULKAN_ERROR_INIT_LAYERS,
+    VULKAN_ERROR_INIT_EXTENSIONS,
+    VULKAN_ERROR_CREATE_INSTANCE,
 };
 
 class RendererVk : public Renderer
@@ -29,7 +31,7 @@ class RendererVk : public Renderer
     RendererVk();
     ~RendererVk() override;
 
-    egl::Error initialize();
+    egl::Error initialize(const egl::AttributeMap &attribs);
 
     gl::Error flush() override;
     gl::Error finish() override;
@@ -118,6 +120,8 @@ class RendererVk : public Renderer
 
     // Sampler object creation
     SamplerImpl *createSampler() override;
+
+    VkInstance getInstance() const { return mInstance; }
 
   private:
     void generateCaps(gl::Caps *outCaps,

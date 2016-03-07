@@ -14,6 +14,7 @@
 
 namespace rx
 {
+class RendererVk;
 
 class DisplayVk : public DisplayImpl
 {
@@ -70,6 +71,8 @@ class DisplayVk : public DisplayImpl
   private:
     void generateExtensions(egl::DisplayExtensions *outExtensions) const override;
     void generateCaps(egl::Caps *outCaps) const override;
+
+    std::unique_ptr<RendererVk> mRenderer;
 };
 
 }  // namespace rx

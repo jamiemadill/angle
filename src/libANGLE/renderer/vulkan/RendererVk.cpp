@@ -9,7 +9,15 @@
 
 #include "libANGLE/renderer/vulkan/RendererVk.h"
 
+#include <EGL/eglext.h>
+
 #include "common/debug.h"
+#include "libANGLE/renderer/vulkan/CompilerVk.h"
+#include "libANGLE/renderer/vulkan/FramebufferVk.h"
+#include "libANGLE/renderer/vulkan/TextureVk.h"
+#include "libANGLE/renderer/vulkan/VertexArrayVk.h"
+#include "libANGLE/renderer/vulkan/renderervk_utils.h"
+#include "platform/Platform.h"
 
 #include "libANGLE/renderer/vulkan/BufferVk.h"
 #include "libANGLE/renderer/vulkan/CompilerVk.h"
@@ -30,7 +38,7 @@
 namespace rx
 {
 
-RendererVk::RendererVk() : Renderer(), mInstance(nullptr)
+RendererVk::RendererVk() : Renderer(), mInstance(VK_NULL_HANDLE)
 {
 }
 
@@ -39,8 +47,104 @@ RendererVk::~RendererVk()
     vkDestroyInstance(mInstance, nullptr);
 }
 
-egl::Error RendererVk::initialize()
+#define ANGLE_VK_INIT_RESULT_CHECK(result, code) \
+    ANGLE_VK_EGL_RESULT_CHECK(result, EGL_NOT_INITIALIZED, code)
+
+egl::Error RendererVk::initialize(const egl::AttributeMap &attribs)
 {
+    VkResult result = VK_SUCCESS;
+
+    // Gather global layer properties.
+    uint32_t instanceLayerCount = 0;
+    result = vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_LAYERS);
+
+    std::vector<VkLayerProperties> instanceLayerProps(instanceLayerCount);
+    result = vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayerProps.data());
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_LAYERS);
+
+    uint32_t instanceExtensionCount = 0;
+    result = vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, nullptr);
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_EXTENSIONS);
+
+    std::vector<VkExtensionProperties> instanceExtensionProps(instanceExtensionCount);
+    result = vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount,
+                                                    instanceExtensionProps.data());
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_EXTENSIONS);
+
+    // Compile the layer names into a set.
+    std::set<std::string> layerNames;
+    for (const auto &layerProp : instanceLayerProps)
+    {
+        layerNames.insert(layerProp.layerName);
+    }
+
+    // Similarly for the extensions.
+    std::set<std::string> extensionNames;
+    for (const auto &extensionProp : instanceExtensionProps)
+    {
+        extensionNames.insert(extensionProp.extensionName);
+    }
+
+#if !defined(NDEBUG)
+    // Validation layers enabled by default in Debug.
+    bool enableValidationLayers = true;
+#else
+    bool enableValidationLayers = false;
+#endif
+
+    // If specified in the attributes, override the default.
+    if (attribs.contains(EGL_PLATFORM_ANGLE_ENABLE_VALIDATION_LAYER_ANGLE))
+    {
+        enableValidationLayers =
+            (attribs.get(EGL_PLATFORM_ANGLE_ENABLE_VALIDATION_LAYER_ANGLE, EGL_FALSE) == EGL_TRUE);
+    }
+
+    std::vector<const char *> instanceLayerNames;
+
+    // Use the standard validation layer ordering as in the Vulkan SDK docs.
+    if (enableValidationLayers)
+    {
+        instanceLayerNames.push_back("VK_LAYER_LUNARG_threading");
+        instanceLayerNames.push_back("VK_LAYER_LUNARG_param_checker");
+        instanceLayerNames.push_back("VK_LAYER_LUNARG_device_limits");
+        instanceLayerNames.push_back("VK_LAYER_LUNARG_object_tracker");
+        instanceLayerNames.push_back("VK_LAYER_LUNARG_image");
+        instanceLayerNames.push_back("VK_LAYER_LUNARG_mem_tracker");
+        instanceLayerNames.push_back("VK_LAYER_LUNARG_draw_state");
+        instanceLayerNames.push_back("VK_LAYER_LUNARG_swapchain");
+        instanceLayerNames.push_back("VK_LAYER_GOOGLE_unique_objects");
+    }
+
+    // Verify the validation layers are in layer names set.
+    for (const auto &instanceLayerName : instanceLayerNames)
+    {
+        if (layerNames.count(instanceLayerName) == 0)
+        {
+            ANGLEPlatformCurrent()->logWarning("Enabled Vulkan instance layer missing.");
+            instanceLayerNames.clear();
+            break;
+        }
+    }
+
+    std::vector<const char *> instanceExtensionNames;
+    instanceExtensionNames.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+#if defined(ANGLE_PLATFORM_WINDOWS)
+    instanceExtensionNames.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#else
+#error Unsupported Vulkan platform.
+#endif  // defined(ANGLE_PLATFORM_WINDOWS)
+
+    // Verify the required extensions are in the extension names set. Fail if not.
+    for (const auto &extensionName : instanceExtensionNames)
+    {
+        if (extensionNames.count(extensionName) == 0)
+        {
+            return VulkanEGLError(EGL_NOT_INITIALIZED, VULKAN_ERROR_INIT_EXTENSIONS,
+                                  VK_ERROR_EXTENSION_NOT_PRESENT);
+        }
+    }
+
     VkApplicationInfo applicationInfo  = {};
     applicationInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     applicationInfo.pNext              = nullptr;
@@ -56,22 +160,21 @@ egl::Error RendererVk::initialize()
     instanceInfo.flags                = 0;
     instanceInfo.pApplicationInfo     = &applicationInfo;
 
-    // TODO(jmadill): Layers and extensions.
-    instanceInfo.enabledExtensionCount   = 0;
-    instanceInfo.ppEnabledExtensionNames = nullptr;
-    instanceInfo.enabledLayerCount       = 0;
-    instanceInfo.ppEnabledLayerNames     = nullptr;
+    // Enable requested layers and extensions.
+    instanceInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensionNames.size());
+    instanceInfo.ppEnabledExtensionNames =
+        instanceExtensionNames.empty() ? nullptr : instanceExtensionNames.data();
+    instanceInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayerNames.size());
+    instanceInfo.ppEnabledLayerNames =
+        instanceLayerNames.empty() ? nullptr : instanceLayerNames.data();
 
-    VkResult result = VK_SUCCESS;
     result = vkCreateInstance(&instanceInfo, nullptr, &mInstance);
-    if (result == VK_ERROR_INCOMPATIBLE_DRIVER)
-    {
-        return egl::Error(EGL_NOT_INITIALIZED, VULKAN_INIT_INCOMPATIBLE_DRIVER,
-                          "Could not find a compatible Vulkan driver.");
-    }
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_CREATE_INSTANCE);
 
     return egl::Error(EGL_SUCCESS);
 }
+
+#undef VK_INIT_RESULT_CHECK
 
 gl::Error RendererVk::flush()
 {
@@ -168,8 +271,8 @@ std::string RendererVk::getVendorString() const
 
 std::string RendererVk::getRendererDescription() const
 {
-    UNIMPLEMENTED();
-    return std::string();
+    // TODO(jmadill): Description.
+    return "Vulkan";
 }
 
 void RendererVk::insertEventMarker(GLsizei length, const char *marker)
@@ -187,9 +290,8 @@ void RendererVk::popGroupMarker()
     UNIMPLEMENTED();
 }
 
-void RendererVk::syncState(const gl::State &state, const gl::State::DirtyBits &dirtyBits)
+void RendererVk::syncState(const gl::State & /*state*/, const gl::State::DirtyBits & /*dirtyBits*/)
 {
-    UNIMPLEMENTED();
 }
 
 GLint RendererVk::getGPUDisjoint()
@@ -206,7 +308,6 @@ GLint64 RendererVk::getTimestamp()
 
 void RendererVk::onMakeCurrent(const gl::Data &data)
 {
-    UNIMPLEMENTED();
 }
 
 CompilerImpl *RendererVk::createCompiler()
@@ -279,7 +380,7 @@ void RendererVk::generateCaps(gl::Caps *outCaps,
                               gl::Extensions *outExtensions,
                               gl::Limitations *outLimitations) const
 {
-    UNIMPLEMENTED();
+    // TODO(jmadill): Caps.
 }
 
 }  // namespace rx

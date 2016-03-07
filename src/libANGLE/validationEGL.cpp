@@ -1209,4 +1209,42 @@ Error ValidateQueryStreamu64KHR(const Display *display,
 
     return Error(EGL_SUCCESS);
 }
+
+Error ValidatePlatformType(const ClientExtensions &clientExtensions, EGLint platformType)
+{
+    switch (platformType)
+    {
+        case EGL_PLATFORM_ANGLE_TYPE_DEFAULT_ANGLE:
+            break;
+
+        case EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE:
+        case EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE:
+            if (!clientExtensions.platformANGLED3D)
+            {
+                return Error(EGL_BAD_ATTRIBUTE, "Direct3D platform is unsupported.");
+            }
+            break;
+
+        case EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE:
+        case EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE:
+            if (!clientExtensions.platformANGLEOpenGL)
+            {
+                return Error(EGL_BAD_ATTRIBUTE, "OpenGL platform is unsupported.");
+            }
+            break;
+
+        case EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE:
+            if (!clientExtensions.platformANGLEVulkan)
+            {
+                return Error(EGL_BAD_ATTRIBUTE, "Vulkan platform is unsupported.");
+            }
+            break;
+
+        default:
+            return Error(EGL_BAD_ATTRIBUTE, "Unknown platform type.");
+    }
+
+    return Error(EGL_SUCCESS);
 }
+
+}  // namespace egl

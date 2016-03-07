@@ -539,6 +539,8 @@
             'libANGLE/renderer/vulkan/TransformFeedbackVk.h',
             'libANGLE/renderer/vulkan/VertexArrayVk.cpp',
             'libANGLE/renderer/vulkan/VertexArrayVk.h',
+            'libANGLE/renderer/vulkan/renderervk_utils.cpp',
+            'libANGLE/renderer/vulkan/renderervk_utils.h',
         ],
         'libglesv2_sources':
         [

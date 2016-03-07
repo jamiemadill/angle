@@ -14,12 +14,13 @@
 
 namespace rx
 {
+class RendererVk;
 
-class SurfaceVk : public SurfaceImpl
+class OffscreenSurfaceVk : public SurfaceImpl
 {
   public:
-    SurfaceVk();
-    ~SurfaceVk() override;
+    OffscreenSurfaceVk(RendererVk *renderer, EGLint width, EGLint height);
+    ~OffscreenSurfaceVk() override;
 
     egl::Error initialize() override;
     FramebufferImpl *createDefaultFramebuffer(const gl::Framebuffer::Data &data) override;
@@ -39,6 +40,40 @@ class SurfaceVk : public SurfaceImpl
 
     gl::Error getAttachmentRenderTarget(const gl::FramebufferAttachment::Target &target,
                                         FramebufferAttachmentRenderTarget **rtOut) override;
+
+  private:
+    RendererVk *mRenderer;
+    EGLint mWidth;
+    EGLint mHeight;
+};
+
+class WindowSurfaceVk : public SurfaceImpl
+{
+  public:
+    WindowSurfaceVk(RendererVk *renderer, EGLNativeWindowType window);
+    ~WindowSurfaceVk() override;
+
+    egl::Error initialize() override;
+    FramebufferImpl *createDefaultFramebuffer(const gl::Framebuffer::Data &data) override;
+    egl::Error swap() override;
+    egl::Error postSubBuffer(EGLint x, EGLint y, EGLint width, EGLint height) override;
+    egl::Error querySurfacePointerANGLE(EGLint attribute, void **value) override;
+    egl::Error bindTexImage(gl::Texture *texture, EGLint buffer) override;
+    egl::Error releaseTexImage(EGLint buffer) override;
+    void setSwapInterval(EGLint interval) override;
+
+    // width and height can change with client window resizing
+    EGLint getWidth() const override;
+    EGLint getHeight() const override;
+
+    EGLint isPostSubBufferSupported() const override;
+    EGLint getSwapBehavior() const override;
+
+    gl::Error getAttachmentRenderTarget(const gl::FramebufferAttachment::Target &target,
+                                        FramebufferAttachmentRenderTarget **rtOut) override;
+
+  private:
+    RendererVk *mRenderer;
 };
 
 }  // namespace rx
