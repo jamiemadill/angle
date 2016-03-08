@@ -76,7 +76,7 @@ class Renderer : public ImplFactory
                                         const gl::IndexRange &indexRange) = 0;
 
     // lost device
-    //TODO(jmadill): investigate if this stuff is necessary in GL
+    // TODO(jmadill): investigate if this stuff is necessary in non-D3D
     virtual void notifyDeviceLost() = 0;
     virtual bool isDeviceLost() const = 0;
     virtual bool testDeviceLost() = 0;
@@ -105,10 +105,10 @@ class Renderer : public ImplFactory
     const gl::Limitations &getRendererLimitations() const;
 
   private:
-    void ensureCapsInitialized() const;
     virtual void generateCaps(gl::Caps *outCaps, gl::TextureCapsMap* outTextureCaps,
                               gl::Extensions *outExtensions,
                               gl::Limitations *outLimitations) const = 0;
+    void ensureCapsInitialized() const;
 
     mutable bool mCapsInitialized;
     mutable gl::Caps mCaps;
