@@ -10,16 +10,26 @@
 #ifndef LIBANGLE_RENDERER_VULKAN_RENDERERVK_H_
 #define LIBANGLE_RENDERER_VULKAN_RENDERERVK_H_
 
+#include <vulkan/vulkan.h>
+
 #include "libANGLE/renderer/Renderer.h"
 
 namespace rx
 {
+
+enum VulkanInitResult : EGLint
+{
+    VULKAN_INIT_SUCCESS,
+    VULKAN_INIT_INCOMPATIBLE_DRIVER,
+};
 
 class RendererVk : public Renderer
 {
   public:
     RendererVk();
     ~RendererVk() override;
+
+    egl::Error initialize();
 
     gl::Error flush() override;
     gl::Error finish() override;
@@ -114,6 +124,8 @@ class RendererVk : public Renderer
                       gl::TextureCapsMap *outTextureCaps,
                       gl::Extensions *outExtensions,
                       gl::Limitations *outLimitations) const override;
+
+    VkInstance mInstance;
 };
 
 }  // namespace rx
