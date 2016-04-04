@@ -41,6 +41,7 @@
                 'angle_enable_gl%': 1,
             }],
         ],
+        'glslang_path': '../third_party/glslang',
         'vulkan_layers_path': '../third_party/vulkan-validation-layers',
         'vulkan_loader_sources':
         [
@@ -310,6 +311,417 @@
                         }],
                     ],
                 },
+                {
+                    'target_name': 'vulkan_layer_utils_static',
+                    'type': 'static_library',
+                    'sources':
+                    [
+                        '<(vulkan_layers_path)/layers/vk_layer_config.cpp',
+                        '<(vulkan_layers_path)/layers/vk_layer_config.h',
+                        '<(vulkan_layers_path)/layers/vk_layer_extension_utils.cpp',
+                        '<(vulkan_layers_path)/layers/vk_layer_extension_utils.h',
+                        '<(vulkan_layers_path)/layers/vk_layer_utils.cpp',
+                        '<(vulkan_layers_path)/layers/vk_layer_utils.h',
+                    ],
+                    'include_dirs':
+                    [
+                        '<(vulkan_layers_path)/include',
+                        '<(vulkan_layers_path)/loader',
+                    ],
+                    'msvs_settings':
+                    {
+                        'VCCLCompilerTool':
+                        {
+                            'PreprocessorDefinitions':
+                            [
+                                '_HAS_EXCEPTIONS=0',
+                            ],
+                            'AdditionalOptions':
+                            [
+                                '/wd4100', # Unreferenced formal parameter
+                                '/wd4309', # Truncation of constant value
+                                '/wd4505', # Unreferenced local function has been removed
+                                '/wd4996', # Unsafe stdlib function
+                            ],
+                        },
+                    },
+                    'conditions':
+                    [
+                        ['OS=="win"',
+                        {
+                            'defines':
+                            [
+                                'WIN32',
+                            ],
+                        }],
+                    ],
+                    'direct_dependent_settings':
+                    {
+                        'msvs_cygwin_shell': 0,
+                        'sources':
+                        [
+                            '<(vulkan_layers_path)/layers/vk_layer_table.cpp',
+                            '<(vulkan_layers_path)/layers/vk_layer_table.h',
+                        ],
+                        'include_dirs':
+                        [
+                            '<(angle_gen_path)/vulkan',
+                            '<(glslang_path)',
+                            '<(vulkan_layers_path)/include',
+                            '<(vulkan_layers_path)/loader',
+                            '<(vulkan_layers_path)/layers',
+                        ],
+                        'msvs_settings':
+                        {
+                            'VCCLCompilerTool':
+                            {
+                                'PreprocessorDefinitions':
+                                [
+                                    '_HAS_EXCEPTIONS=0',
+                                ],
+                                'AdditionalOptions':
+                                [
+                                    '/wd4100', # Unreferenced local parameter
+                                    '/wd4456', # declaration hides previous local declaration
+                                    '/wd4505', # Unreferenced local function has been removed
+                                    '/wd4996', # Unsafe stdlib function
+                                ],
+                            }
+                        },
+                        'conditions':
+                        [
+                            ['OS=="win"',
+                            {
+                                'defines':
+                                [
+                                    'VK_USE_PLATFORM_WIN32_KHR',
+                                ],
+                            }],
+                        ],
+                    },
+                },
+                {
+                    'target_name': 'vulkan_generate_layer_helpers',
+                    'type': 'none',
+                    'msvs_cygwin_shell': 0,
+                    'actions':
+                    [
+                        {
+                            'action_name': 'vulkan_generate_dispatch_table_helper',
+                            'message': 'Generating Vulkan dispatch table helper...',
+                            'inputs':
+                            [
+                                '<(vulkan_layers_path)/vk-generate.py',
+                                '<(vulkan_layers_path)/vulkan.py'
+                            ],
+                            'outputs':
+                            [
+                                '<(angle_gen_path)/vulkan/vk_dispatch_table_helper.h'
+                            ],
+                            'action':
+                            [
+                                # Hack this in one line so we can redirect stdout
+                                # TODO(jmadill): Select correct display server for Linux/Android/etc.
+                                'python <(vulkan_layers_path)/vk-generate.py Win32 dispatch-table-ops layer > <(angle_gen_path)/vulkan/vk_dispatch_table_helper.h',
+                            ],
+                        },
+                        {
+                            'action_name': 'vulkan_generate_enum_string_helper',
+                            'message': 'generating Vulkan enum string helper',
+                            'inputs':
+                            [
+                                '<(vulkan_layers_path)/vk_helper.py',
+                                '<(vulkan_layers_path)/include/vulkan/vulkan.h'
+                            ],
+                            'outputs':
+                            [
+                                '<(angle_gen_path)/vulkan/vk_enum_string_helper.h',
+                            ],
+                            'action':
+                            [
+                                'python',
+                                '<(vulkan_layers_path)/vk_helper.py',
+                                '--gen_enum_string_helper',
+                                '<(vulkan_layers_path)/include/vulkan/vulkan.h',
+                                '--abs_out_dir',
+                                '<(angle_gen_path)/vulkan',
+                            ],
+                        },
+
+                        {
+                            'action_name': 'vulkan_generate_struct_wrappers',
+                            'message': 'generating Vulkan struct wrappers',
+                            'inputs':
+                            [
+                                '<(vulkan_layers_path)/vk_helper.py',
+                                '<(vulkan_layers_path)/include/vulkan/vulkan.h'
+                            ],
+                            'outputs':
+                            [
+                                '<(angle_gen_path)/vulkan/vk_safe_struct.cpp',
+                                '<(angle_gen_path)/vulkan/vk_safe_struct.h',
+                                '<(angle_gen_path)/vulkan/vk_struct_size_helper.c',
+                                '<(angle_gen_path)/vulkan/vk_struct_size_helper.h',
+                                '<(angle_gen_path)/vulkan/vk_struct_string_helper.h',
+                                '<(angle_gen_path)/vulkan/vk_struct_string_helper_cpp.h',
+                                '<(angle_gen_path)/vulkan/vk_struct_string_helper_no_addr.h',
+                                '<(angle_gen_path)/vulkan/vk_struct_string_helper_no_addr_cpp.h',
+                                '<(angle_gen_path)/vulkan/vk_struct_validate_helper.h',
+                                '<(angle_gen_path)/vulkan/vk_struct_wrappers.cpp',
+                                '<(angle_gen_path)/vulkan/vk_struct_wrappers.h',
+                            ],
+                            'action':
+                            [
+                                'python',
+                                '<(vulkan_layers_path)/vk_helper.py',
+                                '--gen_struct_wrappers',
+                                '<(vulkan_layers_path)/include/vulkan/vulkan.h',
+                                '--abs_out_dir',
+                                '<(angle_gen_path)/vulkan',
+                            ],
+                        },
+                    ],
+
+                    # Kind of a hack, but necessary to get the correct arguments to the def generator rule.
+                    'sources':
+                    [
+                        '<(vulkan_layers_path)/layers/core_validation.h',
+                        '<(vulkan_layers_path)/layers/device_limits.h',
+                        '<(vulkan_layers_path)/layers/image.h',
+                        '<(vulkan_layers_path)/layers/object_tracker.h',
+                        '<(vulkan_layers_path)/layers/swapchain.h',
+                        '<(vulkan_layers_path)/layers/threading.h',
+                        '<(vulkan_layers_path)/layers/unique_objects.h',
+                    ],
+
+                    'rules':
+                    [
+                        {
+                            'rule_name': 'vulkan_generate_def_files',
+                            'inputs':
+                            [
+                                '<(vulkan_layers_path)/vk-generate.py',
+                                '<(vulkan_layers_path)/vulkan.py',
+                            ],
+                            'outputs':
+                            [
+                                '<(angle_gen_path)/vulkan/VkLayer_<(RULE_INPUT_ROOT).def',
+                            ],
+                            'extension': 'h',
+                            'message': 'generating vulkan <(RULE_INPUT_ROOT) layer def file',
+                            'action':
+                            [
+                                # Hack this in one line so we can redirect stdout
+                                # TODO(jmadill): Select correct display server for Linux/Android/etc.
+                                'python <(vulkan_layers_path)/vk-generate.py Win32 win-def-file VkLayer_<(RULE_INPUT_ROOT) layer > <(angle_gen_path)/vulkan/VkLayer_<(RULE_INPUT_ROOT).def',
+                            ],
+                        },
+                    ],
+
+                    # parameter_validation doesn't have a correctly named header file. GYP can be a pain.
+                    'actions':
+                    [
+                        {
+                            'action_name': 'vulkan_generate_parameter_validation_def_file',
+                            'inputs':
+                            [
+                                '<(vulkan_layers_path)/vk-generate.py',
+                                '<(vulkan_layers_path)/vulkan.py',
+                            ],
+                            'outputs':
+                            [
+                                '<(angle_gen_path)/vulkan/VkLayer_parameter_validation.def',
+                            ],
+                            'message': 'generating vulkan parameter_validation layer def file',
+                            'action':
+                            [
+                                # Hack this in one line so we can redirect stdout
+                                # TODO(jmadill): Select correct display server for Linux/Android/etc.
+                                'python <(vulkan_layers_path)/vk-generate.py Win32 win-def-file VkLayer_parameter_validation layer > <(angle_gen_path)/vulkan/VkLayer_parameter_validation.def',
+                            ],
+                        },
+                    ],
+                },
+
+                {
+                    'target_name': 'VkLayer_core_validation',
+                    'type': 'shared_library',
+                    'dependencies':
+                    [
+                        'vulkan_generate_layer_helpers',
+                        'vulkan_layer_utils_static',
+                    ],
+                    'sources':
+                    [
+                        '<(angle_gen_path)/vulkan/VkLayer_core_validation.def',
+                        '<(vulkan_layers_path)/layers/core_validation.cpp',
+                        '<(vulkan_layers_path)/layers/core_validation.h',
+                    ],
+                },
+
+                {
+                    'target_name': 'VkLayer_device_limits',
+                    'type': 'shared_library',
+                    'dependencies':
+                    [
+                        'vulkan_generate_layer_helpers',
+                        'vulkan_layer_utils_static',
+                    ],
+                    'sources':
+                    [
+                        '<(angle_gen_path)/vulkan/VkLayer_device_limits.def',
+                        '<(vulkan_layers_path)/layers/device_limits.cpp',
+                        '<(vulkan_layers_path)/layers/device_limits.h',
+                    ],
+                },
+
+                {
+                    'target_name': 'VkLayer_image',
+                    'type': 'shared_library',
+                    'dependencies':
+                    [
+                        'vulkan_generate_layer_helpers',
+                        'vulkan_layer_utils_static',
+                    ],
+                    'sources':
+                    [
+                        '<(angle_gen_path)/vulkan/VkLayer_image.def',
+                        '<(vulkan_layers_path)/layers/image.cpp',
+                        '<(vulkan_layers_path)/layers/image.h',
+                    ],
+                },
+
+                {
+                    'target_name': 'VkLayer_swapchain',
+                    'type': 'shared_library',
+                    'dependencies':
+                    [
+                        'vulkan_generate_layer_helpers',
+                        'vulkan_layer_utils_static',
+                    ],
+                    'sources':
+                    [
+                        '<(angle_gen_path)/vulkan/VkLayer_swapchain.def',
+                        '<(vulkan_layers_path)/layers/swapchain.cpp',
+                        '<(vulkan_layers_path)/layers/swapchain.h',
+                    ],
+                },
+
+                {
+                    'target_name': 'VkLayer_object_tracker',
+                    'type': 'shared_library',
+                    'dependencies':
+                    [
+                        'vulkan_generate_layer_helpers',
+                        'vulkan_layer_utils_static',
+                    ],
+                    'sources':
+                    [
+                        '<(angle_gen_path)/vulkan/object_tracker.cpp',
+                        '<(angle_gen_path)/vulkan/VkLayer_object_tracker.def',
+                        '<(vulkan_layers_path)/layers/object_tracker.h',
+                    ],
+                    'actions':
+                    [
+                        {
+                            'action_name': 'vulkan_layer_object_tracker_generate',
+                            'message': 'generating vulkan object tracker layer',
+                            'inputs':
+                            [
+                                '<(vulkan_layers_path)/include/vulkan/vulkan.h',
+                                '<(vulkan_layers_path)/vk-layer-generate.py',
+                            ],
+                            'outputs':
+                            [
+                                '<(angle_gen_path)/vulkan/object_tracker.cpp',
+                            ],
+                            'action':
+                            [
+                                # Hack this in one line so we can redirect stdout
+                                # TODO(jmadill): Select correct display server for Linux/Android/etc.
+                                'python <(vulkan_layers_path)/vk-layer-generate.py Win32 object_tracker <(vulkan_layers_path)/include/vulkan/vulkan.h > <(angle_gen_path)/vulkan/object_tracker.cpp',
+                            ],
+                        },
+                    ],
+                },
+
+                {
+                    'target_name': 'VkLayer_unique_objects',
+                    'type': 'shared_library',
+                    'dependencies':
+                    [
+                        'vulkan_generate_layer_helpers',
+                        'vulkan_layer_utils_static',
+                    ],
+                    'sources':
+                    [
+                        '<(angle_gen_path)/vulkan/unique_objects.cpp',
+                        '<(angle_gen_path)/vulkan/VkLayer_unique_objects.def',
+                        '<(angle_gen_path)/vulkan/vk_safe_struct.cpp',
+                        '<(angle_gen_path)/vulkan/vk_safe_struct.h',
+                        '<(vulkan_layers_path)/layers/unique_objects.h',
+                    ],
+                    'actions':
+                    [
+                        {
+                            'action_name': 'vulkan_layer_unique_objects_generate',
+                            'message': 'generating vulkan unique_objects layer',
+                            'inputs':
+                            [
+                                '<(vulkan_layers_path)/include/vulkan/vulkan.h',
+                                '<(vulkan_layers_path)/vk-layer-generate.py',
+                            ],
+                            'outputs':
+                            [
+                                '<(angle_gen_path)/vulkan/unique_objects.cpp',
+                            ],
+                            'action':
+                            [
+                                # Hack this in one line so we can redirect stdout
+                                # TODO(jmadill): Select correct display server for Linux/Android/etc.
+                                'python <(vulkan_layers_path)/vk-layer-generate.py Win32 unique_objects <(vulkan_layers_path)/include/vulkan/vulkan.h > <(angle_gen_path)/vulkan/unique_objects.cpp',
+                            ],
+                        },
+                    ],
+                },
+
+                # {
+                #     'target_name': 'VkLayer_threading',
+                #     'type': 'shared_library',
+                #     'dependencies':
+                #     [
+                #         'vulkan_generate_layer_helpers',
+                #         'vulkan_layer_utils_static',
+                #     ],
+                #     'sources':
+                #     [
+                #         '<(angle_gen_path)/vulkan/threading.cpp',
+                #         '<(angle_gen_path)/vulkan/VkLayer_threading.def',
+                #         '<(vulkan_layers_path)/layers/threading.h',
+                #     ],
+                #     'actions':
+                #     [
+                #         {
+                #             'action_name': 'vulkan_layer_threading_generate',
+                #             'message': 'generating vulkan threading layer',
+                #             'inputs':
+                #             [
+                #                 '<(vulkan_layers_path)/generator.py',
+                #                 '<(vulkan_layers_path)/genvk.py',
+                #                 '<(vulkan_layers_path)/reg.py',
+                #                 '<(vulkan_layers_path)/vk.xml',
+                #             ],
+                #             'outputs':
+                #             [
+                #                 '<(angle_gen_path)/vulkan/object_tracker.cpp',
+                #             ],
+                #             'action':
+                #             [
+                #                 'python', '<(vulkan_layers_path)/genvk.py', '-registry', '<(vulkan_layers_path)/vk.xml', '<(angle_gen_path)/vulkan/object_tracker.cpp',
+                #             ],
+                #         },
+                #     ],
+                # },
             ],
         }],
         ['OS=="win"',
