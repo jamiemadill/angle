@@ -143,6 +143,7 @@
             'libANGLE/renderer/DisplayImpl.h',
             'libANGLE/renderer/FenceNVImpl.h',
             'libANGLE/renderer/FenceSyncImpl.h',
+            'libANGLE/renderer/FramebufferAttachmentObjectImpl.h',
             'libANGLE/renderer/FramebufferImpl.h',
             'libANGLE/renderer/ImageImpl.h',
             'libANGLE/renderer/ImplFactory.h',
