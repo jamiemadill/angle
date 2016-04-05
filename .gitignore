@@ -41,3 +41,4 @@ TestResults.qpa
 *.vsp
 *.nvuser
 buildtools/
+vulkan_generate_layer_def_files.*
