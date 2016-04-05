@@ -137,7 +137,7 @@ class RendererVk : public Renderer
                       gl::Extensions *outExtensions,
                       gl::Limitations *outLimitations) const override;
 
-    std::vector<const char *> getValidationLayers() const;
+    void getValidationLayers(std::vector<const char *> *layersOut) const;
     egl::Error initializeDevice(uint32_t queueFamilyIndex);
 
     VkInstance mInstance;
