@@ -193,7 +193,7 @@ egl::Error RendererVk::initialize(const egl::AttributeMap &attribs)
 
     if (mEnableValidationLayers)
     {
-        enabledInstanceLayers = getValidationLayers();
+        getValidationLayers(&enabledInstanceLayers);
 
         // Verify the validation layers are in layer names set.
         if (!VerifyLayerNameList(instanceLayerProps, enabledInstanceLayers))
@@ -335,25 +335,21 @@ egl::Error RendererVk::initialize(const egl::AttributeMap &attribs)
     return egl::Error(EGL_SUCCESS);
 }
 
-std::vector<const char *> RendererVk::getValidationLayers() const
+void RendererVk::getValidationLayers(std::vector<const char *> *layersOut) const
 {
-    std::vector<const char *> validationLayers;
-
     // Use the standard validation layer ordering as in the Vulkan SDK docs.
     if (mEnableValidationLayers)
     {
-        validationLayers.push_back("VK_LAYER_LUNARG_threading");
-        validationLayers.push_back("VK_LAYER_LUNARG_param_checker");
-        validationLayers.push_back("VK_LAYER_LUNARG_device_limits");
-        validationLayers.push_back("VK_LAYER_LUNARG_object_tracker");
-        validationLayers.push_back("VK_LAYER_LUNARG_image");
-        validationLayers.push_back("VK_LAYER_LUNARG_mem_tracker");
-        validationLayers.push_back("VK_LAYER_LUNARG_draw_state");
-        validationLayers.push_back("VK_LAYER_LUNARG_swapchain");
-        validationLayers.push_back("VK_LAYER_GOOGLE_unique_objects");
+        //layersOut->push_back("VK_LAYER_LUNARG_threading");
+        //layersOut->push_back("VK_LAYER_LUNARG_param_checker");
+        //layersOut->push_back("VK_LAYER_LUNARG_device_limits");
+        //layersOut->push_back("VK_LAYER_LUNARG_object_tracker");
+        //layersOut->push_back("VK_LAYER_LUNARG_image");
+        //layersOut->push_back("VK_LAYER_LUNARG_mem_tracker");
+        //layersOut->push_back("VK_LAYER_LUNARG_draw_state");
+        //layersOut->push_back("VK_LAYER_LUNARG_swapchain");
+        layersOut->push_back("VK_LAYER_GOOGLE_unique_objects");
     }
-
-    return validationLayers;
 }
 
 egl::Error RendererVk::initializeDevice(uint32_t queueFamilyIndex)
@@ -388,7 +384,7 @@ egl::Error RendererVk::initializeDevice(uint32_t queueFamilyIndex)
     std::vector<const char *> enabledDeviceLayers;
     if (mEnableValidationLayers)
     {
-        enabledDeviceLayers = getValidationLayers();
+        getValidationLayers(&enabledDeviceLayers);
 
         if (!VerifyLayerNameList(deviceLayerProps, enabledDeviceLayers))
         {
