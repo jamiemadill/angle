@@ -11,6 +11,7 @@
 
 #include "common/debug.h"
 #include "libANGLE/renderer/vulkan/RendererVk.h"
+#include "libANGLE/renderer/vulkan/renderervk_utils.h"
 
 namespace rx
 {
@@ -96,17 +97,42 @@ gl::Error OffscreenSurfaceVk::getAttachmentRenderTarget(
 }
 
 WindowSurfaceVk::WindowSurfaceVk(RendererVk *renderer, EGLNativeWindowType window)
-    : mRenderer(renderer)
+    : mRenderer(renderer), mNativeWindowType(window), mSurface(VK_NULL_HANDLE)
 {
 }
 
 WindowSurfaceVk::~WindowSurfaceVk()
 {
+    vkDestroySurfaceKHR(mRenderer->getInstance(), mSurface, nullptr);
 }
 
 egl::Error WindowSurfaceVk::initialize()
 {
-    // TODO(jmadill)
+    VkWin32SurfaceCreateInfoKHR createInfo = {};
+
+    createInfo.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    createInfo.pNext     = nullptr;
+    createInfo.hinstance = GetModuleHandle(nullptr);
+    createInfo.hwnd = mNativeWindowType;
+    VkResult res =
+        vkCreateWin32SurfaceKHR(mRenderer->getInstance(), &createInfo, nullptr, &mSurface);
+    if (res)
+    {
+        return VulkanEGLError(EGL_BAD_SURFACE, VULKAN_ERROR_INIT_SURFACE, res);
+    }
+
+    auto errorOrResult = mRenderer->selectPresentQueueForSurface(mSurface);
+    if (errorOrResult.isError())
+    {
+        return errorOrResult.getError();
+    }
+
+    if (!errorOrResult.getResult())
+    {
+        return egl::Error(EGL_BAD_SURFACE, VULKAN_ERROR_INIT_SURFACE,
+                          "Current device can not present to this Window.");
+    }
+
     return egl::Error(EGL_SUCCESS);
 }
 

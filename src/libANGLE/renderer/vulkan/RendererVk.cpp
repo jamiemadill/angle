@@ -38,13 +38,112 @@
 namespace rx
 {
 
-RendererVk::RendererVk() : Renderer(), mInstance(VK_NULL_HANDLE)
+namespace
+{
+
+bool VerifyLayerNameList(const std::vector<VkLayerProperties> &layerProps,
+                         const std::vector<const char *> &enabledLayerNames)
+{
+    // Compile the layer names into a set.
+    std::set<std::string> layerNames;
+    for (const auto &layerProp : layerProps)
+    {
+        layerNames.insert(layerProp.layerName);
+    }
+
+    // Verify the validation layers are in layer names set.
+    for (const auto &instanceLayerName : enabledLayerNames)
+    {
+        if (layerNames.count(instanceLayerName) == 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool VerifyExtensionNameList(const std::vector<VkExtensionProperties> &extensionProps,
+                             const std::vector<const char *> &enabledExtensionNames)
+{
+    // Compile the extensions names into a set.
+    std::set<std::string> extensionNames;
+    for (const auto &extensionProp : extensionProps)
+    {
+        extensionNames.insert(extensionProp.extensionName);
+    }
+
+    for (const auto &extensionName : enabledExtensionNames)
+    {
+        if (extensionNames.count(extensionName) == 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+VkBool32 VKAPI_CALL DebugReportCallback(VkDebugReportFlagsEXT flags,
+                                        VkDebugReportObjectTypeEXT objectType,
+                                        uint64_t object,
+                                        size_t location,
+                                        int32_t messageCode,
+                                        const char *layerPrefix,
+                                        const char *message,
+                                        void *userData)
+{
+    if ((flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) != 0)
+    {
+        ANGLEPlatformCurrent()->logError(message);
+    }
+    else if ((flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) != 0)
+    {
+        ANGLEPlatformCurrent()->logWarning(message);
+    }
+    else
+    {
+        ANGLEPlatformCurrent()->logInfo(message);
+    }
+
+    return VK_FALSE;
+}
+
+}  // anonymous namespace
+
+RendererVk::RendererVk()
+    : Renderer(),
+      mInstance(VK_NULL_HANDLE),
+      mPhysicalDevice(VK_NULL_HANDLE),
+      mQueue(VK_NULL_HANDLE),
+      mCurrentQueueFamilyIndex(std::numeric_limits<uint32_t>::max()),
+      mDevice(VK_NULL_HANDLE),
+      mEnableValidationLayers(false),
+      mDebugReportCallback(VK_NULL_HANDLE)
 {
 }
 
 RendererVk::~RendererVk()
 {
-    vkDestroyInstance(mInstance, nullptr);
+    // TODO(jmadill): Submit fix for Loader which should allow destroying NULL
+    if (mDebugReportCallback)
+    {
+        ASSERT(mInstance);
+        auto destroyDebugReportCallback = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
+            vkGetInstanceProcAddr(mInstance, "vkDestroyDebugReportCallbackEXT"));
+        ASSERT(destroyDebugReportCallback);
+        destroyDebugReportCallback(mInstance, mDebugReportCallback, nullptr);
+    }
+
+    if (mDevice)
+    {
+        vkDestroyDevice(mDevice, nullptr);
+    }
+
+    if (mInstance)
+    {
+        vkDestroyInstance(mInstance, nullptr);
+    }
 }
 
 #define ANGLE_VK_INIT_RESULT_CHECK(result, code) \
@@ -60,89 +159,70 @@ egl::Error RendererVk::initialize(const egl::AttributeMap &attribs)
     ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_LAYERS);
 
     std::vector<VkLayerProperties> instanceLayerProps(instanceLayerCount);
-    result = vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayerProps.data());
-    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_LAYERS);
+    if (instanceLayerCount > 0)
+    {
+        result = vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayerProps.data());
+        ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_LAYERS);
+    }
 
     uint32_t instanceExtensionCount = 0;
     result = vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, nullptr);
     ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_EXTENSIONS);
 
     std::vector<VkExtensionProperties> instanceExtensionProps(instanceExtensionCount);
-    result = vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount,
-                                                    instanceExtensionProps.data());
-    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_EXTENSIONS);
-
-    // Compile the layer names into a set.
-    std::set<std::string> layerNames;
-    for (const auto &layerProp : instanceLayerProps)
+    if (instanceExtensionCount > 0)
     {
-        layerNames.insert(layerProp.layerName);
+        result = vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount,
+                                                        instanceExtensionProps.data());
+        ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_EXTENSIONS);
     }
 
-    // Similarly for the extensions.
-    std::set<std::string> extensionNames;
-    for (const auto &extensionProp : instanceExtensionProps)
-    {
-        extensionNames.insert(extensionProp.extensionName);
-    }
-
+// Validation layers enabled by default in Debug, disabled in Release.
 #if !defined(NDEBUG)
-    // Validation layers enabled by default in Debug.
-    bool enableValidationLayers = true;
-#else
-    bool enableValidationLayers = false;
+    mEnableValidationLayers = true;
 #endif
 
     // If specified in the attributes, override the default.
     if (attribs.contains(EGL_PLATFORM_ANGLE_ENABLE_VALIDATION_LAYER_ANGLE))
     {
-        enableValidationLayers =
+        mEnableValidationLayers =
             (attribs.get(EGL_PLATFORM_ANGLE_ENABLE_VALIDATION_LAYER_ANGLE, EGL_FALSE) == EGL_TRUE);
     }
 
-    std::vector<const char *> instanceLayerNames;
+    std::vector<const char *> enabledInstanceLayers;
 
-    // Use the standard validation layer ordering as in the Vulkan SDK docs.
-    if (enableValidationLayers)
+    if (mEnableValidationLayers)
     {
-        instanceLayerNames.push_back("VK_LAYER_LUNARG_threading");
-        instanceLayerNames.push_back("VK_LAYER_LUNARG_param_checker");
-        instanceLayerNames.push_back("VK_LAYER_LUNARG_device_limits");
-        instanceLayerNames.push_back("VK_LAYER_LUNARG_object_tracker");
-        instanceLayerNames.push_back("VK_LAYER_LUNARG_image");
-        instanceLayerNames.push_back("VK_LAYER_LUNARG_mem_tracker");
-        instanceLayerNames.push_back("VK_LAYER_LUNARG_draw_state");
-        instanceLayerNames.push_back("VK_LAYER_LUNARG_swapchain");
-        instanceLayerNames.push_back("VK_LAYER_GOOGLE_unique_objects");
-    }
+        enabledInstanceLayers = getValidationLayers();
 
-    // Verify the validation layers are in layer names set.
-    for (const auto &instanceLayerName : instanceLayerNames)
-    {
-        if (layerNames.count(instanceLayerName) == 0)
+        // Verify the validation layers are in layer names set.
+        if (!VerifyLayerNameList(instanceLayerProps, enabledInstanceLayers))
         {
-            ANGLEPlatformCurrent()->logWarning("Enabled Vulkan instance layer missing.");
-            instanceLayerNames.clear();
-            break;
+            ANGLEPlatformCurrent()->logWarning("A standard Vulkan validation layer is missing.");
+            mEnableValidationLayers = false;
+            enabledInstanceLayers.clear();
         }
     }
 
-    std::vector<const char *> instanceExtensionNames;
-    instanceExtensionNames.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+    std::vector<const char *> enabledInstanceExtensions;
+    enabledInstanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 #if defined(ANGLE_PLATFORM_WINDOWS)
-    instanceExtensionNames.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+    enabledInstanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #else
 #error Unsupported Vulkan platform.
 #endif  // defined(ANGLE_PLATFORM_WINDOWS)
 
-    // Verify the required extensions are in the extension names set. Fail if not.
-    for (const auto &extensionName : instanceExtensionNames)
+    // TODO(jmadill): Should be able to continue initialization if debug report ext missing.
+    if (mEnableValidationLayers)
     {
-        if (extensionNames.count(extensionName) == 0)
-        {
-            return VulkanEGLError(EGL_NOT_INITIALIZED, VULKAN_ERROR_INIT_EXTENSIONS,
-                                  VK_ERROR_EXTENSION_NOT_PRESENT);
-        }
+        enabledInstanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+    }
+
+    // Verify the required extensions are in the extension names set. Fail if not.
+    if (!VerifyExtensionNameList(instanceExtensionProps, enabledInstanceExtensions))
+    {
+        return VulkanEGLError(EGL_NOT_INITIALIZED, VULKAN_ERROR_INIT_EXTENSIONS,
+                              VK_ERROR_EXTENSION_NOT_PRESENT);
     }
 
     VkApplicationInfo applicationInfo  = {};
@@ -161,20 +241,281 @@ egl::Error RendererVk::initialize(const egl::AttributeMap &attribs)
     instanceInfo.pApplicationInfo     = &applicationInfo;
 
     // Enable requested layers and extensions.
-    instanceInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensionNames.size());
+    instanceInfo.enabledExtensionCount = static_cast<uint32_t>(enabledInstanceExtensions.size());
     instanceInfo.ppEnabledExtensionNames =
-        instanceExtensionNames.empty() ? nullptr : instanceExtensionNames.data();
-    instanceInfo.enabledLayerCount = static_cast<uint32_t>(instanceLayerNames.size());
+        enabledInstanceExtensions.empty() ? nullptr : enabledInstanceExtensions.data();
+    instanceInfo.enabledLayerCount = static_cast<uint32_t>(enabledInstanceLayers.size());
     instanceInfo.ppEnabledLayerNames =
-        instanceLayerNames.empty() ? nullptr : instanceLayerNames.data();
+        enabledInstanceLayers.empty() ? nullptr : enabledInstanceLayers.data();
 
     result = vkCreateInstance(&instanceInfo, nullptr, &mInstance);
     ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_CREATE_INSTANCE);
 
+    if (mEnableValidationLayers)
+    {
+        VkDebugReportCallbackCreateInfoEXT debugReportInfo = {};
+
+        debugReportInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
+        debugReportInfo.pNext = nullptr;
+        debugReportInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT |
+                                VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
+                                VK_DEBUG_REPORT_INFORMATION_BIT_EXT | VK_DEBUG_REPORT_DEBUG_BIT_EXT;
+        debugReportInfo.pfnCallback = &DebugReportCallback;
+        debugReportInfo.pUserData   = this;
+
+        auto createDebugReportCallback = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
+            vkGetInstanceProcAddr(mInstance, "vkCreateDebugReportCallbackEXT"));
+        ASSERT(createDebugReportCallback);
+        result =
+            createDebugReportCallback(mInstance, &debugReportInfo, nullptr, &mDebugReportCallback);
+        ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_EXTENSIONS);
+    }
+
+    uint32_t physicalDeviceCount = 0;
+    result = vkEnumeratePhysicalDevices(mInstance, &physicalDeviceCount, nullptr);
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_QUERY_PHYSICAL_DEVICE);
+
+    if (physicalDeviceCount == 0)
+    {
+        return egl::Error(EGL_NOT_INITIALIZED, VULKAN_ERROR_QUERY_PHYSICAL_DEVICE,
+                          "No Physical Devices found");
+    }
+
+    // TODO(jmadill): Handle multiple physical devices. For now, use the first device.
+    physicalDeviceCount = 1;
+    result = vkEnumeratePhysicalDevices(mInstance, &physicalDeviceCount, &mPhysicalDevice);
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_QUERY_PHYSICAL_DEVICE);
+
+    vkGetPhysicalDeviceProperties(mPhysicalDevice, &mPhysicalDeviceProperties);
+
+    // Ensure we can find a graphics queue family.
+    uint32_t queueCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueCount, nullptr);
+
+    if (queueCount == 0)
+    {
+        return egl::Error(EGL_NOT_INITIALIZED, VULKAN_ERROR_INIT_QUEUE,
+                          "No Queues found on Physical Device");
+    }
+
+    mQueueFamilyProperties.resize(queueCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueCount,
+                                             mQueueFamilyProperties.data());
+
+    size_t graphicsQueueFamilyCount   = false;
+    uint32_t firstGraphicsQueueFamily = 0;
+    for (uint32_t queueIndex = 0; queueIndex < queueCount; ++queueIndex)
+    {
+        const auto &queueInfo = mQueueFamilyProperties[queueIndex];
+        if ((queueInfo.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+        {
+            ASSERT(queueInfo.queueCount > 0);
+            graphicsQueueFamilyCount++;
+            if (firstGraphicsQueueFamily == 0)
+            {
+                firstGraphicsQueueFamily = queueIndex;
+            }
+            break;
+        }
+    }
+
+    if (graphicsQueueFamilyCount == 0)
+    {
+        return egl::Error(EGL_NOT_INITIALIZED, VULKAN_ERROR_INIT_QUEUE,
+                          "No Graphics Queues found on Physical Device");
+    }
+
+    // If only one queue family, go ahead and initialize the device. If there is more than one
+    // queue, we'll have to wait until we see a WindowSurface to know which supports present.
+    if (graphicsQueueFamilyCount == 1)
+    {
+        initializeDevice(firstGraphicsQueueFamily);
+    }
+
     return egl::Error(EGL_SUCCESS);
 }
 
-#undef VK_INIT_RESULT_CHECK
+std::vector<const char *> RendererVk::getValidationLayers() const
+{
+    std::vector<const char *> validationLayers;
+
+    // Use the standard validation layer ordering as in the Vulkan SDK docs.
+    if (mEnableValidationLayers)
+    {
+        validationLayers.push_back("VK_LAYER_LUNARG_threading");
+        validationLayers.push_back("VK_LAYER_LUNARG_param_checker");
+        validationLayers.push_back("VK_LAYER_LUNARG_device_limits");
+        validationLayers.push_back("VK_LAYER_LUNARG_object_tracker");
+        validationLayers.push_back("VK_LAYER_LUNARG_image");
+        validationLayers.push_back("VK_LAYER_LUNARG_mem_tracker");
+        validationLayers.push_back("VK_LAYER_LUNARG_draw_state");
+        validationLayers.push_back("VK_LAYER_LUNARG_swapchain");
+        validationLayers.push_back("VK_LAYER_GOOGLE_unique_objects");
+    }
+
+    return validationLayers;
+}
+
+egl::Error RendererVk::initializeDevice(uint32_t queueFamilyIndex)
+{
+    VkResult result = VK_SUCCESS;
+
+    uint32_t deviceLayerCount = 0;
+    result = vkEnumerateDeviceLayerProperties(mPhysicalDevice, &deviceLayerCount, nullptr);
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_LAYERS);
+
+    std::vector<VkLayerProperties> deviceLayerProps(deviceLayerCount);
+    if (deviceLayerCount > 0)
+    {
+        result = vkEnumerateDeviceLayerProperties(mPhysicalDevice, &deviceLayerCount,
+                                                  deviceLayerProps.data());
+        ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_LAYERS);
+    }
+
+    uint32_t deviceExtensionCount = 0;
+    result = vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &deviceExtensionCount,
+                                                  nullptr);
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_EXTENSIONS);
+
+    std::vector<VkExtensionProperties> deviceExtensionProps(deviceExtensionCount);
+    if (deviceExtensionCount > 0)
+    {
+        result = vkEnumerateDeviceExtensionProperties(
+            mPhysicalDevice, nullptr, &deviceExtensionCount, deviceExtensionProps.data());
+        ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_INIT_EXTENSIONS);
+    }
+
+    std::vector<const char *> enabledDeviceLayers;
+    if (mEnableValidationLayers)
+    {
+        enabledDeviceLayers = getValidationLayers();
+
+        if (!VerifyLayerNameList(deviceLayerProps, enabledDeviceLayers))
+        {
+            ANGLEPlatformCurrent()->logWarning("A standard Vulkan validation layer is missing.");
+            enabledDeviceLayers.clear();
+        }
+    }
+
+    std::vector<const char *> enabledDeviceExtensions;
+    enabledDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+    if (!VerifyExtensionNameList(deviceExtensionProps, enabledDeviceExtensions))
+    {
+        return VulkanEGLError(EGL_NOT_INITIALIZED, VULKAN_ERROR_INIT_EXTENSIONS,
+                              VK_ERROR_EXTENSION_NOT_PRESENT);
+    }
+
+    VkDeviceQueueCreateInfo queueCreateInfo = {};
+
+    float zeroPriority = 0.0f;
+
+    queueCreateInfo.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.pNext            = nullptr;
+    queueCreateInfo.flags            = 0;
+    queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+    queueCreateInfo.queueCount       = 1;
+    queueCreateInfo.pQueuePriorities = &zeroPriority;
+
+    // Initialize the device
+    VkDeviceCreateInfo createInfo = {};
+
+    createInfo.sType                = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pNext                = nullptr;
+    createInfo.flags                = 0;
+    createInfo.queueCreateInfoCount = 1;
+    createInfo.pQueueCreateInfos    = &queueCreateInfo;
+    createInfo.enabledLayerCount = static_cast<uint32_t>(enabledDeviceLayers.size());
+    createInfo.ppEnabledLayerNames =
+        enabledDeviceLayers.empty() ? nullptr : enabledDeviceLayers.data();
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledDeviceExtensions.size());
+    createInfo.ppEnabledExtensionNames =
+        enabledDeviceExtensions.empty() ? nullptr : enabledDeviceExtensions.data();
+    createInfo.pEnabledFeatures = nullptr;  // TODO(jmadill): features
+
+    result = vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice);
+    ANGLE_VK_INIT_RESULT_CHECK(result, VULKAN_ERROR_CREATE_DEVICE);
+
+    mCurrentQueueFamilyIndex = queueFamilyIndex;
+
+    return egl::Error(EGL_SUCCESS);
+}
+
+egl::Error RendererVk::selectGraphicsQueue()
+{
+    uint32_t queueCount = static_cast<uint32_t>(mQueueFamilyProperties.size());
+    for (uint32_t queueIndex = 0; queueIndex < queueCount; ++queueIndex)
+    {
+        const auto &queueInfo = mQueueFamilyProperties[queueIndex];
+        if ((queueInfo.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+        {
+            egl::Error error = initializeDevice(queueIndex);
+            if (error.isError())
+            {
+                return egl::Error(EGL_BAD_SURFACE, error.getID(), error.getMessage());
+            }
+            return egl::Error(EGL_SUCCESS);
+        }
+    }
+
+    UNREACHABLE();
+    return egl::Error(EGL_BAD_SURFACE, "Unreachable code internal error.");
+}
+
+egl::ErrorOrResult<bool> RendererVk::selectPresentQueueForSurface(VkSurfaceKHR surface)
+{
+    VkResult result = VK_SUCCESS;
+
+    // We've already initialized a device, and can't re-create it unless it's never been used.
+    // TODO(jmadill): Handle the re-creation case if necessary.
+    if (mDevice != VK_NULL_HANDLE)
+    {
+        ASSERT(mCurrentQueueFamilyIndex != std::numeric_limits<uint32_t>::max());
+
+        // Check if the current device supports present on this surface.
+        VkBool32 supportsPresent = VK_FALSE;
+        result = vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, mCurrentQueueFamilyIndex,
+                                                      surface, &supportsPresent);
+        ANGLE_VK_EGL_RESULT_CHECK(result, EGL_BAD_SURFACE, VULKAN_ERROR_INIT_SURFACE);
+
+        return (supportsPresent == VK_TRUE);
+    }
+
+    // Find a graphics and present queue.
+    Optional<uint32_t> newPresentQueue;
+    uint32_t queueCount = static_cast<uint32_t>(mQueueFamilyProperties.size());
+    for (uint32_t queueIndex = 0; queueIndex < queueCount; ++queueIndex)
+    {
+        const auto &queueInfo = mQueueFamilyProperties[queueIndex];
+        if ((queueInfo.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+        {
+            VkBool32 supportsPresent = VK_FALSE;
+            result = vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, queueIndex, surface,
+                                                          &supportsPresent);
+            ANGLE_VK_EGL_RESULT_CHECK(result, EGL_BAD_SURFACE, VULKAN_ERROR_INIT_SURFACE);
+
+            if (supportsPresent == VK_TRUE)
+            {
+                newPresentQueue = queueIndex;
+                break;
+            }
+        }
+    }
+
+    if (!newPresentQueue.valid())
+    {
+        // We failed to find a queue that supports present.
+        return false;
+    }
+
+    egl::Error error = initializeDevice(newPresentQueue.value());
+    if (error.isError())
+    {
+        return egl::Error(EGL_BAD_SURFACE, error.getID(), error.getMessage());
+    }
+
+    return true;
+}
 
 gl::Error RendererVk::flush()
 {
@@ -265,14 +606,38 @@ bool RendererVk::testDeviceResettable()
 
 std::string RendererVk::getVendorString() const
 {
-    UNIMPLEMENTED();
-    return std::string();
+    switch (mPhysicalDeviceProperties.vendorID)
+    {
+        case VENDOR_ID_AMD:
+            return "Advanced Micro Devices";
+        case VENDOR_ID_NVIDIA:
+            return "NVIDIA";
+        case VENDOR_ID_INTEL:
+            return "Intel";
+        default:
+        {
+            // TODO(jmadill): More vendor IDs.
+            std::stringstream strstr;
+            strstr << "Vendor ID: " << mPhysicalDeviceProperties.vendorID;
+            return strstr.str();
+        }
+    }
 }
 
 std::string RendererVk::getRendererDescription() const
 {
-    // TODO(jmadill): Description.
-    return "Vulkan";
+    std::stringstream strstr;
+
+    uint32_t apiVersion = mPhysicalDeviceProperties.apiVersion;
+
+    strstr << "Vulkan ";
+    strstr << VK_VERSION_MAJOR(apiVersion) << ".";
+    strstr << VK_VERSION_MINOR(apiVersion) << ".";
+    strstr << VK_VERSION_PATCH(apiVersion);
+
+    strstr << "(" << mPhysicalDeviceProperties.deviceName << ")";
+
+    return strstr.str();
 }
 
 void RendererVk::insertEventMarker(GLsizei length, const char *marker)

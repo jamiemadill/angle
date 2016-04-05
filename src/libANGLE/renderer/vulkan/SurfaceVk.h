@@ -10,6 +10,8 @@
 #ifndef LIBANGLE_RENDERER_VULKAN_SURFACEVK_H_
 #define LIBANGLE_RENDERER_VULKAN_SURFACEVK_H_
 
+#include <vulkan/vulkan.h>
+
 #include "libANGLE/renderer/SurfaceImpl.h"
 
 namespace rx
@@ -74,6 +76,8 @@ class WindowSurfaceVk : public SurfaceImpl
 
   private:
     RendererVk *mRenderer;
+    EGLNativeWindowType mNativeWindowType;
+    VkSurfaceKHR mSurface;
 };
 
 }  // namespace rx
