@@ -11,6 +11,22 @@
 
 #include "common/debug.h"
 
+#include "libANGLE/renderer/vulkan/BufferVk.h"
+#include "libANGLE/renderer/vulkan/CompilerVk.h"
+#include "libANGLE/renderer/vulkan/DeviceVk.h"
+#include "libANGLE/renderer/vulkan/FenceNVVk.h"
+#include "libANGLE/renderer/vulkan/FenceSyncVk.h"
+#include "libANGLE/renderer/vulkan/FramebufferVk.h"
+#include "libANGLE/renderer/vulkan/ImageVk.h"
+#include "libANGLE/renderer/vulkan/ProgramVk.h"
+#include "libANGLE/renderer/vulkan/QueryVk.h"
+#include "libANGLE/renderer/vulkan/RenderbufferVk.h"
+#include "libANGLE/renderer/vulkan/SamplerVk.h"
+#include "libANGLE/renderer/vulkan/ShaderVk.h"
+#include "libANGLE/renderer/vulkan/TextureVk.h"
+#include "libANGLE/renderer/vulkan/TransformFeedbackVk.h"
+#include "libANGLE/renderer/vulkan/VertexArrayVk.h"
+
 namespace rx
 {
 
@@ -160,80 +176,67 @@ void RendererVk::onMakeCurrent(const gl::Data &data)
 
 CompilerImpl *RendererVk::createCompiler()
 {
-    UNIMPLEMENTED();
-    return static_cast<CompilerImpl *>(0);
+    return new CompilerVk();
 }
 
 ShaderImpl *RendererVk::createShader(const gl::Shader::Data &data)
 {
-    UNIMPLEMENTED();
-    return static_cast<ShaderImpl *>(0);
+    return new ShaderVk(data);
 }
 
 ProgramImpl *RendererVk::createProgram(const gl::Program::Data &data)
 {
-    UNIMPLEMENTED();
-    return static_cast<ProgramImpl *>(0);
+    return new ProgramVk(data);
 }
 
 FramebufferImpl *RendererVk::createFramebuffer(const gl::Framebuffer::Data &data)
 {
-    UNIMPLEMENTED();
-    return static_cast<FramebufferImpl *>(0);
+    return new FramebufferVk(data);
 }
 
-TextureImpl *RendererVk::createTexture(GLenum target)
+TextureImpl *RendererVk::createTexture(GLenum /*target*/)
 {
-    UNIMPLEMENTED();
-    return static_cast<TextureImpl *>(0);
+    return new TextureVk();
 }
 
 RenderbufferImpl *RendererVk::createRenderbuffer()
 {
-    UNIMPLEMENTED();
-    return static_cast<RenderbufferImpl *>(0);
+    return new RenderbufferVk();
 }
 
 BufferImpl *RendererVk::createBuffer()
 {
-    UNIMPLEMENTED();
-    return static_cast<BufferImpl *>(0);
+    return new BufferVk();
 }
 
 VertexArrayImpl *RendererVk::createVertexArray(const gl::VertexArray::Data &data)
 {
-    UNIMPLEMENTED();
-    return static_cast<VertexArrayImpl *>(0);
+    return new VertexArrayVk(data);
 }
 
 QueryImpl *RendererVk::createQuery(GLenum type)
 {
-    UNIMPLEMENTED();
-    return static_cast<QueryImpl *>(0);
+    return new QueryVk(type);
 }
 
 FenceNVImpl *RendererVk::createFenceNV()
 {
-    UNIMPLEMENTED();
-    return static_cast<FenceNVImpl *>(0);
+    return new FenceNVVk();
 }
 
 FenceSyncImpl *RendererVk::createFenceSync()
 {
-    UNIMPLEMENTED();
-    return static_cast<FenceSyncImpl *>(0);
+    return new FenceSyncVk();
 }
 
 TransformFeedbackImpl *RendererVk::createTransformFeedback()
 {
-    UNIMPLEMENTED();
-    return static_cast<TransformFeedbackImpl *>(0);
+    return new TransformFeedbackVk();
 }
 
 SamplerImpl *RendererVk::createSampler()
 {
-    UNIMPLEMENTED();
-    return static_cast<SamplerImpl *>(0);
+    return new SamplerVk();
 }
 
 void RendererVk::generateCaps(gl::Caps *outCaps,
