@@ -206,5 +206,9 @@ ANGLE_INSTANTIATE_TEST(RendererTest,
                        ES3_OPENGLES(),
                        ES3_OPENGLES(3, 0),
                        ES3_OPENGLES(3, 1),
-                       ES3_OPENGLES(3, 2));
-}
+                       ES3_OPENGLES(3, 2),
+
+                       // ES on top of Vulkan
+                       ES2_VULKAN(),
+                       ES3_VULKAN());
+}  // anonymous namespace
