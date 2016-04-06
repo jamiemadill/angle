@@ -20,6 +20,9 @@ deps = {
   "third_party/deqp/src":
       Var('android_git') + "/platform/external/deqp@cc0ded6c77267bbb14d21aac358fc5d9690c07f8",
 
+  "third_party/glslang":
+      Var('android_git') + "/platform/external/shaderc/glslang@394f1d6f229e704ebc5aae2366a8a157004ae5da",
+
   "third_party/gyp":
       Var('chromium_git') + "/external/gyp@81c2e5ff92af29bab61c982808076ddce3d200a2",
 
