@@ -46,7 +46,8 @@
     [
         'compiler.gypi',
         'libGLESv2.gypi',
-        'libEGL.gypi'
+        'libEGL.gypi',
+        'vulkan.gypi',
     ],
 
     'targets':

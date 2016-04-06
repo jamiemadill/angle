@@ -847,9 +847,17 @@
                     [
                         '<@(libangle_vulkan_sources)',
                     ],
+                    'dependencies':
+                    [
+                        'vulkan_loader',
+                    ],
                     'defines':
                     [
                         'ANGLE_ENABLE_VULKAN',
+                    ],
+                    'export_dependent_settings':
+                    [
+                        'vulkan_loader',
                     ],
                 }],
                 ['angle_build_winrt==0 and OS=="win"',
