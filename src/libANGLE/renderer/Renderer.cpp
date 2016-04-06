@@ -28,6 +28,10 @@ void Renderer::ensureCapsInitialized() const
     {
         generateCaps(&mCaps, &mTextureCaps, &mExtensions, &mLimitations);
         mCapsInitialized = true;
+
+        // Force on no-error and VAO extensions, since ANGLE emulates them.
+        mExtensions.vertexArrayObject = true;
+        mExtensions.noError           = true;
     }
 }
 
