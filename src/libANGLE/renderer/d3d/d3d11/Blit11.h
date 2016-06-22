@@ -226,6 +226,7 @@ class Blit11 : angle::NonCopyable
                                ID3D11PixelShader *ps);
 
     void clearShaderMap();
+    void releaseDepthStencilResources();
 
     Renderer11 *mRenderer;
 
@@ -251,6 +252,16 @@ class Blit11 : angle::NonCopyable
     d3d11::LazyBlendState mAlphaMaskBlendState;
 
     ID3D11Buffer *mSwizzleCB;
+
+    d3d11::LazyShader<ID3D11VertexShader> mBlitDepthStencilVS;
+    d3d11::LazyShader<ID3D11PixelShader> mBlitDepthMSPS;
+    d3d11::LazyShader<ID3D11PixelShader> mBlitStencilMSPS;
+    d3d11::LazyBlendState mBlitStencilBlend;
+    ID3D11ShaderResourceView *mStencilSRV;
+    ID3D11Texture2D *mResolvedDepthStencil;
+    ID3D11RenderTargetView *mResolvedDepthRTView;
+    ID3D11Texture2D *mResolvedStencil;
+    ID3D11RenderTargetView *mResolvedStencilRTView;
 };
 
 }  // namespace rx

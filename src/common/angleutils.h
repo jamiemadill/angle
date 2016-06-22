@@ -42,6 +42,8 @@ inline size_t ArraySize(T(&)[N])
     return N;
 }
 
+#if defined(ANGLE_PLATFORM_WINDOWS)
+
 template <typename T, unsigned int N>
 void SafeRelease(T (&resourceBlock)[N])
 {
@@ -62,7 +64,20 @@ void SafeRelease(T& resource)
 }
 
 template <typename T>
-void SafeDelete(T*& resource)
+unsigned int GetRefCount(T *resource)
+{
+    if (!resource)
+        return 0;
+
+    ULONG refCount = resource->AddRef();
+    resource->Release();
+    return static_cast<unsigned int>(refCount) - 1u;
+}
+
+#endif  // ANGLE_PLATFORM_WINDOWS
+
+template <typename T>
+void SafeDelete(T *&resource)
 {
     delete resource;
     resource = NULL;

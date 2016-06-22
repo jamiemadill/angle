@@ -3089,8 +3089,9 @@ gl::Error Renderer11::createRenderTarget(int width, int height, GLenum format, G
             // Multisample targets flagged for binding as depth stencil cannot also be
             // flagged for binding as SRV, so make certain not to add the SRV flag for
             // these targets.
-            bindSRV = !(formatInfo.formatSet->dsvFormat != DXGI_FORMAT_UNKNOWN &&
-                        desc.SampleDesc.Count > 1);
+            // FIXME(jmadill)
+            bindSRV = TRUE;  // !(formatInfo.formatSet->dsvFormat != DXGI_FORMAT_UNKNOWN &&
+                             // desc.SampleDesc.Count > 1);
         }
 
         desc.BindFlags = (bindRTV ? D3D11_BIND_RENDER_TARGET   : 0) |
