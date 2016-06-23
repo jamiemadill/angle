@@ -74,6 +74,20 @@ class Blit11 : angle::NonCopyable
                                                            bool resolveDepth,
                                                            bool resolveStencil);
 
+    using BlitConvertFunction = void(const gl::Box &sourceArea,
+                                     const gl::Box &destArea,
+                                     const gl::Rectangle &clipRect,
+                                     const gl::Extents &sourceSize,
+                                     unsigned int sourceRowPitch,
+                                     unsigned int destRowPitch,
+                                     ptrdiff_t readOffset,
+                                     ptrdiff_t writeOffset,
+                                     size_t copySize,
+                                     size_t srcPixelStride,
+                                     size_t destPixelStride,
+                                     const uint8_t *sourceData,
+                                     uint8_t *destData);
+
   private:
     enum BlitShaderType
     {
@@ -168,20 +182,6 @@ class Blit11 : angle::NonCopyable
                                             ShaderDimension dimension);
     static SwizzleShaderType GetSwizzleShaderType(GLenum type, D3D11_SRV_DIMENSION dimensionality);
 
-    typedef void BlitConvertFunction(const gl::Box &sourceArea,
-                                     const gl::Box &destArea,
-                                     const gl::Rectangle &clipRect,
-                                     const gl::Extents &sourceSize,
-                                     unsigned int sourceRowPitch,
-                                     unsigned int destRowPitch,
-                                     ptrdiff_t readOffset,
-                                     ptrdiff_t writeOffset,
-                                     size_t copySize,
-                                     size_t srcPixelStride,
-                                     size_t destPixelStride,
-                                     const uint8_t *sourceData,
-                                     uint8_t *destData);
-
     gl::Error copyDepthStencilImpl(const TextureHelper11 &source,
                                    unsigned int sourceSubresource,
                                    const gl::Box &sourceArea,
@@ -192,6 +192,21 @@ class Blit11 : angle::NonCopyable
                                    const gl::Extents &destSize,
                                    const gl::Rectangle *scissor,
                                    bool stencilOnly);
+
+    gl::Error copyAndConvertImpl(const TextureHelper11 &source,
+                                 unsigned int sourceSubresource,
+                                 const gl::Box &sourceArea,
+                                 const gl::Extents &sourceSize,
+                                 const TextureHelper11 &destStaging,
+                                 const gl::Box &destArea,
+                                 const gl::Extents &destSize,
+                                 const gl::Rectangle *scissor,
+                                 size_t readOffset,
+                                 size_t writeOffset,
+                                 size_t copySize,
+                                 size_t srcPixelStride,
+                                 size_t destPixelStride,
+                                 BlitConvertFunction *convertFunction);
 
     gl::Error copyAndConvert(const TextureHelper11 &source,
                              unsigned int sourceSubresource,
@@ -259,9 +274,7 @@ class Blit11 : angle::NonCopyable
     d3d11::LazyBlendState mBlitStencilBlend;
     ID3D11ShaderResourceView *mStencilSRV;
     ID3D11Texture2D *mResolvedDepthStencil;
-    ID3D11RenderTargetView *mResolvedDepthRTView;
-    ID3D11Texture2D *mResolvedStencil;
-    ID3D11RenderTargetView *mResolvedStencilRTView;
+    ID3D11RenderTargetView *mResolvedDepthStencilRTView;
 };
 
 }  // namespace rx
