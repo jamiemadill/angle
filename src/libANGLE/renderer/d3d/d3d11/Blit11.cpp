@@ -1977,8 +1977,8 @@ gl::ErrorOrResult<TextureHelper11> Blit11::resolveDepthStencil(RenderTarget11 *d
     gl::Box copyBox(0, 0, 0, copySource.getExtents().width, copySource.getExtents().height, 1);
 
     TextureHelper11 dest;
-    ANGLE_TRY_RESULT(CreateStagingTexture(GL_TEXTURE_2D, resolvedFormat, renderTargetSize,
-                                          StagingAccess::READ_WRITE, device),
+    ANGLE_TRY_RESULT(CreateStagingTexture(GL_TEXTURE_2D, dsRenderTarget->getANGLEFormat(),
+                                          renderTargetSize, StagingAccess::READ_WRITE, device),
                      dest);
 
     auto copyFunction = GetCopyDepthStencilFunction(dsRenderTarget->getInternalFormat());
@@ -1989,8 +1989,8 @@ gl::ErrorOrResult<TextureHelper11> Blit11::resolveDepthStencil(RenderTarget11 *d
                                  renderTargetSize, nullptr, 0, 0, 0, 8u, dxgiInfo.pixelBytes,
                                  copyFunction));
 
-    // Return the resolved depth texture, which the callee must Release.
-    return TextureHelper11::MakeAndPossess2D(mResolvedDepthStencil, rtFormatSet.format);
+    // Return the resolved depth texture, which the caller must Release.
+    return dest;
 }
 
 void Blit11::releaseDepthStencilResources()

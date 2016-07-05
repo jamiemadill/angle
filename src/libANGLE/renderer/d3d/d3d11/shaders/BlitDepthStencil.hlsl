@@ -34,11 +34,12 @@ Texture2DMS<uint2> Stencil : register(t0);
 
 void PS_BlitStencilMS(in float4 position : SV_Position,
                       in float2 texCoord : TEXCOORD0,
-                      out uint stencil : SV_Target0)
+                      out float2 stencil : SV_Target0)
 {
     // MS samplers must use Load
     uint width, height, samples;
     Stencil.GetDimensions(width, height, samples);
     uint2 coord = uint2(texCoord.x * float(width), texCoord.y * float(height));
-    stencil = Stencil.Load(coord, 0).g;
+    stencil.r = 0.0f;
+    stencil.g = float(Stencil.Load(coord, 0).g);
 }

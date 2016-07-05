@@ -6,6 +6,8 @@
 
 #include "test_utils/ANGLETest.h"
 
+#include "test_utils/gl_raii.h"
+
 using namespace angle;
 
 class BlitFramebufferANGLETest : public ANGLETest
@@ -891,8 +893,73 @@ TEST_P(BlitFramebufferANGLETest, Errors)
 // TODO(geofflang): Fix the dependence on glBlitFramebufferANGLE without checks and assuming the
 // default framebuffer is BGRA to enable the GL and GLES backends. (http://anglebug.com/1289)
 
+class BlitFramebufferTest : public ANGLETest
+{
+  protected:
+    BlitFramebufferTest()
+    {
+        setWindowWidth(256);
+        setWindowHeight(256);
+        setConfigRedBits(8);
+        setConfigGreenBits(8);
+        setConfigBlueBits(8);
+        setConfigAlphaBits(8);
+        setConfigDepthBits(24);
+        setConfigStencilBits(8);
+    }
+};
+
+TEST_P(BlitFramebufferTest, MultisampleStencilBlit)
+{
+    GLRenderbuffer renderbuf;
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuf.get());
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 2, GL_STENCIL_INDEX8, 256, 256);
+
+    const std::string &vertex =
+        "#version 300 es\n"
+        "in vec2 position;\n"
+        "void main() {\n"
+        "  gl_Position = vec4(position, 0.0, 1.0);\n"
+        "}";
+    const std::string &fragment =
+        "#version 300 es\n"
+        "out mediump vec4 red;\n"
+        "void main() {\n"
+        "   red = vec4(1.0, 0.0, 0.0, 1.0);\n"
+        "}";
+
+    ANGLE_GL_PROGRAM(drawRed, vertex, fragment);
+
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.get());
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
+                              renderbuf.get());
+
+    ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
+
+    // fill the stencil buffer with 0x1
+    glStencilFunc(GL_ALWAYS, 0x1, 0xFF);
+    glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+    glEnable(GL_STENCIL_TEST);
+    drawQuad(drawRed.get(), "position", 0.3f);
+
+    GLRenderbuffer destRenderbuf;
+    glBindRenderbuffer(GL_RENDERBUFFER, destRenderbuf.get());
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, 256, 256);
+
+    GLFramebuffer blitdest;
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, blitdest.get());
+    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
+                              destRenderbuf.get());
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer.get());
+    glBlitFramebuffer(0, 0, 256, 256, 0, 0, 256, 256, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+}
+
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
 ANGLE_INSTANTIATE_TEST(BlitFramebufferANGLETest,
                        ES2_D3D9(),
                        ES2_D3D11(EGL_EXPERIMENTAL_PRESENT_PATH_COPY_ANGLE),
                        ES2_D3D11(EGL_EXPERIMENTAL_PRESENT_PATH_FAST_ANGLE));
+
+ANGLE_INSTANTIATE_TEST(BlitFramebufferTest, ES3_D3D11());

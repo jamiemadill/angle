@@ -3786,21 +3786,21 @@ gl::Error Renderer11::blitRenderbufferRect(const gl::Rectangle &readRectIn,
         auto readRT11 = GetAs<RenderTarget11>(readRenderTarget);
         ANGLE_TRY_RESULT(resolveMultisampledTexture(readRT11, depthBlit, stencilBlit), readTexture);
 
-        const auto &formatSet = d3d11::GetANGLEFormatSet(readTexture.getANGLEFormat());
+        // const auto &formatSet = d3d11::GetANGLEFormatSet(readTexture.getANGLEFormat());
 
-        D3D11_SHADER_RESOURCE_VIEW_DESC srViewDesc;
-        srViewDesc.Format                    = formatSet.srvFormat;
-        srViewDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
-        srViewDesc.Texture2D.MipLevels       = 1;
-        srViewDesc.Texture2D.MostDetailedMip = 0;
+        // D3D11_SHADER_RESOURCE_VIEW_DESC srViewDesc;
+        // srViewDesc.Format                    = formatSet.srvFormat;
+        // srViewDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+        // srViewDesc.Texture2D.MipLevels       = 1;
+        // srViewDesc.Texture2D.MostDetailedMip = 0;
 
-        HRESULT hresult =
-            mDevice->CreateShaderResourceView(readTexture.getResource(), &srViewDesc, &readSRV);
-        if (FAILED(hresult))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Renderer11::blitRenderbufferRect: Failed to create temporary SRV.");
-        }
+        // HRESULT hresult =
+        //    mDevice->CreateShaderResourceView(readTexture.getResource(), &srViewDesc, &readSRV);
+        // if (FAILED(hresult))
+        //{
+        //    return gl::Error(GL_OUT_OF_MEMORY,
+        //                     "Renderer11::blitRenderbufferRect: Failed to create temporary SRV.");
+        //}
     }
     else
     {
@@ -3818,10 +3818,11 @@ gl::Error Renderer11::blitRenderbufferRect(const gl::Rectangle &readRectIn,
         readSRV->AddRef();
     }
 
-    if (!readSRV)
-    {
-        return gl::Error(GL_OUT_OF_MEMORY, "Failed to retrieve the internal read render target view from the read render target.");
-    }
+    // if (!readSRV)
+    //{
+    //    return gl::Error(GL_OUT_OF_MEMORY, "Failed to retrieve the internal read render target
+    //    view from the read render target.");
+    //}
 
     const gl::Extents readSize(readRenderTarget->getWidth(), readRenderTarget->getHeight(), 1);
     const gl::Extents drawSize(drawRenderTarget->getWidth(), drawRenderTarget->getHeight(), 1);
