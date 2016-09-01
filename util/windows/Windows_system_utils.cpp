@@ -11,27 +11,44 @@
 #include <stdarg.h>
 #include <windows.h>
 #include <array>
+#include <memory>
 #include <vector>
 
 namespace angle
 {
 
-std::string GetExecutablePath()
+const char *GetExecutablePath()
 {
-    std::array<char, MAX_PATH> executableFileBuf;
-    DWORD executablePathLen = GetModuleFileNameA(NULL, executableFileBuf.data(),
-                                                 static_cast<DWORD>(executableFileBuf.size()));
-    return (executablePathLen > 0 ? std::string(executableFileBuf.data()) : "");
+    static std::unique_ptr<std::string> exePath;
+
+    if (!exePath)
+    {
+        std::array<char, MAX_PATH> executableFileBuf;
+        DWORD executablePathLen = GetModuleFileNameA(NULL, executableFileBuf.data(),
+                                                     static_cast<DWORD>(executableFileBuf.size()));
+        exePath.reset(
+            new std::string(executablePathLen > 0 ? std::string(executableFileBuf.data()) : ""));
+    }
+
+    return exePath->c_str();
 }
 
-std::string GetExecutableDirectory()
+const char *GetExecutableDirectory()
 {
-    std::string executablePath = GetExecutablePath();
-    size_t lastPathSepLoc = executablePath.find_last_of("\\/");
-    return (lastPathSepLoc != std::string::npos) ? executablePath.substr(0, lastPathSepLoc) : "";
+    static std::unique_ptr<std::string> exeDir;
+
+    if (!exeDir)
+    {
+        std::string executablePath = GetExecutablePath();
+        size_t lastPathSepLoc      = executablePath.find_last_of("\\/");
+        exeDir.reset(new std::string(
+            (lastPathSepLoc != std::string::npos) ? executablePath.substr(0, lastPathSepLoc) : ""));
+    }
+
+    return exeDir->c_str();
 }
 
-std::string GetSharedLibraryExtension()
+const char *GetSharedLibraryExtension()
 {
     return "dll";
 }
