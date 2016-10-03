@@ -26,7 +26,7 @@ namespace d3d11
 
 typedef std::map<DXGI_FORMAT, DXGIFormat> DXGIFormatInfoMap;
 
-DXGIFormat::DXGIFormat() : componentType(GL_NONE), nativeMipmapSupport(NULL)
+DXGIFormat::DXGIFormat() : nativeMipmapSupport(NULL)
 {
 }
 
@@ -48,7 +48,6 @@ void AddDXGIFormat(DXGIFormatInfoMap *map,
 {
     DXGIFormat info;
 
-    info.componentType = componentType;
     info.nativeMipmapSupport = nativeMipmapSupport;
 
     map->insert(std::make_pair(dxgiFormat, info));

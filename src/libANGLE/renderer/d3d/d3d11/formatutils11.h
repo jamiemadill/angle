@@ -31,8 +31,6 @@ struct DXGIFormat
 {
     DXGIFormat();
 
-    GLenum componentType;
-
     NativeMipmapGenerationSupportFunction nativeMipmapSupport;
 };
 
