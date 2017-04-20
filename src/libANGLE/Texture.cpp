@@ -423,20 +423,25 @@ GLenum TextureState::getBaseImageTarget() const
     return mTarget == GL_TEXTURE_CUBE_MAP ? FirstCubeMapTextureTarget : mTarget;
 }
 
-ImageDesc::ImageDesc() : ImageDesc(Extents(0, 0, 0), Format::Invalid(), 0, GL_TRUE)
+ImageDesc::ImageDesc() : ImageDesc(Extents(0, 0, 0), Format::Invalid(), 0, GL_TRUE, false)
 {
 }
 
 ImageDesc::ImageDesc(const Extents &size, const Format &format)
-    : size(size), format(format), samples(0), fixedSampleLocations(GL_TRUE)
+    : size(size), format(format), samples(0), fixedSampleLocations(GL_TRUE), needsInit(false)
 {
 }
 
 ImageDesc::ImageDesc(const Extents &size,
                      const Format &format,
                      const GLsizei samples,
-                     const GLboolean fixedSampleLocations)
-    : size(size), format(format), samples(samples), fixedSampleLocations(fixedSampleLocations)
+                     const GLboolean fixedSampleLocations,
+                     const bool needsInit)
+    : size(size),
+      format(format),
+      samples(samples),
+      fixedSampleLocations(fixedSampleLocations),
+      needsInit(needsInit)
 {
 }
 
@@ -495,7 +500,7 @@ void TextureState::setImageDescChainMultisample(Extents baseSize,
                                                 GLboolean fixedSampleLocations)
 {
     ASSERT(mTarget == GL_TEXTURE_2D_MULTISAMPLE);
-    ImageDesc levelInfo(baseSize, format, samples, fixedSampleLocations);
+    ImageDesc levelInfo(baseSize, format, samples, fixedSampleLocations, true);
     setImageDesc(mTarget, 0, levelInfo);
 }
 
@@ -857,7 +862,9 @@ egl::Stream *Texture::getBoundStream() const
 void Texture::invalidateCompletenessCache()
 {
     mState.invalidateCompletenessCache();
-    mDirtyChannel.signal();
+
+    // Signal the texture needs init, though it might not.
+    mDirtyChannel.signal(true);
 }
 
 Error Texture::setImage(const Context *context,
@@ -881,7 +888,7 @@ Error Texture::setImage(const Context *context,
                                  format, type, unpackState, pixels));
 
     mState.setImageDesc(target, level, ImageDesc(size, Format(internalFormat, type)));
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(pixels != nullptr);
 
     return NoError();
 }
@@ -921,7 +928,7 @@ Error Texture::setCompressedImage(const Context *context,
                                            size, unpackState, imageSize, pixels));
 
     mState.setImageDesc(target, level, ImageDesc(size, Format(internalFormat)));
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(pixels != nullptr);
 
     return NoError();
 }
@@ -963,7 +970,9 @@ Error Texture::copyImage(const Context *context,
         GetInternalFormatInfo(internalFormat, GL_UNSIGNED_BYTE);
     mState.setImageDesc(target, level, ImageDesc(Extents(sourceArea.width, sourceArea.height, 1),
                                                  Format(internalFormatInfo)));
-    mDirtyChannel.signal();
+
+    // We need to initialize this texture only if the source attachment is not initialized.
+    mDirtyChannel.signal(source->getReadColorbuffer()->needsInit());
 
     return NoError();
 }
@@ -1007,7 +1016,11 @@ Error Texture::copyTexture(const Context *context,
     const auto &sourceDesc   = source->mState.getImageDesc(source->getTarget(), 0);
     const InternalFormat &internalFormatInfo = GetInternalFormatInfo(internalFormat, type);
     mState.setImageDesc(target, level, ImageDesc(sourceDesc.size, Format(internalFormatInfo)));
-    mDirtyChannel.signal();
+
+    // Notify the dirty channel only if the source image portion needs init.
+    // Note: we don't have a way to notify which portions of the image changed currently.
+    mDirtyChannel.signal(
+        source->needsInit(ImageIndex::MakeGeneric(target, static_cast<GLint>(sourceLevel))));
 
     return NoError();
 }
@@ -1072,7 +1085,7 @@ Error Texture::setStorage(const Context *context,
     mDirtyBits.set(DIRTY_BIT_BASE_LEVEL);
     mDirtyBits.set(DIRTY_BIT_MAX_LEVEL);
 
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(true);
 
     return NoError();
 }
@@ -1099,7 +1112,7 @@ Error Texture::setStorageMultisample(const Context *context,
     mState.setImageDescChainMultisample(size, Format(internalFormat), samples,
                                         fixedSampleLocations);
 
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(true);
 
     return NoError();
 }
@@ -1129,7 +1142,7 @@ Error Texture::generateMipmap(const Context *context)
         mState.setImageDescChain(baseLevel, maxLevel, baseImageInfo.size, baseImageInfo.format);
     }
 
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(mNeedsInit);
 
     return NoError();
 }
@@ -1151,7 +1164,7 @@ void Texture::bindTexImageFromSurface(egl::Surface *surface)
     Extents size(surface->getWidth(), surface->getHeight(), 1);
     ImageDesc desc(size, Format(surface->getConfig()->renderTargetFormat));
     mState.setImageDesc(mState.mTarget, 0, desc);
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(false);
 }
 
 void Texture::releaseTexImageFromSurface()
@@ -1163,7 +1176,7 @@ void Texture::releaseTexImageFromSurface()
     // Erase the image info for level 0
     ASSERT(mState.mTarget == GL_TEXTURE_2D);
     mState.clearImageDesc(mState.mTarget, 0);
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(false);
 }
 
 void Texture::bindStream(egl::Stream *stream)
@@ -1191,7 +1204,7 @@ void Texture::acquireImageFromStream(const egl::Stream::GLTextureDescription &de
 
     Extents size(desc.width, desc.height, 1);
     mState.setImageDesc(mState.mTarget, 0, ImageDesc(size, Format(desc.internalFormat)));
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(false);
 }
 
 void Texture::releaseImageFromStream()
@@ -1201,7 +1214,7 @@ void Texture::releaseImageFromStream()
 
     // Set to incomplete
     mState.clearImageDesc(mState.mTarget, 0);
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(false);
 }
 
 void Texture::releaseTexImageInternal()
@@ -1234,7 +1247,7 @@ Error Texture::setEGLImageTarget(GLenum target, egl::Image *imageTarget)
 
     mState.clearImageDescs();
     mState.setImageDesc(target, 0, ImageDesc(size, imageTarget->getFormat()));
-    mDirtyChannel.signal();
+    mDirtyChannel.signal(imageTarget->sourceNeedsInit());
 
     return NoError();
 }
@@ -1279,4 +1292,17 @@ rx::FramebufferAttachmentObjectImpl *Texture::getAttachmentImpl() const
 {
     return mTexture;
 }
+
+bool Texture::needsInit(const ImageIndex &imageIndex) const
+{
+    return mState.getImageDesc(imageIndex).needsInit;
+}
+
+void Texture::markInitialized(const ImageIndex &imageIndex)
+{
+    ImageDesc newDesc = mState.getImageDesc(imageIndex);
+    newDesc.needsInit = false;
+    mState.setImageDesc(imageIndex.type, imageIndex.mipIndex, newDesc);
+}
+
 }  // namespace gl

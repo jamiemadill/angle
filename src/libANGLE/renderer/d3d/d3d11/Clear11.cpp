@@ -33,10 +33,12 @@
 namespace rx
 {
 
-static constexpr uint32_t g_VertexSize = sizeof(d3d11::PositionDepthColorVertex<float>);
+namespace
+{
+constexpr uint32_t g_VertexSize = sizeof(d3d11::PositionDepthColorVertex<float>);
 
 template <typename T>
-static void ApplyVertices(const gl::Color<T> &color, const float depth, void *buffer)
+void ApplyVertices(const gl::Color<T> &color, const float depth, void *buffer)
 {
     d3d11::PositionDepthColorVertex<T> *vertices =
         reinterpret_cast<d3d11::PositionDepthColorVertex<T> *>(buffer);
@@ -52,6 +54,24 @@ static void ApplyVertices(const gl::Color<T> &color, const float depth, void *bu
     d3d11::SetPositionDepthColorVertex<T>(vertices + 2, right, bottom, z, color);
     d3d11::SetPositionDepthColorVertex<T>(vertices + 3, right, top, z, color);
 }
+
+bool IsArrayRTV(ID3D11RenderTargetView *rtv)
+{
+    D3D11_RENDER_TARGET_VIEW_DESC desc;
+    rtv->GetDesc(&desc);
+    if (desc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE1DARRAY &&
+        desc.Texture1DArray.ArraySize > 1)
+        return true;
+    if (desc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DARRAY &&
+        desc.Texture2DArray.ArraySize > 1)
+        return true;
+    if (desc.ViewDimension == D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY &&
+        desc.Texture2DMSArray.ArraySize > 1)
+        return true;
+    return false;
+}
+
+}  // anonymous namespace
 
 Clear11::ClearShader::ClearShader(DXGI_FORMAT colorType,
                                   const char *inputLayoutName,
@@ -580,4 +600,31 @@ gl::Error Clear11::clearFramebuffer(const ClearParameters &clearParams,
 
     return gl::NoError();
 }
+
+gl::Error Clear11::initRenderTarget(RenderTargetD3D *renderTarget)
+{
+    RenderTarget11 *rt11         = GetAs<RenderTarget11>(renderTarget);
+    ID3D11DeviceContext *context = mRenderer->getDeviceContext();
+
+    if (rt11->getDepthStencilView())
+    {
+        const auto &format    = rt11->getFormatSet();
+        const UINT clearFlags = (format.format().depthBits > 0 ? D3D11_CLEAR_DEPTH : 0) |
+                                (format.format().stencilBits ? D3D11_CLEAR_STENCIL : 0);
+        context->ClearDepthStencilView(rt11->getDepthStencilView(), clearFlags, 1.0f, 0);
+        return gl::NoError();
+    }
+
+    ID3D11RenderTargetView *rtv = rt11->getRenderTargetView();
+
+    // There are complications with some types of RTV and FL 9_3 with ClearRenderTargetView.
+    // See https://msdn.microsoft.com/en-us/library/windows/desktop/ff476388(v=vs.85).aspx
+    ASSERT(mRenderer->getRenderer11DeviceCaps().featureLevel > D3D_FEATURE_LEVEL_9_3 ||
+           !IsArrayRTV(rtv));
+
+    constexpr FLOAT transparentBlack[4] = {0, 0, 0, 0};
+    context->ClearRenderTargetView(rtv, transparentBlack);
+    return gl::NoError();
 }
+
+}  // namespace rx

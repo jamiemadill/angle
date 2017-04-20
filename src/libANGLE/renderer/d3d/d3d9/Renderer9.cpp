@@ -545,6 +545,8 @@ void Renderer9::generateDisplayExtensions(egl::DisplayExtensions *outExtensions)
 
     // Contexts are virtualized so textures can be shared globally
     outExtensions->displayTextureShareGroup = true;
+
+    outExtensions->createContextRobustResourceInitialization = true;
 }
 
 void Renderer9::startScene()
@@ -3065,6 +3067,12 @@ FramebufferImpl *Renderer9::createDefaultFramebuffer(const gl::FramebufferState 
 gl::Version Renderer9::getMaxSupportedESVersion() const
 {
     return gl::Version(2, 0);
+}
+
+gl::Error Renderer9::initRenderTarget(RenderTargetD3D *renderTarget)
+{
+    // TODO(jmadill)
+    return gl::NoError();
 }
 
 }  // namespace rx

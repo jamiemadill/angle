@@ -37,6 +37,10 @@ class ImageSibling : public RefCountObject, public gl::FramebufferAttachmentObje
     ImageSibling(GLuint id);
     virtual ~ImageSibling();
 
+    bool isEGLImageTarget() const;
+    bool sourceEGLImageNeedsInit() const;
+    void markSourceEGLImageInitialized() const;
+
   protected:
     // Set the image target of this sibling
     void setTargetImage(egl::Image *imageTarget);
@@ -84,6 +88,10 @@ class Image final : public RefCountObject
 
     rx::ImageImpl *getImplementation() const;
 
+    bool orphaned() const;
+    bool sourceNeedsInit() const;
+    void markInitialized();
+
   private:
     friend class ImageSibling;
 
@@ -97,6 +105,7 @@ class Image final : public RefCountObject
 
     ImageState mState;
     rx::ImageImpl *mImplementation;
+    bool mOrphanedAndNeedsInit;
 };
 }  // namespace egl
 

@@ -94,4 +94,11 @@ gl::Error RenderbufferD3D::getAttachmentRenderTarget(GLenum /*binding*/,
     return getRenderTarget(reinterpret_cast<RenderTargetD3D **>(rtOut));
 }
 
+gl::Error RenderbufferD3D::initialize(const gl::ImageIndex &imageIndex)
+{
+    RenderTargetD3D *renderTarget = nullptr;
+    ANGLE_TRY(getRenderTarget(&renderTarget));
+    return mRenderer->initRenderTarget(renderTarget);
 }
+
+}  // namespace rx

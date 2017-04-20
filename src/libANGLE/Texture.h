@@ -52,7 +52,8 @@ struct ImageDesc final
     ImageDesc(const Extents &size,
               const Format &format,
               const GLsizei samples,
-              const GLboolean fixedSampleLocations);
+              const GLboolean fixedSampleLocations,
+              const bool needsInit);
 
     ImageDesc(const ImageDesc &other) = default;
     ImageDesc &operator=(const ImageDesc &other) = default;
@@ -61,6 +62,9 @@ struct ImageDesc final
     Format format;
     GLsizei samples;
     GLboolean fixedSampleLocations;
+
+    // Needed for robust resource initialization.
+    bool needsInit;
 };
 
 struct SwizzleState final
@@ -364,6 +368,10 @@ class Texture final : public egl::ImageSibling,
     void onAttach() override;
     void onDetach() override;
     GLuint getId() const override;
+
+    // Needed for robust resource init.
+    bool needsInit(const ImageIndex &imageIndex) const override;
+    void markInitialized(const ImageIndex &imageIndex) override;
 
     enum DirtyBitType
     {

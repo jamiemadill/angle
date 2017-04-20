@@ -39,6 +39,8 @@ class RenderbufferD3D : public RenderbufferImpl
                                         const gl::ImageIndex &imageIndex,
                                         FramebufferAttachmentRenderTarget **rtOut) override;
 
+    gl::Error initialize(const gl::ImageIndex &imageIndex) override;
+
   private:
     RendererD3D *mRenderer;
     RenderTargetD3D *mRenderTarget;

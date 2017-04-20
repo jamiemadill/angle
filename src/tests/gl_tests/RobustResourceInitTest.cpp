@@ -178,6 +178,93 @@ TEST_P(RobustResourceInitTest, BufferData)
     EXPECT_EQ(expected, actual);
 }
 
+// Basic test that renderbuffers are initialized correctly.
+TEST_P(RobustResourceInitTest, Renderbuffer)
+{
+    if (!setup())
+    {
+        return;
+    }
+
+    GLRenderbuffer renderbuffer;
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, 32, 32);
+
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, renderbuffer);
+    for (int y = 0; y < 32; ++y)
+    {
+        for (int x = 0; x < 32; ++x)
+        {
+            EXPECT_PIXEL_COLOR_EQ(x, y, GLColor::transparentBlack);
+        }
+    }
+}
+
+// Basic test that textures are initialized correctly.
+TEST_P(RobustResourceInitTest, Texture)
+{
+    if (!setup())
+    {
+        return;
+    }
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 32, 32, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    for (int y = 0; y < 32; ++y)
+    {
+        for (int x = 0; x < 32; ++x)
+        {
+            EXPECT_PIXEL_COLOR_EQ(x, y, GLColor::transparentBlack);
+        }
+    }
+}
+
+// Tests that drawing with an uninitialized Texture works as expected.
+TEST_P(RobustResourceInitTest, DrawWithTexture)
+{
+    if (!setup())
+    {
+        return;
+    }
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 32, 32, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    const std::string &vertexShader =
+        "attribute vec2 position;\n"
+        "varying vec2 texCoord;\n"
+        "void main() {\n"
+        "    gl_Position = vec4(position, 0, 1);\n"
+        "    texCoord = (position * 0.5) + 0.5;\n"
+        "}";
+    const std::string &fragmentShader =
+        "precision mediump float;\n"
+        "varying vec2 texCoord;\n"
+        "uniform sampler2D tex;\n"
+        "void main() {\n"
+        "    gl_FragColor = texture2D(tex, texCoord);\n"
+        "}";
+
+    ANGLE_GL_PROGRAM(program, vertexShader, fragmentShader);
+    drawQuad(program, "position", 0.5f);
+
+    for (int y = 0; y < getWindowHeight(); ++y)
+    {
+        for (int x = 0; x < getWindowWidth(); ++x)
+        {
+            EXPECT_PIXEL_COLOR_EQ(x, y, GLColor::transparentBlack);
+        }
+    }
+}
+
 ANGLE_INSTANTIATE_TEST(RobustResourceInitTest,
                        ES2_D3D9(),
                        ES2_D3D11(),

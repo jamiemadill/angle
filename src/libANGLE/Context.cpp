@@ -45,6 +45,11 @@
 namespace
 {
 
+#define ANGLE_HANDLE_ERR(X) \
+    handleError(X);         \
+    return;
+#define ANGLE_CONTEXT_TRY(EXPR) ANGLE_TRY_TEMPLATE(EXPR, ANGLE_HANDLE_ERR);
+
 template <typename T>
 std::vector<gl::Path *> GatherPaths(gl::PathManager &resourceManager,
                                     GLsizei numPaths,
@@ -1752,24 +1757,16 @@ void Context::texParameteriv(GLenum target, GLenum pname, const GLint *params)
 
 void Context::drawArrays(GLenum mode, GLint first, GLsizei count)
 {
-    syncRendererState();
-    auto error = mImplementation->drawArrays(mode, first, count);
-    handleError(error);
-    if (!error.isError())
-    {
-        MarkTransformFeedbackBufferUsage(mGLState.getCurrentTransformFeedback());
-    }
+    ANGLE_CONTEXT_TRY(prepareForDraw());
+    ANGLE_CONTEXT_TRY(mImplementation->drawArrays(mode, first, count));
+    MarkTransformFeedbackBufferUsage(mGLState.getCurrentTransformFeedback());
 }
 
 void Context::drawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount)
 {
-    syncRendererState();
-    auto error = mImplementation->drawArraysInstanced(mode, first, count, instanceCount);
-    handleError(error);
-    if (!error.isError())
-    {
-        MarkTransformFeedbackBufferUsage(mGLState.getCurrentTransformFeedback());
-    }
+    ANGLE_CONTEXT_TRY(prepareForDraw());
+    ANGLE_CONTEXT_TRY(mImplementation->drawArraysInstanced(mode, first, count, instanceCount));
+    MarkTransformFeedbackBufferUsage(mGLState.getCurrentTransformFeedback());
 }
 
 void Context::drawElements(GLenum mode,
@@ -1778,8 +1775,8 @@ void Context::drawElements(GLenum mode,
                            const GLvoid *indices,
                            const IndexRange &indexRange)
 {
-    syncRendererState();
-    handleError(mImplementation->drawElements(mode, count, type, indices, indexRange));
+    ANGLE_CONTEXT_TRY(prepareForDraw());
+    ANGLE_CONTEXT_TRY(mImplementation->drawElements(mode, count, type, indices, indexRange));
 }
 
 void Context::drawElementsInstanced(GLenum mode,
@@ -1789,8 +1786,8 @@ void Context::drawElementsInstanced(GLenum mode,
                                     GLsizei instances,
                                     const IndexRange &indexRange)
 {
-    syncRendererState();
-    handleError(
+    ANGLE_CONTEXT_TRY(prepareForDraw());
+    ANGLE_CONTEXT_TRY(
         mImplementation->drawElementsInstanced(mode, count, type, indices, instances, indexRange));
 }
 
@@ -1802,21 +1799,21 @@ void Context::drawRangeElements(GLenum mode,
                                 const GLvoid *indices,
                                 const IndexRange &indexRange)
 {
-    syncRendererState();
-    handleError(
+    ANGLE_CONTEXT_TRY(prepareForDraw());
+    ANGLE_CONTEXT_TRY(
         mImplementation->drawRangeElements(mode, start, end, count, type, indices, indexRange));
 }
 
 void Context::drawArraysIndirect(GLenum mode, const GLvoid *indirect)
 {
-    syncRendererState();
-    handleError(mImplementation->drawArraysIndirect(mode, indirect));
+    ANGLE_CONTEXT_TRY(prepareForDraw());
+    ANGLE_CONTEXT_TRY(mImplementation->drawArraysIndirect(mode, indirect));
 }
 
 void Context::drawElementsIndirect(GLenum mode, GLenum type, const GLvoid *indirect)
 {
-    syncRendererState();
-    handleError(mImplementation->drawElementsIndirect(mode, type, indirect));
+    ANGLE_CONTEXT_TRY(prepareForDraw());
+    ANGLE_CONTEXT_TRY(mImplementation->drawElementsIndirect(mode, type, indirect));
 }
 
 void Context::flush()
@@ -2677,6 +2674,12 @@ void Context::initWorkarounds()
     mWorkarounds.loseContextOnOutOfMemory = (mResetStrategy == GL_LOSE_CONTEXT_ON_RESET_EXT);
 }
 
+Error Context::prepareForDraw()
+{
+    syncRendererState();
+    return mGLState.getDrawFramebuffer()->clearUnclearedDrawAttachments(this);
+}
+
 void Context::syncRendererState()
 {
     const State::DirtyBits &dirtyBits = mGLState.getDirtyBits();
@@ -2775,11 +2778,12 @@ void Context::readPixels(GLint x,
 
     syncStateForReadPixels();
 
-    Framebuffer *framebufferObject = mGLState.getReadFramebuffer();
-    ASSERT(framebufferObject);
+    Framebuffer *readFBO = mGLState.getReadFramebuffer();
+    ASSERT(readFBO);
+    readFBO->clearUnclearedReadAttachment(this);
 
     Rectangle area(x, y, width, height);
-    handleError(framebufferObject->readPixels(mImplementation.get(), area, format, type, pixels));
+    handleError(readFBO->readPixels(mImplementation.get(), area, format, type, pixels));
 }
 
 void Context::copyTexImage2D(GLenum target,

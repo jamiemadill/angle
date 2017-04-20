@@ -688,6 +688,8 @@ void DisplayWGL::generateExtensions(egl::DisplayExtensions *outExtensions) const
 
     // Contexts are virtualized so textures can be shared globally
     outExtensions->displayTextureShareGroup = true;
+
+    outExtensions->createContextRobustResourceInitialization = true;
 }
 
 void DisplayWGL::generateCaps(egl::Caps *outCaps) const

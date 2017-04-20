@@ -388,6 +388,8 @@ class Renderer11 : public RendererD3D
 
     gl::Version getMaxSupportedESVersion() const override;
 
+    gl::Error initRenderTarget(RenderTargetD3D *renderTarget) override;
+
   protected:
     gl::Error clearTextures(gl::SamplerType samplerType, size_t rangeStart, size_t rangeEnd) override;
 

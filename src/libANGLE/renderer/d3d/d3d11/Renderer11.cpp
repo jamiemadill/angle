@@ -4846,4 +4846,9 @@ gl::DebugAnnotator *Renderer11::getAnnotator()
     return mAnnotator;
 }
 
+gl::Error Renderer11::initRenderTarget(RenderTargetD3D *renderTarget)
+{
+    return mClear->initRenderTarget(renderTarget);
+}
+
 }  // namespace rx

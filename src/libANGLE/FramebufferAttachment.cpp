@@ -235,6 +235,27 @@ bool FramebufferAttachment::operator!=(const FramebufferAttachment &other) const
     return !(*this == other);
 }
 
+bool FramebufferAttachment::needsInit() const
+{
+    return mResource ? mResource->needsInit(mTarget.textureIndex()) : false;
+}
+
+Error FramebufferAttachment::initialize()
+{
+    ASSERT(mResource);
+    return mResource->initialize(mTarget.textureIndex());
+}
+
+////// FramebufferAttachmentObject Implementation //////
+
+FramebufferAttachmentObject::FramebufferAttachmentObject(bool needsInit) : mNeedsInit(needsInit)
+{
+}
+
+FramebufferAttachmentObject::~FramebufferAttachmentObject()
+{
+}
+
 Error FramebufferAttachmentObject::getAttachmentRenderTarget(
     GLenum binding,
     const ImageIndex &imageIndex,
@@ -243,9 +264,14 @@ Error FramebufferAttachmentObject::getAttachmentRenderTarget(
     return getAttachmentImpl()->getAttachmentRenderTarget(binding, imageIndex, rtOut);
 }
 
-angle::BroadcastChannel<> *FramebufferAttachmentObject::getDirtyChannel()
+OnAttachmentDirtyChannel *FramebufferAttachmentObject::getDirtyChannel()
 {
     return &mDirtyChannel;
+}
+
+Error FramebufferAttachmentObject::initialize(const ImageIndex &imageIndex)
+{
+    return getAttachmentImpl()->initialize(imageIndex);
 }
 
 }  // namespace gl
