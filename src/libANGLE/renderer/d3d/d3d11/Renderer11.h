@@ -389,6 +389,20 @@ class Renderer11 : public RendererD3D
 
     gl::Version getMaxSupportedESVersion() const override;
 
+    template <typename DescT, typename ResourceT>
+    gl::Error allocateResource(const DescT &desc, ResourceT *resourceOut)
+    {
+        return mResourceManager11.allocate(this, desc, nullptr, resourceOut);
+    }
+
+    template <typename DescT, typename ResourceT>
+    gl::Error allocateResource(const DescT &desc,
+                               const D3D11_SUBRESOURCE_DATA *initData,
+                               ResourceT *resourceOut)
+    {
+        return mResourceManager11.allocate(this, desc, initData, resourceOut);
+    }
+
   protected:
     gl::Error clearTextures(gl::SamplerType samplerType, size_t rangeStart, size_t rangeEnd) override;
 

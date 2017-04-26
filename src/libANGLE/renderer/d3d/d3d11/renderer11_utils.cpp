@@ -2082,30 +2082,6 @@ TextureHelper11 TextureHelper11::MakeAndReference(ID3D11Resource *genericResourc
     return newHelper;
 }
 
-// static
-TextureHelper11 TextureHelper11::MakeAndPossess2D(ID3D11Texture2D *texToOwn,
-                                                  const d3d11::Format &formatSet)
-{
-    TextureHelper11 newHelper;
-    newHelper.mFormatSet   = &formatSet;
-    newHelper.mTexture2D   = texToOwn;
-    newHelper.mTextureType = GL_TEXTURE_2D;
-    newHelper.initDesc();
-    return newHelper;
-}
-
-// static
-TextureHelper11 TextureHelper11::MakeAndPossess3D(ID3D11Texture3D *texToOwn,
-                                                  const d3d11::Format &formatSet)
-{
-    TextureHelper11 newHelper;
-    newHelper.mFormatSet   = &formatSet;
-    newHelper.mTexture3D   = texToOwn;
-    newHelper.mTextureType = GL_TEXTURE_3D;
-    newHelper.initDesc();
-    return newHelper;
-}
-
 void TextureHelper11::initDesc()
 {
     if (mTextureType == GL_TEXTURE_2D)
@@ -2179,11 +2155,11 @@ bool TextureHelper11::valid() const
     return (mTextureType != GL_NONE);
 }
 
-gl::ErrorOrResult<TextureHelper11> CreateStagingTexture(GLenum textureType,
+gl::ErrorOrResult<TextureHelper11> CreateStagingTexture(Renderer11 *renderer,
+                                                        GLenum textureType,
                                                         const d3d11::Format &formatSet,
                                                         const gl::Extents &size,
-                                                        StagingAccess readAndWriteAccess,
-                                                        ID3D11Device *device)
+                                                        StagingAccess readAndWriteAccess)
 {
     if (textureType == GL_TEXTURE_2D)
     {
@@ -2205,15 +2181,9 @@ gl::ErrorOrResult<TextureHelper11> CreateStagingTexture(GLenum textureType,
             stagingDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_WRITE;
         }
 
-        ID3D11Texture2D *stagingTex = nullptr;
-        HRESULT result = device->CreateTexture2D(&stagingDesc, nullptr, &stagingTex);
-        if (FAILED(result))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY, "CreateStagingTextureFor failed, HRESULT: 0x%X.",
-                             result);
-        }
-
-        return TextureHelper11::MakeAndPossess2D(stagingTex, formatSet);
+        d3d11::Texture2D stagingTex;
+        ANGLE_TRY(renderer->allocateResource(stagingDesc, &stagingTex));
+        return TextureHelper11::MakeAndReference(stagingTex.get(), formatSet);
     }
     ASSERT(textureType == GL_TEXTURE_3D);
 
@@ -2228,15 +2198,9 @@ gl::ErrorOrResult<TextureHelper11> CreateStagingTexture(GLenum textureType,
     stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
     stagingDesc.MiscFlags      = 0;
 
-    ID3D11Texture3D *stagingTex = nullptr;
-    HRESULT result = device->CreateTexture3D(&stagingDesc, nullptr, &stagingTex);
-    if (FAILED(result))
-    {
-        return gl::Error(GL_OUT_OF_MEMORY, "CreateStagingTextureFor failed, HRESULT: 0x%X.",
-                         result);
-    }
-
-    return TextureHelper11::MakeAndPossess3D(stagingTex, formatSet);
+    d3d11::Texture3D stagingTex;
+    ANGLE_TRY(renderer->allocateResource(stagingDesc, &stagingTex));
+    return TextureHelper11::MakeAndReference(stagingTex.get(), formatSet);
 }
 
 bool UsePresentPathFast(const Renderer11 *renderer,

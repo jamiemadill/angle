@@ -371,10 +371,6 @@ class TextureHelper11 : angle::NonCopyable
 
     static TextureHelper11 MakeAndReference(ID3D11Resource *genericResource,
                                             const d3d11::Format &formatSet);
-    static TextureHelper11 MakeAndPossess2D(ID3D11Texture2D *texToOwn,
-                                            const d3d11::Format &formatSet);
-    static TextureHelper11 MakeAndPossess3D(ID3D11Texture3D *texToOwn,
-                                            const d3d11::Format &formatSet);
 
     GLenum getTextureType() const { return mTextureType; }
     gl::Extents getExtents() const { return mExtents; }
@@ -405,11 +401,11 @@ enum class StagingAccess
     READ_WRITE,
 };
 
-gl::ErrorOrResult<TextureHelper11> CreateStagingTexture(GLenum textureType,
+gl::ErrorOrResult<TextureHelper11> CreateStagingTexture(Renderer11 *renderer,
+                                                        GLenum textureType,
                                                         const d3d11::Format &formatSet,
                                                         const gl::Extents &size,
-                                                        StagingAccess readAndWriteAccess,
-                                                        ID3D11Device *device);
+                                                        StagingAccess readAndWriteAccess);
 
 bool UsePresentPathFast(const Renderer11 *renderer, const gl::FramebufferAttachment *colorbuffer);
 

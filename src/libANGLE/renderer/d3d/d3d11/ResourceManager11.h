@@ -99,6 +99,7 @@ class ResourceManager11 final : angle::NonCopyable
     template <ResourceType Type>
     gl::Error allocate(Renderer11 *renderer,
                        const GetDescType<Type> &desc,
+                       const D3D11_SUBRESOURCE_DATA *initData,
                        Resource11<Type> *resourceOut);
 
   private:

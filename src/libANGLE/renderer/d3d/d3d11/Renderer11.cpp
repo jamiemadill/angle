@@ -3513,7 +3513,7 @@ gl::Error Renderer11::createRenderTarget(int width,
         ASSERT(bindRTV != bindDSV);
 
         d3d11::Texture2D texture;
-        ANGLE_TRY(mResourceManager11.allocate(this, desc, &texture));
+        ANGLE_TRY(allocateResource(desc, &texture));
 
         ID3D11ShaderResourceView *srv     = nullptr;
         ID3D11ShaderResourceView *blitSRV = nullptr;
@@ -4090,8 +4090,8 @@ gl::Error Renderer11::readFromAttachment(const gl::FramebufferAttachment &srcAtt
     gl::Extents safeSize(safeArea.width, safeArea.height, 1);
     TextureHelper11 stagingHelper;
     ANGLE_TRY_RESULT(
-        CreateStagingTexture(textureHelper.getTextureType(), textureHelper.getFormatSet(), safeSize,
-                             StagingAccess::READ, mDevice),
+        CreateStagingTexture(this, textureHelper.getTextureType(), textureHelper.getFormatSet(),
+                             safeSize, StagingAccess::READ),
         stagingHelper);
 
     TextureHelper11 resolvedTextureHelper;
@@ -4115,20 +4115,13 @@ gl::Error Renderer11::readFromAttachment(const gl::FramebufferAttachment &srcAtt
         resolveDesc.CPUAccessFlags     = 0;
         resolveDesc.MiscFlags          = 0;
 
-        ID3D11Texture2D *resolveTex2D = nullptr;
-        HRESULT result = mDevice->CreateTexture2D(&resolveDesc, nullptr, &resolveTex2D);
-        if (FAILED(result))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Renderer11::readTextureData failed to create internal resolve "
-                             "texture for ReadPixels, HRESULT: 0x%X.",
-                             result);
-        }
+        d3d11::Texture2D resolveTex2D;
+        ANGLE_TRY(allocateResource(resolveDesc, &resolveTex2D));
 
-        mDeviceContext->ResolveSubresource(resolveTex2D, 0, textureHelper.getTexture2D(),
+        mDeviceContext->ResolveSubresource(resolveTex2D.get(), 0, textureHelper.getTexture2D(),
                                            sourceSubResource, textureHelper.getFormat());
         resolvedTextureHelper =
-            TextureHelper11::MakeAndReference(resolveTex2D, textureHelper.getFormatSet());
+            TextureHelper11::MakeAndReference(resolveTex2D.get(), textureHelper.getFormatSet());
 
         sourceSubResource = 0;
         srcTexture        = &resolvedTextureHelper;
@@ -4556,17 +4549,12 @@ Renderer11::resolveMultisampledTexture(RenderTarget11 *renderTarget, bool depth,
     resolveDesc.CPUAccessFlags     = 0;
     resolveDesc.MiscFlags          = 0;
 
-    ID3D11Texture2D *resolveTexture = nullptr;
-    HRESULT result = mDevice->CreateTexture2D(&resolveDesc, nullptr, &resolveTexture);
-    if (FAILED(result))
-    {
-        return gl::Error(GL_OUT_OF_MEMORY,
-                         "Failed to create a multisample resolve texture, HRESULT: 0x%X.", result);
-    }
+    d3d11::Texture2D resolveTexture;
+    ANGLE_TRY(allocateResource(resolveDesc, &resolveTexture));
 
-    mDeviceContext->ResolveSubresource(resolveTexture, 0, renderTarget->getTexture(),
+    mDeviceContext->ResolveSubresource(resolveTexture.get(), 0, renderTarget->getTexture(),
                                        renderTarget->getSubresourceIndex(), formatSet.texFormat);
-    return TextureHelper11::MakeAndPossess2D(resolveTexture, renderTarget->getFormatSet());
+    return TextureHelper11::MakeAndReference(resolveTexture.get(), renderTarget->getFormatSet());
 }
 
 bool Renderer11::getLUID(LUID *adapterLuid) const

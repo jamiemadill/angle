@@ -1493,12 +1493,11 @@ gl::Error Blit11::copyAndConvertImpl(const TextureHelper11 &source,
 {
     ANGLE_TRY(initResources());
 
-    ID3D11Device *device               = mRenderer->getDevice();
     ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
 
     TextureHelper11 sourceStaging;
-    ANGLE_TRY_RESULT(CreateStagingTexture(GL_TEXTURE_2D, source.getFormatSet(), sourceSize,
-                                          StagingAccess::READ, device),
+    ANGLE_TRY_RESULT(CreateStagingTexture(mRenderer, GL_TEXTURE_2D, source.getFormatSet(),
+                                          sourceSize, StagingAccess::READ),
                      sourceStaging);
 
     deviceContext->CopySubresourceRegion(sourceStaging.getResource(), 0, 0, 0, 0,
@@ -1562,15 +1561,14 @@ gl::Error Blit11::copyAndConvert(const TextureHelper11 &source,
 {
     ANGLE_TRY(initResources());
 
-    ID3D11Device *device               = mRenderer->getDevice();
     ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
 
     // HACK: Create the destination staging buffer as a read/write texture so
     // ID3D11DevicContext::UpdateSubresource can be called
     //       using it's mapped data as a source
     TextureHelper11 destStaging;
-    ANGLE_TRY_RESULT(CreateStagingTexture(GL_TEXTURE_2D, dest.getFormatSet(), destSize,
-                                          StagingAccess::READ_WRITE, device),
+    ANGLE_TRY_RESULT(CreateStagingTexture(mRenderer, GL_TEXTURE_2D, dest.getFormatSet(), destSize,
+                                          StagingAccess::READ_WRITE),
                      destStaging);
 
     deviceContext->CopySubresourceRegion(destStaging.getResource(), 0, 0, 0, 0, dest.getResource(),
@@ -2036,15 +2034,11 @@ gl::Error Blit11::initResolveDepthOnly(const d3d11::Format &format, const gl::Ex
     textureDesc.CPUAccessFlags     = 0;
     textureDesc.MiscFlags          = 0;
 
-    ID3D11Texture2D *resolvedDepth = nullptr;
-    HRESULT hr                     = device->CreateTexture2D(&textureDesc, nullptr, &resolvedDepth);
-    if (FAILED(hr))
-    {
-        return gl::OutOfMemory() << "Failed to allocate resolved depth texture, " << hr;
-    }
-    d3d11::SetDebugName(resolvedDepth, "Blit11::mResolvedDepth");
+    d3d11::Texture2D resolvedDepth;
+    ANGLE_TRY(mRenderer->allocateResource(textureDesc, &resolvedDepth));
+    d3d11::SetDebugName(resolvedDepth.get(), "Blit11::mResolvedDepth");
 
-    mResolvedDepth = TextureHelper11::MakeAndPossess2D(resolvedDepth, format);
+    mResolvedDepth = TextureHelper11::MakeAndReference(resolvedDepth.get(), format);
 
     D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
     dsvDesc.Flags              = 0;
@@ -2052,8 +2046,8 @@ gl::Error Blit11::initResolveDepthOnly(const d3d11::Format &format, const gl::Ex
     dsvDesc.Texture2D.MipSlice = 0;
     dsvDesc.ViewDimension      = D3D11_DSV_DIMENSION_TEXTURE2D;
 
-    hr = device->CreateDepthStencilView(mResolvedDepth.getResource(), &dsvDesc,
-                                        mResolvedDepthDSView.ReleaseAndGetAddressOf());
+    HRESULT hr = device->CreateDepthStencilView(mResolvedDepth.getResource(), &dsvDesc,
+                                                mResolvedDepthDSView.ReleaseAndGetAddressOf());
     if (FAILED(hr))
     {
         return gl::OutOfMemory() << "Failed to allocate Blit11::mResolvedDepthDSView, " << hr;
@@ -2099,17 +2093,13 @@ gl::Error Blit11::initResolveDepthStencil(const gl::Extents &extents)
 
     ID3D11Device *device = mRenderer->getDevice();
 
-    ID3D11Texture2D *resolvedDepthStencil = nullptr;
-    HRESULT hr = device->CreateTexture2D(&textureDesc, nullptr, &resolvedDepthStencil);
-    if (FAILED(hr))
-    {
-        return gl::OutOfMemory() << "Failed to allocate resolved depth stencil texture, " << hr;
-    }
-    d3d11::SetDebugName(resolvedDepthStencil, "Blit11::mResolvedDepthStencil");
+    d3d11::Texture2D resolvedDepthStencil;
+    ANGLE_TRY(mRenderer->allocateResource(textureDesc, &resolvedDepthStencil));
+    d3d11::SetDebugName(resolvedDepthStencil.get(), "Blit11::mResolvedDepthStencil");
 
     ASSERT(mResolvedDepthStencilRTView == nullptr);
-    hr = device->CreateRenderTargetView(resolvedDepthStencil, nullptr,
-                                        mResolvedDepthStencilRTView.GetAddressOf());
+    HRESULT hr = device->CreateRenderTargetView(resolvedDepthStencil.get(), nullptr,
+                                                mResolvedDepthStencilRTView.GetAddressOf());
     if (FAILED(hr))
     {
         return gl::OutOfMemory() << "Failed to allocate Blit11::mResolvedDepthStencilRTView, "
@@ -2117,7 +2107,8 @@ gl::Error Blit11::initResolveDepthStencil(const gl::Extents &extents)
     }
     d3d11::SetDebugName(mResolvedDepthStencilRTView, "Blit11::mResolvedDepthStencilRTView");
 
-    mResolvedDepthStencil = TextureHelper11::MakeAndPossess2D(resolvedDepthStencil, formatSet);
+    mResolvedDepthStencil =
+        TextureHelper11::MakeAndReference(resolvedDepthStencil.get(), formatSet);
 
     return gl::NoError();
 }
@@ -2213,8 +2204,8 @@ gl::ErrorOrResult<TextureHelper11> Blit11::resolveStencil(RenderTarget11 *depthS
     gl::Box copyBox(0, 0, 0, extents.width, extents.height, 1);
 
     TextureHelper11 dest;
-    ANGLE_TRY_RESULT(CreateStagingTexture(GL_TEXTURE_2D, depthStencil->getFormatSet(), extents,
-                                          StagingAccess::READ_WRITE, device),
+    ANGLE_TRY_RESULT(CreateStagingTexture(mRenderer, GL_TEXTURE_2D, depthStencil->getFormatSet(),
+                                          extents, StagingAccess::READ_WRITE),
                      dest);
 
     const auto &copyFunction = GetCopyDepthStencilFunction(depthStencil->getInternalFormat());

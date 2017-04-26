@@ -74,21 +74,26 @@ size_t ComputeGenericMemoryUsage(ResourceType resourceType, ID3D11Resource *reso
 
 HRESULT CreateResource(ID3D11Device *device,
                        const D3D11_TEXTURE2D_DESC &desc,
+                       const D3D11_SUBRESOURCE_DATA *initData,
                        ID3D11Texture2D **texture)
 {
-    return device->CreateTexture2D(&desc, nullptr, texture);
+    return device->CreateTexture2D(&desc, initData, texture);
 }
 
 HRESULT CreateResource(ID3D11Device *device,
                        const D3D11_TEXTURE3D_DESC &desc,
+                       const D3D11_SUBRESOURCE_DATA *initData,
                        ID3D11Texture3D **texture)
 {
-    return device->CreateTexture3D(&desc, nullptr, texture);
+    return device->CreateTexture3D(&desc, initData, texture);
 }
 
-HRESULT CreateResource(ID3D11Device *device, const D3D11_BUFFER_DESC &desc, ID3D11Buffer **buffer)
+HRESULT CreateResource(ID3D11Device *device,
+                       const D3D11_BUFFER_DESC &desc,
+                       const D3D11_SUBRESOURCE_DATA *initData,
+                       ID3D11Buffer **buffer)
 {
-    return device->CreateBuffer(&desc, nullptr, buffer);
+    return device->CreateBuffer(&desc, initData, buffer);
 }
 
 const char *ResourceTypeString(ResourceType resourceType)
@@ -172,11 +177,12 @@ ResourceManager11::~ResourceManager11()
 template <ResourceType Type>
 gl::Error ResourceManager11::allocate(Renderer11 *renderer,
                                       const GetDescType<Type> &desc,
+                                      const D3D11_SUBRESOURCE_DATA *initData,
                                       Resource11<Type> *resourceOut)
 {
     ID3D11Device *device            = renderer->getDevice();
     GetResourceType<Type> *resource = nullptr;
-    HRESULT hr                      = CreateResource(device, desc, &resource);
+    HRESULT hr                      = CreateResource(device, desc, initData, &resource);
     if (FAILED(hr))
     {
         ASSERT(!resource);
@@ -222,14 +228,17 @@ void ResourceManager11::release(GetResourceType<ResourceT> *resource)
 template gl::Error ResourceManager11::allocate<ResourceType::Texture2D>(
     Renderer11 *,
     const D3D11_TEXTURE2D_DESC &,
+    const D3D11_SUBRESOURCE_DATA *,
     Resource11<ResourceType::Texture2D> *);
 template gl::Error ResourceManager11::allocate<ResourceType::Texture3D>(
     Renderer11 *,
     const D3D11_TEXTURE3D_DESC &,
+    const D3D11_SUBRESOURCE_DATA *,
     Resource11<ResourceType::Texture3D> *);
 template gl::Error ResourceManager11::allocate<ResourceType::Buffer>(
     Renderer11 *,
     const D3D11_BUFFER_DESC &,
+    const D3D11_SUBRESOURCE_DATA *,
     Resource11<ResourceType::Buffer> *);
 
 template void ResourceManager11::release<ResourceType::Texture2D>(ID3D11Texture2D *);

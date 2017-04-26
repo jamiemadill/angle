@@ -396,7 +396,6 @@ gl::Error Image11::copyWithoutConversion(const gl::Offset &destOffset,
     unsigned int stagingSubresourceIndex = 0;
     ANGLE_TRY(getStagingTexture(&stagingTexture, &stagingSubresourceIndex));
 
-    ID3D11Device *device               = mRenderer->getDevice();
     ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
 
     UINT subresourceAfterResolve = sourceSubResource;
@@ -422,19 +421,14 @@ gl::Error Image11::copyWithoutConversion(const gl::Offset &destOffset,
         resolveDesc.CPUAccessFlags     = 0;
         resolveDesc.MiscFlags          = 0;
 
-        ID3D11Texture2D *srcTex2D = nullptr;
-        HRESULT result            = device->CreateTexture2D(&resolveDesc, nullptr, &srcTex2D);
-        if (FAILED(result))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create resolve texture for Image11::copy, HRESULT: 0x%X.",
-                             result);
-        }
-        srcTex = srcTex2D;
+        d3d11::Texture2D srcTex2D;
+        ANGLE_TRY(mRenderer->allocateResource(resolveDesc, &srcTex2D));
+        srcTex = srcTex2D.get();
 
         deviceContext->ResolveSubresource(srcTex, 0, textureHelper.getTexture2D(),
                                           sourceSubResource, textureHelper.getFormat());
         subresourceAfterResolve = 0;
+        srcTex->AddRef();
     }
     else
     {
@@ -542,7 +536,7 @@ gl::Error Image11::createStagingTexture()
     else if (mTarget == GL_TEXTURE_2D || mTarget == GL_TEXTURE_2D_ARRAY ||
              mTarget == GL_TEXTURE_CUBE_MAP)
     {
-        ID3D11Texture2D *newTexture = nullptr;
+        d3d11::Texture2D newTexture;
 
         D3D11_TEXTURE2D_DESC desc;
         desc.Width              = width;
@@ -566,21 +560,14 @@ gl::Error Image11::createStagingTexture()
                                               width, height, 1, lodOffset + 1, &initialData,
                                               &textureData);
 
-            result = device->CreateTexture2D(&desc, initialData.data(), &newTexture);
+            ANGLE_TRY(mRenderer->allocateResource(desc, initialData.data(), &newTexture));
         }
         else
         {
-            result = device->CreateTexture2D(&desc, nullptr, &newTexture);
+            ANGLE_TRY(mRenderer->allocateResource(desc, &newTexture));
         }
 
-        if (FAILED(result))
-        {
-            ASSERT(result == E_OUTOFMEMORY);
-            return gl::Error(GL_OUT_OF_MEMORY, "Failed to create staging texture, result: 0x%X.",
-                             result);
-        }
-
-        mStagingTexture     = newTexture;
+        mStagingTexture     = newTexture.get();
         mStagingSubresource = D3D11CalcSubresource(lodOffset, 0, lodOffset + 1);
     }
     else
