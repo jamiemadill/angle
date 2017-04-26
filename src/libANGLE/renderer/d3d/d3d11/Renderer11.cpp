@@ -3512,14 +3512,8 @@ gl::Error Renderer11::createRenderTarget(int width,
         // The format must be either an RTV or a DSV
         ASSERT(bindRTV != bindDSV);
 
-        ID3D11Texture2D *texture = nullptr;
-        HRESULT result           = mDevice->CreateTexture2D(&desc, nullptr, &texture);
-        if (FAILED(result))
-        {
-            ASSERT(result == E_OUTOFMEMORY);
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create render target texture, result: 0x%X.", result);
-        }
+        d3d11::Texture2D texture;
+        ANGLE_TRY(mResourceManager11.allocate(this, desc, &texture));
 
         ID3D11ShaderResourceView *srv     = nullptr;
         ID3D11ShaderResourceView *blitSRV = nullptr;
@@ -3532,11 +3526,10 @@ gl::Error Renderer11::createRenderTarget(int width,
             srvDesc.Texture2D.MostDetailedMip = 0;
             srvDesc.Texture2D.MipLevels       = 1;
 
-            result = mDevice->CreateShaderResourceView(texture, &srvDesc, &srv);
+            HRESULT result = mDevice->CreateShaderResourceView(texture.get(), &srvDesc, &srv);
             if (FAILED(result))
             {
                 ASSERT(result == E_OUTOFMEMORY);
-                SafeRelease(texture);
                 return gl::Error(
                     GL_OUT_OF_MEMORY,
                     "Failed to create render target shader resource view, result: 0x%X.", result);
@@ -3552,11 +3545,10 @@ gl::Error Renderer11::createRenderTarget(int width,
                 blitSRVDesc.Texture2D.MostDetailedMip = 0;
                 blitSRVDesc.Texture2D.MipLevels       = 1;
 
-                result = mDevice->CreateShaderResourceView(texture, &blitSRVDesc, &blitSRV);
+                result = mDevice->CreateShaderResourceView(texture.get(), &blitSRVDesc, &blitSRV);
                 if (FAILED(result))
                 {
                     ASSERT(result == E_OUTOFMEMORY);
-                    SafeRelease(texture);
                     SafeRelease(srv);
                     return gl::Error(GL_OUT_OF_MEMORY,
                                      "Failed to create render target shader resource view for "
@@ -3581,11 +3573,10 @@ gl::Error Renderer11::createRenderTarget(int width,
             dsvDesc.Flags              = 0;
 
             ID3D11DepthStencilView *dsv = nullptr;
-            result                      = mDevice->CreateDepthStencilView(texture, &dsvDesc, &dsv);
+            HRESULT result = mDevice->CreateDepthStencilView(texture.get(), &dsvDesc, &dsv);
             if (FAILED(result))
             {
                 ASSERT(result == E_OUTOFMEMORY);
-                SafeRelease(texture);
                 SafeRelease(srv);
                 SafeRelease(blitSRV);
                 return gl::Error(GL_OUT_OF_MEMORY,
@@ -3593,8 +3584,8 @@ gl::Error Renderer11::createRenderTarget(int width,
                                  result);
             }
 
-            *outRT = new TextureRenderTarget11(dsv, texture, srv, format, formatInfo, width, height,
-                                               1, supportedSamples);
+            *outRT = new TextureRenderTarget11(dsv, texture.get(), srv, format, formatInfo, width,
+                                               height, 1, supportedSamples);
 
             SafeRelease(dsv);
         }
@@ -3607,11 +3598,10 @@ gl::Error Renderer11::createRenderTarget(int width,
             rtvDesc.Texture2D.MipSlice = 0;
 
             ID3D11RenderTargetView *rtv = nullptr;
-            result                      = mDevice->CreateRenderTargetView(texture, &rtvDesc, &rtv);
+            HRESULT result = mDevice->CreateRenderTargetView(texture.get(), &rtvDesc, &rtv);
             if (FAILED(result))
             {
                 ASSERT(result == E_OUTOFMEMORY);
-                SafeRelease(texture);
                 SafeRelease(srv);
                 SafeRelease(blitSRV);
                 return gl::Error(GL_OUT_OF_MEMORY,
@@ -3625,7 +3615,7 @@ gl::Error Renderer11::createRenderTarget(int width,
                 mDeviceContext->ClearRenderTargetView(rtv, clearValues);
             }
 
-            *outRT = new TextureRenderTarget11(rtv, texture, srv, blitSRV, format, formatInfo,
+            *outRT = new TextureRenderTarget11(rtv, texture.get(), srv, blitSRV, format, formatInfo,
                                                width, height, 1, supportedSamples);
 
             SafeRelease(rtv);
@@ -3635,7 +3625,6 @@ gl::Error Renderer11::createRenderTarget(int width,
             UNREACHABLE();
         }
 
-        SafeRelease(texture);
         SafeRelease(srv);
         SafeRelease(blitSRV);
     }
