@@ -401,12 +401,6 @@ enum class StagingAccess
     READ_WRITE,
 };
 
-gl::ErrorOrResult<TextureHelper11> CreateStagingTexture(Renderer11 *renderer,
-                                                        GLenum textureType,
-                                                        const d3d11::Format &formatSet,
-                                                        const gl::Extents &size,
-                                                        StagingAccess readAndWriteAccess);
-
 bool UsePresentPathFast(const Renderer11 *renderer, const gl::FramebufferAttachment *colorbuffer);
 
 // Used for state change notifications between buffers and vertex arrays.

@@ -2155,54 +2155,6 @@ bool TextureHelper11::valid() const
     return (mTextureType != GL_NONE);
 }
 
-gl::ErrorOrResult<TextureHelper11> CreateStagingTexture(Renderer11 *renderer,
-                                                        GLenum textureType,
-                                                        const d3d11::Format &formatSet,
-                                                        const gl::Extents &size,
-                                                        StagingAccess readAndWriteAccess)
-{
-    if (textureType == GL_TEXTURE_2D)
-    {
-        D3D11_TEXTURE2D_DESC stagingDesc;
-        stagingDesc.Width              = size.width;
-        stagingDesc.Height             = size.height;
-        stagingDesc.MipLevels          = 1;
-        stagingDesc.ArraySize          = 1;
-        stagingDesc.Format             = formatSet.texFormat;
-        stagingDesc.SampleDesc.Count   = 1;
-        stagingDesc.SampleDesc.Quality = 0;
-        stagingDesc.Usage              = D3D11_USAGE_STAGING;
-        stagingDesc.BindFlags          = 0;
-        stagingDesc.CPUAccessFlags     = D3D11_CPU_ACCESS_READ;
-        stagingDesc.MiscFlags          = 0;
-
-        if (readAndWriteAccess == StagingAccess::READ_WRITE)
-        {
-            stagingDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_WRITE;
-        }
-
-        d3d11::Texture2D stagingTex;
-        ANGLE_TRY(renderer->allocateResource(stagingDesc, &stagingTex));
-        return TextureHelper11::MakeAndReference(stagingTex.get(), formatSet);
-    }
-    ASSERT(textureType == GL_TEXTURE_3D);
-
-    D3D11_TEXTURE3D_DESC stagingDesc;
-    stagingDesc.Width          = size.width;
-    stagingDesc.Height         = size.height;
-    stagingDesc.Depth          = 1;
-    stagingDesc.MipLevels      = 1;
-    stagingDesc.Format         = formatSet.texFormat;
-    stagingDesc.Usage          = D3D11_USAGE_STAGING;
-    stagingDesc.BindFlags      = 0;
-    stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    stagingDesc.MiscFlags      = 0;
-
-    d3d11::Texture3D stagingTex;
-    ANGLE_TRY(renderer->allocateResource(stagingDesc, &stagingTex));
-    return TextureHelper11::MakeAndReference(stagingTex.get(), formatSet);
-}
-
 bool UsePresentPathFast(const Renderer11 *renderer,
                         const gl::FramebufferAttachment *framebufferAttachment)
 {

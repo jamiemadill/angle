@@ -569,6 +569,7 @@ gl::Error Image11::createStagingTexture()
 
         mStagingTexture     = newTexture.get();
         mStagingSubresource = D3D11CalcSubresource(lodOffset, 0, lodOffset + 1);
+        mStagingTexture->AddRef();
     }
     else
     {
