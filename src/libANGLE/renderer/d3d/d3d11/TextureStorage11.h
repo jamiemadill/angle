@@ -289,7 +289,7 @@ class TextureStorage11_EGLImage final : public TextureStorage11
     uintptr_t mCurrentRenderTarget;
 
     // Swizzle-related variables
-    ID3D11Texture2D *mSwizzleTexture;
+    d3d11::Texture2D mSwizzleTexture;
     std::vector<ID3D11RenderTargetView *> mSwizzleRenderTargets;
 };
 
@@ -335,15 +335,15 @@ class TextureStorage11_Cube : public TextureStorage11
 
     static const size_t CUBE_FACE_COUNT = 6;
 
-    ID3D11Texture2D *mTexture;
+    d3d11::Texture2D mTexture;
     RenderTarget11 *mRenderTarget[CUBE_FACE_COUNT][gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
 
     // Level-zero workaround members. See TextureStorage11_2D's workaround members for a description.
-    ID3D11Texture2D *mLevelZeroTexture;
+    d3d11::Texture2D mLevelZeroTexture;
     RenderTarget11 *mLevelZeroRenderTarget[CUBE_FACE_COUNT];
     bool mUseLevelZeroTexture;
 
-    ID3D11Texture2D *mSwizzleTexture;
+    d3d11::Texture2D mSwizzleTexture;
     ID3D11RenderTargetView *mSwizzleRenderTargets[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
 
     Image11 *mAssociatedImages[CUBE_FACE_COUNT][gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];

@@ -1446,7 +1446,7 @@ TextureStorage11_EGLImage::TextureStorage11_EGLImage(Renderer11 *renderer,
                        renderTarget11->getInternalFormat()),
       mImage(eglImage),
       mCurrentRenderTarget(0),
-      mSwizzleTexture(nullptr),
+      mSwizzleTexture(),
       mSwizzleRenderTargets(gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS, nullptr)
 {
     mCurrentRenderTarget = reinterpret_cast<uintptr_t>(renderTarget11);
@@ -1459,7 +1459,6 @@ TextureStorage11_EGLImage::TextureStorage11_EGLImage(Renderer11 *renderer,
 
 TextureStorage11_EGLImage::~TextureStorage11_EGLImage()
 {
-    SafeRelease(mSwizzleTexture);
     for (size_t i = 0; i < mSwizzleRenderTargets.size(); i++)
     {
         SafeRelease(mSwizzleRenderTargets[i]);
@@ -1547,10 +1546,8 @@ gl::Error TextureStorage11_EGLImage::getSwizzleTexture(ID3D11Resource **outTextu
 {
     ASSERT(outTexture);
 
-    if (!mSwizzleTexture)
+    if (!mSwizzleTexture.valid())
     {
-        ID3D11Device *device = mRenderer->getDevice();
-
         D3D11_TEXTURE2D_DESC desc;
         desc.Width              = mTextureWidth;
         desc.Height             = mTextureHeight;
@@ -1564,19 +1561,11 @@ gl::Error TextureStorage11_EGLImage::getSwizzleTexture(ID3D11Resource **outTextu
         desc.CPUAccessFlags     = 0;
         desc.MiscFlags          = 0;
 
-        HRESULT result = device->CreateTexture2D(&desc, nullptr, &mSwizzleTexture);
-
-        ASSERT(result == E_OUTOFMEMORY || SUCCEEDED(result));
-        if (FAILED(result))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create internal swizzle texture, result: 0x%X.", result);
-        }
-
-        d3d11::SetDebugName(mSwizzleTexture, "TexStorageEGLImage.SwizzleTexture");
+        ANGLE_TRY(mRenderer->allocateResource(desc, &mSwizzleTexture));
+        mSwizzleTexture.setDebugName("TexStorageEGLImage.SwizzleTexture");
     }
 
-    *outTexture = mSwizzleTexture;
+    *outTexture = mSwizzleTexture.get();
     return gl::NoError();
 }
 
@@ -1599,7 +1588,7 @@ gl::Error TextureStorage11_EGLImage::getSwizzleRenderTarget(int mipLevel,
         rtvDesc.ViewDimension      = D3D11_RTV_DIMENSION_TEXTURE2D;
         rtvDesc.Texture2D.MipSlice = mTopLevel + mipLevel;
 
-        HRESULT result = device->CreateRenderTargetView(mSwizzleTexture, &rtvDesc,
+        HRESULT result = device->CreateRenderTargetView(mSwizzleTexture.get(), &rtvDesc,
                                                         &mSwizzleRenderTargets[mipLevel]);
 
         ASSERT(result == E_OUTOFMEMORY || SUCCEEDED(result));
@@ -1641,7 +1630,7 @@ gl::Error TextureStorage11_EGLImage::createSRV(int baseLevel,
 
     // Create a new SRV only for the swizzle texture.  Otherwise just return the Image's
     // RenderTarget's SRV.
-    if (texture == mSwizzleTexture)
+    if (texture == mSwizzleTexture.get())
     {
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
         srvDesc.Format                    = format;
@@ -1698,10 +1687,10 @@ TextureStorage11_Cube::TextureStorage11_Cube(Renderer11 *renderer,
                               renderTarget,
                               levels),
           internalformat),
-      mTexture(nullptr),
-      mLevelZeroTexture(nullptr),
+      mTexture(),
+      mLevelZeroTexture(),
       mUseLevelZeroTexture(hintLevelZeroOnly && levels > 1),
-      mSwizzleTexture(nullptr)
+      mSwizzleTexture()
 {
     for (unsigned int level = 0; level < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; level++)
     {
@@ -1747,10 +1736,6 @@ TextureStorage11_Cube::~TextureStorage11_Cube()
             }
         }
     }
-
-    SafeRelease(mTexture);
-    SafeRelease(mSwizzleTexture);
-    SafeRelease(mLevelZeroTexture);
 
     for (unsigned int face = 0; face < CUBE_FACE_COUNT; face++)
     {
@@ -1799,24 +1784,24 @@ gl::Error TextureStorage11_Cube::copyToStorage(TextureStorage *destStorage)
 
         // If either mTexture or mLevelZeroTexture exist, then we need to copy them into the
         // corresponding textures in destStorage.
-        if (mTexture)
+        if (mTexture.valid())
         {
             ANGLE_TRY(dest11->useLevelZeroWorkaroundTexture(false));
 
             ID3D11Resource *destResource = nullptr;
             ANGLE_TRY(dest11->getResource(&destResource));
 
-            immediateContext->CopyResource(destResource, mTexture);
+            immediateContext->CopyResource(destResource, mTexture.get());
         }
 
-        if (mLevelZeroTexture)
+        if (mLevelZeroTexture.valid())
         {
             ANGLE_TRY(dest11->useLevelZeroWorkaroundTexture(true));
 
             ID3D11Resource *destResource = nullptr;
             ANGLE_TRY(dest11->getResource(&destResource));
 
-            immediateContext->CopyResource(destResource, mLevelZeroTexture);
+            immediateContext->CopyResource(destResource, mLevelZeroTexture.get());
         }
     }
     else
@@ -1840,18 +1825,19 @@ gl::Error TextureStorage11_Cube::useLevelZeroWorkaroundTexture(bool useLevelZero
 {
     if (useLevelZeroTexture && mMipLevels > 1)
     {
-        if (!mUseLevelZeroTexture && mTexture)
+        if (!mUseLevelZeroTexture && mTexture.valid())
         {
             ANGLE_TRY(ensureTextureExists(1));
 
             // Pull data back from the mipped texture if necessary.
-            ASSERT(mLevelZeroTexture);
+            ASSERT(mLevelZeroTexture.valid());
             ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
             for (int face = 0; face < 6; face++)
             {
-                context->CopySubresourceRegion(mLevelZeroTexture, D3D11CalcSubresource(0, face, 1),
-                                               0, 0, 0, mTexture, face * mMipLevels, nullptr);
+                context->CopySubresourceRegion(mLevelZeroTexture.get(),
+                                               D3D11CalcSubresource(0, face, 1), 0, 0, 0,
+                                               mTexture.get(), face * mMipLevels, nullptr);
             }
         }
 
@@ -1859,18 +1845,19 @@ gl::Error TextureStorage11_Cube::useLevelZeroWorkaroundTexture(bool useLevelZero
     }
     else
     {
-        if (mUseLevelZeroTexture && mLevelZeroTexture)
+        if (mUseLevelZeroTexture && mLevelZeroTexture.valid())
         {
             ANGLE_TRY(ensureTextureExists(mMipLevels));
 
             // Pull data back from the level zero texture if necessary.
-            ASSERT(mTexture);
+            ASSERT(mTexture.valid());
             ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
             for (int face = 0; face < 6; face++)
             {
-                context->CopySubresourceRegion(mTexture, D3D11CalcSubresource(0, face, mMipLevels),
-                                               0, 0, 0, mLevelZeroTexture, face, nullptr);
+                context->CopySubresourceRegion(mTexture.get(),
+                                               D3D11CalcSubresource(0, face, mMipLevels), 0, 0, 0,
+                                               mLevelZeroTexture.get(), face, nullptr);
             }
         }
 
@@ -1959,13 +1946,13 @@ gl::Error TextureStorage11_Cube::getResource(ID3D11Resource **outResource)
     if (mUseLevelZeroTexture && mMipLevels > 1)
     {
         ANGLE_TRY(ensureTextureExists(1));
-        *outResource = mLevelZeroTexture;
+        *outResource = mLevelZeroTexture.get();
         return gl::NoError();
     }
     else
     {
         ANGLE_TRY(ensureTextureExists(mMipLevels));
-        *outResource = mTexture;
+        *outResource = mTexture.get();
         return gl::NoError();
     }
 }
@@ -1976,7 +1963,7 @@ gl::Error TextureStorage11_Cube::getMippedResource(ID3D11Resource **outResource)
     ASSERT(mRenderer->getWorkarounds().zeroMaxLodWorkaround);
 
     ANGLE_TRY(ensureTextureExists(mMipLevels));
-    *outResource = mTexture;
+    *outResource = mTexture.get();
     return gl::NoError();
 }
 
@@ -1986,15 +1973,13 @@ gl::Error TextureStorage11_Cube::ensureTextureExists(int mipLevels)
     bool useLevelZeroTexture = mRenderer->getWorkarounds().zeroMaxLodWorkaround
                                    ? (mipLevels == 1) && (mMipLevels > 1)
                                    : false;
-    ID3D11Texture2D **outputTexture = useLevelZeroTexture ? &mLevelZeroTexture : &mTexture;
+    d3d11::Texture2D *outputTexture = useLevelZeroTexture ? &mLevelZeroTexture : &mTexture;
 
     // if the size is not positive this should be treated as an incomplete texture
     // we handle that here by skipping the d3d texture creation
-    if (*outputTexture == nullptr && mTextureWidth > 0 && mTextureHeight > 0)
+    if (!outputTexture->valid() && mTextureWidth > 0 && mTextureHeight > 0)
     {
         ASSERT(mMipLevels > 0);
-
-        ID3D11Device *device = mRenderer->getDevice();
 
         D3D11_TEXTURE2D_DESC desc;
         desc.Width              = mTextureWidth;
@@ -2009,23 +1994,8 @@ gl::Error TextureStorage11_Cube::ensureTextureExists(int mipLevels)
         desc.CPUAccessFlags     = 0;
         desc.MiscFlags          = D3D11_RESOURCE_MISC_TEXTURECUBE | getMiscFlags();
 
-        HRESULT result = device->CreateTexture2D(&desc, nullptr, outputTexture);
-
-        // this can happen from windows TDR
-        if (d3d11::isDeviceLostError(result))
-        {
-            mRenderer->notifyDeviceLost();
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create cube texture storage, result: 0x%X.", result);
-        }
-        else if (FAILED(result))
-        {
-            ASSERT(result == E_OUTOFMEMORY);
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create cube texture storage, result: 0x%X.", result);
-        }
-
-        d3d11::SetDebugName(*outputTexture, "TexStorageCube.Texture");
+        ANGLE_TRY(mRenderer->allocateResource(desc, outputTexture));
+        outputTexture->setDebugName("TexStorageCube.Texture");
     }
 
     return gl::NoError();
@@ -2096,7 +2066,7 @@ gl::Error TextureStorage11_Cube::getRenderTarget(const gl::ImageIndex &index,
                 rtvDesc.Texture2DArray.ArraySize       = 1;
 
                 ID3D11RenderTargetView *rtv;
-                result = device->CreateRenderTargetView(mLevelZeroTexture, &rtvDesc, &rtv);
+                result = device->CreateRenderTargetView(mLevelZeroTexture.get(), &rtvDesc, &rtv);
 
                 if (result == E_OUTOFMEMORY)
                 {
@@ -2108,7 +2078,7 @@ gl::Error TextureStorage11_Cube::getRenderTarget(const gl::ImageIndex &index,
                 ASSERT(SUCCEEDED(result));
 
                 mLevelZeroRenderTarget[faceIndex] = new TextureRenderTarget11(
-                    rtv, mLevelZeroTexture, nullptr, nullptr, mFormatInfo.internalFormat,
+                    rtv, mLevelZeroTexture.get(), nullptr, nullptr, mFormatInfo.internalFormat,
                     getFormatSet(), getLevelWidth(level), getLevelHeight(level), 1, 0);
 
                 // RenderTarget will take ownership of these resources
@@ -2262,14 +2232,14 @@ gl::Error TextureStorage11_Cube::createSRV(int baseLevel,
         if (mipLevels == 1 && mMipLevels > 1)
         {
             // We must use a SRV on the level-zero-only texture.
-            ASSERT(mLevelZeroTexture != nullptr && texture == mLevelZeroTexture);
-            srvTexture = mLevelZeroTexture;
+            ASSERT(mLevelZeroTexture.valid() && texture == mLevelZeroTexture.get());
+            srvTexture = mLevelZeroTexture.get();
         }
         else
         {
             ASSERT(mipLevels == static_cast<int>(mMipLevels));
-            ASSERT(mTexture != nullptr && texture == mTexture);
-            srvTexture = mTexture;
+            ASSERT(mTexture.valid() && texture == mTexture.get());
+            srvTexture = mTexture.get();
         }
     }
 
@@ -2292,10 +2262,8 @@ gl::Error TextureStorage11_Cube::getSwizzleTexture(ID3D11Resource **outTexture)
 {
     ASSERT(outTexture);
 
-    if (!mSwizzleTexture)
+    if (!mSwizzleTexture.valid())
     {
-        ID3D11Device *device = mRenderer->getDevice();
-
         D3D11_TEXTURE2D_DESC desc;
         desc.Width              = mTextureWidth;
         desc.Height             = mTextureHeight;
@@ -2309,19 +2277,11 @@ gl::Error TextureStorage11_Cube::getSwizzleTexture(ID3D11Resource **outTexture)
         desc.CPUAccessFlags     = 0;
         desc.MiscFlags          = D3D11_RESOURCE_MISC_TEXTURECUBE;
 
-        HRESULT result = device->CreateTexture2D(&desc, nullptr, &mSwizzleTexture);
-
-        ASSERT(result == E_OUTOFMEMORY || SUCCEEDED(result));
-        if (FAILED(result))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create internal swizzle texture, result: 0x%X.", result);
-        }
-
-        d3d11::SetDebugName(*outTexture, "TexStorageCube.SwizzleTexture");
+        ANGLE_TRY(mRenderer->allocateResource(desc, &mSwizzleTexture));
+        mSwizzleTexture.setDebugName("TexStorageCube.SwizzleTexture");
     }
 
-    *outTexture = mSwizzleTexture;
+    *outTexture = mSwizzleTexture.get();
     return gl::NoError();
 }
 
@@ -2346,7 +2306,7 @@ gl::Error TextureStorage11_Cube::getSwizzleRenderTarget(int mipLevel,
         rtvDesc.Texture2DArray.FirstArraySlice = 0;
         rtvDesc.Texture2DArray.ArraySize       = CUBE_FACE_COUNT;
 
-        HRESULT result = device->CreateRenderTargetView(mSwizzleTexture, &rtvDesc,
+        HRESULT result = device->CreateRenderTargetView(mSwizzleTexture.get(), &rtvDesc,
                                                         &mSwizzleRenderTargets[mipLevel]);
 
         ASSERT(result == E_OUTOFMEMORY || SUCCEEDED(result));
