@@ -10,9 +10,10 @@
 #ifndef LIBANGLE_RENDERER_D3D_D3D11_TEXTURESTORAGE11_H_
 #define LIBANGLE_RENDERER_D3D_D3D11_TEXTURESTORAGE11_H_
 
-#include "libANGLE/Texture.h"
 #include "libANGLE/Error.h"
+#include "libANGLE/Texture.h"
 #include "libANGLE/renderer/d3d/TextureStorage.h"
+#include "libANGLE/renderer/d3d/d3d11/ResourceManager11.h"
 #include "libANGLE/renderer/d3d/d3d11/texture_format_table.h"
 
 #include <array>
@@ -183,7 +184,7 @@ class TextureStorage11_2D : public TextureStorage11
                         ID3D11Resource *texture,
                         ID3D11ShaderResourceView **outSRV) const override;
 
-    ID3D11Texture2D *mTexture;
+    SharedResource11 mTexture;
     RenderTarget11 *mRenderTarget[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
     bool mHasKeyedMutex;
 
@@ -196,7 +197,7 @@ class TextureStorage11_2D : public TextureStorage11
     // One example of this is an application that creates a texture, calls glGenerateMipmap, and then disables mipmaps on the texture.
     // A more likely example is an app that creates an empty texture, renders to it, and then calls glGenerateMipmap
     // TODO: In this rendering scenario, release the mLevelZeroTexture after mTexture has been created to save memory.
-    ID3D11Texture2D *mLevelZeroTexture;
+    SharedResource11 mLevelZeroTexture;
     RenderTarget11 *mLevelZeroRenderTarget;
     bool mUseLevelZeroTexture;
 

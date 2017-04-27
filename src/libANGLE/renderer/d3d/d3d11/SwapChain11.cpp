@@ -184,7 +184,7 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
     ASSERT(backbufferHeight >= 1);
 
     // Preserve the render target content
-    d3d11::Texture2D previousOffscreenTexture = std::move(mOffscreenTexture);
+    SharedResource11 previousOffscreenTexture = std::move(mOffscreenTexture);
     const int previousWidth = mWidth;
     const int previousHeight = mHeight;
 
@@ -205,19 +205,21 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
                                                         (void **)&tempResource11);
             ASSERT(SUCCEEDED(result));
 
-            mOffscreenTexture.set(d3d11::DynamicCastComObject<ID3D11Texture2D>(tempResource11));
+            mOffscreenTexture.set(d3d11::DynamicCastComObject<ID3D11Texture2D>(tempResource11),
+                                  ResourceType::Texture2D);
             SafeRelease(tempResource11);
         }
         else if (mD3DTexture != nullptr)
         {
-            mOffscreenTexture.set(d3d11::DynamicCastComObject<ID3D11Texture2D>(mD3DTexture));
+            mOffscreenTexture.set(d3d11::DynamicCastComObject<ID3D11Texture2D>(mD3DTexture),
+                                  ResourceType::Texture2D);
         }
         else
         {
             UNREACHABLE();
         }
         ASSERT(mOffscreenTexture.get() != nullptr);
-        mOffscreenTexture.get()->GetDesc(&offscreenTextureDesc);
+        mOffscreenTexture.getDesc(&offscreenTextureDesc);
     }
     else
     {
@@ -236,7 +238,7 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
         offscreenTextureDesc.CPUAccessFlags = 0;
         offscreenTextureDesc.MiscFlags = useSharedResource ? ANGLE_RESOURCE_SHARE_TYPE : 0;
 
-        gl::Error err = mRenderer->allocateResource(offscreenTextureDesc, &mOffscreenTexture);
+        gl::Error err = mRenderer->allocateSharedResource(offscreenTextureDesc, &mOffscreenTexture);
         if (err.isError())
         {
             ERR() << "Error allocating offscreen back buffer texture.";
@@ -352,7 +354,7 @@ EGLint SwapChain11::resetOffscreenDepthBuffer(int backbufferWidth, int backbuffe
         depthStencilTextureDesc.MiscFlags = 0;
 
         gl::Error error =
-            mRenderer->allocateResource(depthStencilTextureDesc, &mDepthStencilTexture);
+            mRenderer->allocateSharedResource(depthStencilTextureDesc, &mDepthStencilTexture);
         if (error.isError())
         {
             ERR() << "Error allocating offscreen depth stencil texture.";
@@ -456,7 +458,7 @@ EGLint SwapChain11::resize(EGLint backbufferWidth, EGLint backbufferHeight)
     ASSERT(SUCCEEDED(result));
     if (SUCCEEDED(result))
     {
-        mBackBufferTexture.set(swapchainBackBuffer);
+        mBackBufferTexture.set(swapchainBackBuffer, ResourceType::Texture2D);
         mBackBufferTexture.setDebugName("Back buffer texture");
         result =
             device->CreateRenderTargetView(mBackBufferTexture.get(), nullptr, &mBackBufferRTView);
@@ -578,7 +580,7 @@ EGLint SwapChain11::reset(EGLint backbufferWidth, EGLint backbufferHeight, EGLin
                                        reinterpret_cast<LPVOID *>(&swapchainBackBuffer));
         ASSERT(SUCCEEDED(result));
 
-        mBackBufferTexture.set(swapchainBackBuffer);
+        mBackBufferTexture.set(swapchainBackBuffer, ResourceType::Texture2D);
         mBackBufferTexture.setDebugName("Back buffer texture");
 
         result =
@@ -879,7 +881,7 @@ EGLint SwapChain11::present(EGLint x, EGLint y, EGLint width, EGLint height)
     return EGL_SUCCESS;
 }
 
-const d3d11::Texture2D &SwapChain11::getOffscreenTexture() const
+const SharedResource11 &SwapChain11::getOffscreenTexture() const
 {
     return mNeedsOffscreenTexture ? mOffscreenTexture : mBackBufferTexture;
 }
@@ -904,7 +906,7 @@ ID3D11ShaderResourceView * SwapChain11::getDepthStencilShaderResource()
     return mDepthStencilSRView;
 }
 
-const d3d11::Texture2D &SwapChain11::getDepthStencilTexture() const
+const SharedResource11 &SwapChain11::getDepthStencilTexture() const
 {
     return mDepthStencilTexture;
 }

@@ -400,6 +400,15 @@ class Renderer11 : public RendererD3D
         return mResourceManager11.allocate(this, desc, nullptr, resourceOut);
     }
 
+    template <typename DescT>
+    gl::Error allocateSharedResource(const DescT &desc, SharedResource11 *resourceOut)
+    {
+        Resource11<GetResourceTypeFromDesc<DescT>()> uniqueResource;
+        ANGLE_TRY(mResourceManager11.allocate(this, desc, nullptr, &uniqueResource));
+        *resourceOut = std::move(uniqueResource.makeGeneric().makeShared());
+        return gl::NoError();
+    }
+
     template <typename DescT, typename ResourceT>
     gl::Error allocateResource(const DescT &desc,
                                const D3D11_SUBRESOURCE_DATA *initData,

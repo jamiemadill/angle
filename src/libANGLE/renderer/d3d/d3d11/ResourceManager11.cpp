@@ -49,7 +49,7 @@ size_t ComputeMemoryUsage(const D3D11_BUFFER_DESC &desc)
 template <ResourceType ResourceT>
 size_t ComputeGenericMemoryUsage(ID3D11Resource *genericResource)
 {
-    auto *typedResource = GetAs<GetResourceType<ResourceT>>(genericResource);
+    auto *typedResource = static_cast<GetD3D11Type<ResourceT> *>(genericResource);
     GetDescType<ResourceT> desc;
     typedResource->GetDesc(&desc);
     return ComputeMemoryUsage(desc);
@@ -128,7 +128,7 @@ Resource11<Type>::Resource11(Resource11 &&movedObj)
 }
 
 template <ResourceType Type>
-Resource11<Type>::Resource11(GetResourceType<Type> *resource, ResourceManager11 *factory)
+Resource11<Type>::Resource11(GetD3D11Type<Type> *resource, ResourceManager11 *factory)
     : mResource(resource), mFactory(factory)
 {
 }
@@ -154,7 +154,7 @@ void Resource11<Type>::setDebugName(const char *name)
 }
 
 template <ResourceType Type>
-void Resource11<Type>::set(GetResourceType<Type> *resource)
+void Resource11<Type>::set(GetD3D11Type<Type> *resource)
 {
     ASSERT(!valid());
     mResource = resource;
@@ -180,6 +180,13 @@ void Resource11<Type>::reset()
         mResource->Release();
         mResource = nullptr;
     }
+}
+
+template <ResourceType Type>
+GenericResource11 Resource11<Type>::makeGeneric()
+{
+    GenericResource11 genericResource(std::move(*this));
+    return genericResource;
 }
 
 template class Resource11<ResourceType::Texture2D>;
@@ -211,9 +218,9 @@ gl::Error ResourceManager11::allocate(Renderer11 *renderer,
                                       const D3D11_SUBRESOURCE_DATA *initData,
                                       Resource11<Type> *resourceOut)
 {
-    ID3D11Device *device            = renderer->getDevice();
-    GetResourceType<Type> *resource = nullptr;
-    HRESULT hr                      = CreateResource(device, desc, initData, &resource);
+    ID3D11Device *device         = renderer->getDevice();
+    GetD3D11Type<Type> *resource = nullptr;
+    HRESULT hr                   = CreateResource(device, desc, initData, &resource);
     if (FAILED(hr))
     {
         ASSERT(!resource);
@@ -245,7 +252,7 @@ void ResourceManager11::decrResource(ResourceType resourceType, size_t memorySiz
 }
 
 template <ResourceType ResourceT>
-void ResourceManager11::onRelease(GetResourceType<ResourceT> *resource)
+void ResourceManager11::onRelease(GetD3D11Type<ResourceT> *resource)
 {
     ASSERT(resource);
 
@@ -273,5 +280,140 @@ template gl::Error ResourceManager11::allocate<ResourceType::Buffer>(
 template void ResourceManager11::onRelease<ResourceType::Texture2D>(ID3D11Texture2D *);
 template void ResourceManager11::onRelease<ResourceType::Texture3D>(ID3D11Texture3D *);
 template void ResourceManager11::onRelease<ResourceType::Buffer>(ID3D11Buffer *);
+
+// GenericResource11 Implementation.
+GenericResource11::GenericResource11()
+    : mGenericResource(nullptr), mResourceType(ResourceType::Last), mFactory(nullptr)
+{
+}
+
+GenericResource11::~GenericResource11()
+{
+    reset();
+}
+
+GenericResource11::GenericResource11(GenericResource11 &&movedObj)
+    : mGenericResource(movedObj.mGenericResource),
+      mResourceType(movedObj.mResourceType),
+      mFactory(movedObj.mFactory)
+{
+    movedObj.mGenericResource = nullptr;
+    movedObj.mResourceType    = ResourceType::Last;
+    movedObj.mFactory         = nullptr;
+}
+
+GenericResource11 &GenericResource11::operator=(GenericResource11 &&movedObj)
+{
+    std::swap(mGenericResource, movedObj.mGenericResource);
+    std::swap(mResourceType, movedObj.mResourceType);
+    std::swap(mFactory, movedObj.mFactory);
+    return *this;
+}
+
+void GenericResource11::reset()
+{
+    if (valid())
+    {
+        if (mFactory)
+        {
+            size_t memorySize = ComputeGenericMemoryUsage(mResourceType, mGenericResource);
+            mFactory->decrResource(mResourceType, memorySize);
+            mFactory = nullptr;
+        }
+        mGenericResource->Release();
+        mGenericResource = nullptr;
+        mResourceType    = ResourceType::Last;
+    }
+}
+
+void GenericResource11::setDebugName(const char *name)
+{
+    d3d11::SetDebugName(mGenericResource, name);
+}
+
+void GenericResource11::set(ID3D11Resource *resource, ResourceType resourceType)
+{
+    ASSERT(!valid());
+    mGenericResource = resource;
+    mResourceType    = resourceType;
+}
+
+SharedResource11 GenericResource11::makeShared()
+{
+    SharedResource11 sharedResource(std::move(*this));
+    return sharedResource;
+}
+
+template <typename DescT>
+void GenericResource11::getDesc(DescT *descOut)
+{
+    return static_cast<GetD3D11Type<GetResourceTypeFromDesc<DescT>()> *>(mGenericResource)
+        ->GetDesc(descOut);
+}
+
+template void GenericResource11::getDesc(D3D11_BUFFER_DESC *);
+template void GenericResource11::getDesc(D3D11_TEXTURE2D_DESC *);
+template void GenericResource11::getDesc(D3D11_TEXTURE3D_DESC *);
+
+// SharedResource11 Implementation.
+
+SharedResource11::SharedResource11() : mSharedResource(new GenericResource11())
+{
+}
+
+SharedResource11::~SharedResource11()
+{
+}
+
+SharedResource11::SharedResource11(const SharedResource11 &sharedObj)
+    : mSharedResource(sharedObj.mSharedResource)
+{
+}
+
+SharedResource11::SharedResource11(SharedResource11 &&movedObj)
+    : mSharedResource(new GenericResource11())
+{
+    std::swap(mSharedResource, movedObj.mSharedResource);
+}
+
+SharedResource11 &SharedResource11::operator=(const SharedResource11 &sharedObj)
+{
+    mSharedResource = sharedObj.mSharedResource;
+    return *this;
+}
+
+SharedResource11 &SharedResource11::operator=(SharedResource11 &&movedObj)
+{
+    std::swap(mSharedResource, movedObj.mSharedResource);
+    return *this;
+}
+
+void SharedResource11::reset()
+{
+    mSharedResource->reset();
+}
+
+SharedResource11::SharedResource11(GenericResource11 &&genericResource)
+    : mSharedResource(new GenericResource11(std::move(genericResource)))
+{
+}
+
+SharedResource11 &SharedResource11::operator=(GenericResource11 &&genericResource)
+{
+    mSharedResource.reset(new GenericResource11(std::move(genericResource)));
+    return *this;
+}
+
+void SharedResource11::setDebugName(const char *name)
+{
+    ASSERT(valid());
+    mSharedResource->setDebugName(name);
+}
+
+void SharedResource11::set(ID3D11Resource *resource, ResourceType resourceType)
+{
+    ASSERT(!valid());
+    mSharedResource->set(resource, resourceType);
+}
 
 }  // namespace rx

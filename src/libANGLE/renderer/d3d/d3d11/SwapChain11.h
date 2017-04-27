@@ -40,11 +40,11 @@ class SwapChain11 final : public SwapChainD3D
     RenderTargetD3D *getColorRenderTarget() override { return &mColorRenderTarget; }
     RenderTargetD3D *getDepthStencilRenderTarget() override { return &mDepthStencilRenderTarget; }
 
-    const d3d11::Texture2D &getOffscreenTexture() const;
+    const SharedResource11 &getOffscreenTexture() const;
     ID3D11RenderTargetView *getRenderTarget();
     ID3D11ShaderResourceView *getRenderTargetShaderResource();
 
-    const d3d11::Texture2D &getDepthStencilTexture() const;
+    const SharedResource11 &getDepthStencilTexture() const;
     ID3D11DepthStencilView *getDepthStencil();
     ID3D11ShaderResourceView *getDepthStencilShaderResource();
 
@@ -86,16 +86,16 @@ class SwapChain11 final : public SwapChainD3D
     IDXGISwapChain1 *mSwapChain1;
     IDXGIKeyedMutex *mKeyedMutex;
 
-    d3d11::Texture2D mBackBufferTexture;
+    SharedResource11 mBackBufferTexture;
     ID3D11RenderTargetView *mBackBufferRTView;
     ID3D11ShaderResourceView *mBackBufferSRView;
 
     const bool mNeedsOffscreenTexture;
-    d3d11::Texture2D mOffscreenTexture;
+    SharedResource11 mOffscreenTexture;
     ID3D11RenderTargetView *mOffscreenRTView;
     ID3D11ShaderResourceView *mOffscreenSRView;
 
-    d3d11::Texture2D mDepthStencilTexture;
+    SharedResource11 mDepthStencilTexture;
     ID3D11DepthStencilView *mDepthStencilDSView;
     ID3D11ShaderResourceView *mDepthStencilSRView;
 
