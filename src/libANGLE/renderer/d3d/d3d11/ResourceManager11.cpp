@@ -136,11 +136,7 @@ Resource11<Type>::Resource11(GetResourceType<Type> *resource, ResourceManager11 
 template <ResourceType Type>
 Resource11<Type>::~Resource11()
 {
-    if (mResource)
-    {
-        ASSERT(mFactory);
-        mFactory->release<Type>(mResource);
-    }
+    reset();
 }
 
 template <ResourceType Type>
@@ -149,6 +145,41 @@ Resource11<Type> &Resource11<Type>::operator=(Resource11 &&movedObj)
     std::swap(mResource, movedObj.mResource);
     std::swap(mFactory, movedObj.mFactory);
     return *this;
+}
+
+template <ResourceType Type>
+void Resource11<Type>::setDebugName(const char *name)
+{
+    d3d11::SetDebugName(mResource, name);
+}
+
+template <ResourceType Type>
+void Resource11<Type>::set(GetResourceType<Type> *resource)
+{
+    ASSERT(!valid());
+    mResource = resource;
+}
+
+template <ResourceType Type>
+bool Resource11<Type>::valid() const
+{
+    return (mResource != nullptr);
+}
+
+template <ResourceType Type>
+void Resource11<Type>::reset()
+{
+    if (mResource)
+    {
+        // We can have a nullptr factory when holding passed-in resources.
+        if (mFactory)
+        {
+            mFactory->onRelease<Type>(mResource);
+            mFactory = nullptr;
+        }
+        mResource->Release();
+        mResource = nullptr;
+    }
 }
 
 template class Resource11<ResourceType::Texture2D>;
@@ -214,15 +245,13 @@ void ResourceManager11::decrResource(ResourceType resourceType, size_t memorySiz
 }
 
 template <ResourceType ResourceT>
-void ResourceManager11::release(GetResourceType<ResourceT> *resource)
+void ResourceManager11::onRelease(GetResourceType<ResourceT> *resource)
 {
     ASSERT(resource);
 
     GetDescType<ResourceT> desc;
     resource->GetDesc(&desc);
     decrResource(ResourceT, ComputeMemoryUsage(desc));
-
-    resource->Release();
 }
 
 template gl::Error ResourceManager11::allocate<ResourceType::Texture2D>(
@@ -241,8 +270,8 @@ template gl::Error ResourceManager11::allocate<ResourceType::Buffer>(
     const D3D11_SUBRESOURCE_DATA *,
     Resource11<ResourceType::Buffer> *);
 
-template void ResourceManager11::release<ResourceType::Texture2D>(ID3D11Texture2D *);
-template void ResourceManager11::release<ResourceType::Texture3D>(ID3D11Texture3D *);
-template void ResourceManager11::release<ResourceType::Buffer>(ID3D11Buffer *);
+template void ResourceManager11::onRelease<ResourceType::Texture2D>(ID3D11Texture2D *);
+template void ResourceManager11::onRelease<ResourceType::Texture3D>(ID3D11Texture3D *);
+template void ResourceManager11::onRelease<ResourceType::Buffer>(ID3D11Buffer *);
 
 }  // namespace rx

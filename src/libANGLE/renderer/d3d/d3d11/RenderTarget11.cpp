@@ -410,7 +410,8 @@ GLsizei SurfaceRenderTarget11::getSamples() const
 
 ID3D11Resource *SurfaceRenderTarget11::getTexture() const
 {
-    return (mDepth ? mSwapChain->getDepthStencilTexture() : mSwapChain->getOffscreenTexture());
+    return (mDepth ? mSwapChain->getDepthStencilTexture().get()
+                   : mSwapChain->getOffscreenTexture().get());
 }
 
 ID3D11RenderTargetView *SurfaceRenderTarget11::getRenderTargetView() const

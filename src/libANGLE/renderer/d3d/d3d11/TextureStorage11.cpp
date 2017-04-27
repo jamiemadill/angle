@@ -709,7 +709,7 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
                        D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
                        0,
                        swapchain->getRenderTargetInternalFormat()),
-      mTexture(swapchain->getOffscreenTexture()),
+      mTexture(swapchain->getOffscreenTexture().get()),
       mLevelZeroTexture(nullptr),
       mLevelZeroRenderTarget(nullptr),
       mUseLevelZeroTexture(false),

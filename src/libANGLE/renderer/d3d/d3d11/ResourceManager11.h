@@ -77,14 +77,18 @@ class Resource11 final : angle::NonCopyable
   public:
     Resource11();
     ~Resource11();
+    Resource11(Resource11 &&movedObj);
+    Resource11 &operator=(Resource11 &&movedObj);
 
     GetResourceType<Type> *get() const { return mResource; }
+    void setDebugName(const char *name);
+    void set(GetResourceType<Type> *resource);
+    bool valid() const;
+    void reset();
 
   private:
     friend class ResourceManager11;
     Resource11(GetResourceType<Type> *resource, ResourceManager11 *factory);
-    Resource11(Resource11 &&movedObj);
-    Resource11 &operator=(Resource11 &&movedObj);
 
     GetResourceType<Type> *mResource;
     ResourceManager11 *mFactory;
@@ -107,7 +111,7 @@ class ResourceManager11 final : angle::NonCopyable
     friend class Resource11;
 
     template <ResourceType ResourceT>
-    void release(GetResourceType<ResourceT> *resource);
+    void onRelease(GetResourceType<ResourceT> *resource);
 
     void incrResource(ResourceType resourceType, size_t memorySize);
     void decrResource(ResourceType resourceType, size_t memorySize);
