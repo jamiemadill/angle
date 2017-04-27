@@ -123,7 +123,7 @@ class TextureStorage11 : public TextureStorage
     unsigned int mTextureDepth;
 
     gl::SwizzleState mSwizzleCache[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
-    ID3D11Texture2D *mDropStencilTexture;
+    d3d11::Texture2D mDropStencilTexture;
 
   private:
     const UINT mBindFlags;
@@ -202,7 +202,7 @@ class TextureStorage11_2D : public TextureStorage11
     bool mUseLevelZeroTexture;
 
     // Swizzle-related variables
-    ID3D11Texture2D *mSwizzleTexture;
+    d3d11::Texture2D mSwizzleTexture;
     ID3D11RenderTargetView *mSwizzleRenderTargets[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
 
     Image11 *mAssociatedImages[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
