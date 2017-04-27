@@ -426,9 +426,9 @@ class TextureStorage11_2DArray : public TextureStorage11
     typedef std::map<LevelLayerKey, RenderTarget11*> RenderTargetMap;
     RenderTargetMap mRenderTargets;
 
-    ID3D11Texture2D *mTexture;
+    d3d11::Texture2D mTexture;
 
-    ID3D11Texture2D *mSwizzleTexture;
+    d3d11::Texture2D mSwizzleTexture;
     ID3D11RenderTargetView *mSwizzleRenderTargets[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
 
     typedef std::map<LevelLayerKey, Image11*> ImageMap;

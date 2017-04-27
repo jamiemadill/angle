@@ -2773,9 +2773,6 @@ TextureStorage11_2DArray::TextureStorage11_2DArray(Renderer11 *renderer,
                               levels),
           internalformat)
 {
-    mTexture        = nullptr;
-    mSwizzleTexture = nullptr;
-
     for (unsigned int level = 0; level < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; level++)
     {
         mSwizzleRenderTargets[level] = nullptr;
@@ -2804,9 +2801,6 @@ TextureStorage11_2DArray::~TextureStorage11_2DArray()
         }
     }
     mAssociatedImages.clear();
-
-    SafeRelease(mTexture);
-    SafeRelease(mSwizzleTexture);
 
     for (unsigned int level = 0; level < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; level++)
     {
@@ -2894,11 +2888,9 @@ gl::Error TextureStorage11_2DArray::getResource(ID3D11Resource **outResource)
 {
     // if the width, height or depth is not positive this should be treated as an incomplete texture
     // we handle that here by skipping the d3d texture creation
-    if (mTexture == nullptr && mTextureWidth > 0 && mTextureHeight > 0 && mTextureDepth > 0)
+    if (!mTexture.valid() && mTextureWidth > 0 && mTextureHeight > 0 && mTextureDepth > 0)
     {
         ASSERT(mMipLevels > 0);
-
-        ID3D11Device *device = mRenderer->getDevice();
 
         D3D11_TEXTURE2D_DESC desc;
         desc.Width              = mTextureWidth;
@@ -2913,26 +2905,11 @@ gl::Error TextureStorage11_2DArray::getResource(ID3D11Resource **outResource)
         desc.CPUAccessFlags     = 0;
         desc.MiscFlags          = getMiscFlags();
 
-        HRESULT result = device->CreateTexture2D(&desc, nullptr, &mTexture);
-
-        // this can happen from windows TDR
-        if (d3d11::isDeviceLostError(result))
-        {
-            mRenderer->notifyDeviceLost();
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create 2D array texture storage, result: 0x%X.", result);
-        }
-        else if (FAILED(result))
-        {
-            ASSERT(result == E_OUTOFMEMORY);
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create 2D array texture storage, result: 0x%X.", result);
-        }
-
-        d3d11::SetDebugName(mTexture, "TexStorage2DArray.Texture");
+        ANGLE_TRY(mRenderer->allocateResource(desc, &mTexture));
+        mTexture.setDebugName("TexStorage2DArray.Texture");
     }
 
-    *outResource = mTexture;
+    *outResource = mTexture.get();
     return gl::NoError();
 }
 
@@ -3110,10 +3087,8 @@ gl::Error TextureStorage11_2DArray::getRenderTarget(const gl::ImageIndex &index,
 
 gl::Error TextureStorage11_2DArray::getSwizzleTexture(ID3D11Resource **outTexture)
 {
-    if (!mSwizzleTexture)
+    if (!mSwizzleTexture.valid())
     {
-        ID3D11Device *device = mRenderer->getDevice();
-
         D3D11_TEXTURE2D_DESC desc;
         desc.Width              = mTextureWidth;
         desc.Height             = mTextureHeight;
@@ -3127,19 +3102,11 @@ gl::Error TextureStorage11_2DArray::getSwizzleTexture(ID3D11Resource **outTextur
         desc.CPUAccessFlags     = 0;
         desc.MiscFlags          = 0;
 
-        HRESULT result = device->CreateTexture2D(&desc, nullptr, &mSwizzleTexture);
-
-        ASSERT(result == E_OUTOFMEMORY || SUCCEEDED(result));
-        if (FAILED(result))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create internal swizzle texture, result: 0x%X.", result);
-        }
-
-        d3d11::SetDebugName(*outTexture, "TexStorage2DArray.SwizzleTexture");
+        ANGLE_TRY(mRenderer->allocateResource(desc, &mSwizzleTexture));
+        mSwizzleTexture.setDebugName("TexStorage2DArray.SwizzleTexture");
     }
 
-    *outTexture = mSwizzleTexture;
+    *outTexture = mSwizzleTexture.get();
     return gl::NoError();
 }
 
@@ -3164,7 +3131,7 @@ gl::Error TextureStorage11_2DArray::getSwizzleRenderTarget(int mipLevel,
         rtvDesc.Texture2DArray.FirstArraySlice = 0;
         rtvDesc.Texture2DArray.ArraySize       = mTextureDepth;
 
-        HRESULT result = device->CreateRenderTargetView(mSwizzleTexture, &rtvDesc,
+        HRESULT result = device->CreateRenderTargetView(mSwizzleTexture.get(), &rtvDesc,
                                                         &mSwizzleRenderTargets[mipLevel]);
 
         ASSERT(result == E_OUTOFMEMORY || SUCCEEDED(result));
