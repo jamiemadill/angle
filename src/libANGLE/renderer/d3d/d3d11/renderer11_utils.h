@@ -19,7 +19,7 @@
 #include "libANGLE/Caps.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/renderer/d3d/RendererD3D.h"
-#include "libANGLE/renderer/d3d/d3d11/ResourceFactory11.h"
+#include "libANGLE/renderer/d3d/d3d11/ResourceManager11.h"
 #include "libANGLE/renderer/d3d/d3d11/texture_format_table.h"
 
 namespace gl
@@ -385,9 +385,9 @@ class TextureHelper11 : angle::NonCopyable
     ID3D11Texture3D *getTexture3D() const { return mTexture3D.get(); }
     ID3D11Resource *getResource() const;
     bool valid() const;
+    void reset();
 
   private:
-    void reset();
     void initDesc();
 
     GLenum mTextureType;
