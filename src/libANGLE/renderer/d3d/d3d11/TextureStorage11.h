@@ -383,8 +383,8 @@ class TextureStorage11_3D : public TextureStorage11
 
     RenderTarget11 *mLevelRenderTargets[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
 
-    ID3D11Texture3D *mTexture;
-    ID3D11Texture3D *mSwizzleTexture;
+    d3d11::Texture3D mTexture;
+    d3d11::Texture3D mSwizzleTexture;
     ID3D11RenderTargetView *mSwizzleRenderTargets[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
 
     Image11 *mAssociatedImages[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];

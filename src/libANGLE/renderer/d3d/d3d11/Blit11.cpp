@@ -2038,7 +2038,7 @@ gl::Error Blit11::initResolveDepthOnly(const d3d11::Format &format, const gl::Ex
     ANGLE_TRY(mRenderer->allocateResource(textureDesc, &resolvedDepth));
     d3d11::SetDebugName(resolvedDepth.get(), "Blit11::mResolvedDepth");
 
-    mResolvedDepth = TextureHelper11::MakeAndReference(resolvedDepth.get(), format);
+    mResolvedDepth = TextureHelper11::Move(std::move(resolvedDepth), format);
 
     D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
     dsvDesc.Flags              = 0;
@@ -2107,8 +2107,7 @@ gl::Error Blit11::initResolveDepthStencil(const gl::Extents &extents)
     }
     d3d11::SetDebugName(mResolvedDepthStencilRTView, "Blit11::mResolvedDepthStencilRTView");
 
-    mResolvedDepthStencil =
-        TextureHelper11::MakeAndReference(resolvedDepthStencil.get(), formatSet);
+    mResolvedDepthStencil = TextureHelper11::Move(std::move(resolvedDepthStencil), formatSet);
 
     return gl::NoError();
 }

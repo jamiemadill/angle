@@ -2392,9 +2392,6 @@ TextureStorage11_3D::TextureStorage11_3D(Renderer11 *renderer,
                               levels),
           internalformat)
 {
-    mTexture        = nullptr;
-    mSwizzleTexture = nullptr;
-
     for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
     {
         mAssociatedImages[i]     = nullptr;
@@ -2424,9 +2421,6 @@ TextureStorage11_3D::~TextureStorage11_3D()
             mAssociatedImages[i]->recoverFromAssociatedStorage();
         }
     }
-
-    SafeRelease(mTexture);
-    SafeRelease(mSwizzleTexture);
 
     for (RenderTargetMap::iterator i = mLevelLayerRenderTargets.begin();
          i != mLevelLayerRenderTargets.end(); i++)
@@ -2505,11 +2499,9 @@ gl::Error TextureStorage11_3D::getResource(ID3D11Resource **outResource)
 {
     // If the width, height or depth are not positive this should be treated as an incomplete
     // texture. We handle that here by skipping the d3d texture creation.
-    if (mTexture == nullptr && mTextureWidth > 0 && mTextureHeight > 0 && mTextureDepth > 0)
+    if (!mTexture.valid() && mTextureWidth > 0 && mTextureHeight > 0 && mTextureDepth > 0)
     {
         ASSERT(mMipLevels > 0);
-
-        ID3D11Device *device = mRenderer->getDevice();
 
         D3D11_TEXTURE3D_DESC desc;
         desc.Width          = mTextureWidth;
@@ -2522,26 +2514,11 @@ gl::Error TextureStorage11_3D::getResource(ID3D11Resource **outResource)
         desc.CPUAccessFlags = 0;
         desc.MiscFlags      = getMiscFlags();
 
-        HRESULT result = device->CreateTexture3D(&desc, nullptr, &mTexture);
-
-        // this can happen from windows TDR
-        if (d3d11::isDeviceLostError(result))
-        {
-            mRenderer->notifyDeviceLost();
-            return gl::Error(GL_OUT_OF_MEMORY, "Failed to create 3D texture storage, result: 0x%X.",
-                             result);
-        }
-        else if (FAILED(result))
-        {
-            ASSERT(result == E_OUTOFMEMORY);
-            return gl::Error(GL_OUT_OF_MEMORY, "Failed to create 3D texture storage, result: 0x%X.",
-                             result);
-        }
-
-        d3d11::SetDebugName(mTexture, "TexStorage3D.Texture");
+        ANGLE_TRY(mRenderer->allocateResource(desc, &mTexture));
+        mTexture.setDebugName("TexStorage3D.Texture");
     }
 
-    *outResource = mTexture;
+    *outResource = mTexture.get();
     return gl::NoError();
 }
 
@@ -2688,10 +2665,8 @@ gl::Error TextureStorage11_3D::getSwizzleTexture(ID3D11Resource **outTexture)
 {
     ASSERT(outTexture);
 
-    if (!mSwizzleTexture)
+    if (!mSwizzleTexture.valid())
     {
-        ID3D11Device *device = mRenderer->getDevice();
-
         D3D11_TEXTURE3D_DESC desc;
         desc.Width          = mTextureWidth;
         desc.Height         = mTextureHeight;
@@ -2703,19 +2678,11 @@ gl::Error TextureStorage11_3D::getSwizzleTexture(ID3D11Resource **outTexture)
         desc.CPUAccessFlags = 0;
         desc.MiscFlags      = 0;
 
-        HRESULT result = device->CreateTexture3D(&desc, nullptr, &mSwizzleTexture);
-
-        ASSERT(result == E_OUTOFMEMORY || SUCCEEDED(result));
-        if (FAILED(result))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY,
-                             "Failed to create internal swizzle texture, result: 0x%X.", result);
-        }
-
-        d3d11::SetDebugName(mSwizzleTexture, "TexStorage3D.SwizzleTexture");
+        ANGLE_TRY(mRenderer->allocateResource(desc, &mSwizzleTexture));
+        mSwizzleTexture.setDebugName("TexStorage3D.SwizzleTexture");
     }
 
-    *outTexture = mSwizzleTexture;
+    *outTexture = mSwizzleTexture.get();
     return gl::NoError();
 }
 
@@ -2739,7 +2706,7 @@ gl::Error TextureStorage11_3D::getSwizzleRenderTarget(int mipLevel, ID3D11Render
         rtvDesc.Texture3D.FirstWSlice = 0;
         rtvDesc.Texture3D.WSize       = static_cast<UINT>(-1);
 
-        HRESULT result = device->CreateRenderTargetView(mSwizzleTexture, &rtvDesc,
+        HRESULT result = device->CreateRenderTargetView(mSwizzleTexture.get(), &rtvDesc,
                                                         &mSwizzleRenderTargets[mipLevel]);
 
         ASSERT(result == E_OUTOFMEMORY || SUCCEEDED(result));
@@ -2750,7 +2717,7 @@ gl::Error TextureStorage11_3D::getSwizzleRenderTarget(int mipLevel, ID3D11Render
                              result);
         }
 
-        d3d11::SetDebugName(mSwizzleTexture, "TexStorage3D.SwizzleRTV");
+        d3d11::SetDebugName(mSwizzleTexture.get(), "TexStorage3D.SwizzleRTV");
     }
 
     *outRTV = mSwizzleRenderTargets[mipLevel];

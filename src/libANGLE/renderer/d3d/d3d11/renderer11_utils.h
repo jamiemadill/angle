@@ -18,8 +18,9 @@
 
 #include "libANGLE/Caps.h"
 #include "libANGLE/Error.h"
-#include "libANGLE/renderer/d3d/d3d11/texture_format_table.h"
 #include "libANGLE/renderer/d3d/RendererD3D.h"
+#include "libANGLE/renderer/d3d/d3d11/ResourceFactory11.h"
+#include "libANGLE/renderer/d3d/d3d11/texture_format_table.h"
 
 namespace gl
 {
@@ -369,6 +370,9 @@ class TextureHelper11 : angle::NonCopyable
     ~TextureHelper11();
     TextureHelper11 &operator=(TextureHelper11 &&texture);
 
+    static TextureHelper11 Move(d3d11::Texture2D &&texture, const d3d11::Format &formatSet);
+    static TextureHelper11 Move(d3d11::Texture3D &&texture, const d3d11::Format &formatSet);
+
     static TextureHelper11 MakeAndReference(ID3D11Resource *genericResource,
                                             const d3d11::Format &formatSet);
 
@@ -377,8 +381,8 @@ class TextureHelper11 : angle::NonCopyable
     DXGI_FORMAT getFormat() const { return mFormat; }
     const d3d11::Format &getFormatSet() const { return *mFormatSet; }
     int getSampleCount() const { return mSampleCount; }
-    ID3D11Texture2D *getTexture2D() const { return mTexture2D; }
-    ID3D11Texture3D *getTexture3D() const { return mTexture3D; }
+    ID3D11Texture2D *getTexture2D() const { return mTexture2D.get(); }
+    ID3D11Texture3D *getTexture3D() const { return mTexture3D.get(); }
     ID3D11Resource *getResource() const;
     bool valid() const;
 
@@ -391,8 +395,8 @@ class TextureHelper11 : angle::NonCopyable
     DXGI_FORMAT mFormat;
     const d3d11::Format *mFormatSet;
     int mSampleCount;
-    ID3D11Texture2D *mTexture2D;
-    ID3D11Texture3D *mTexture3D;
+    d3d11::Texture2D mTexture2D;
+    d3d11::Texture3D mTexture3D;
 };
 
 enum class StagingAccess

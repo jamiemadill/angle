@@ -482,9 +482,6 @@ gl::Error Image11::createStagingTexture()
 
     const DXGI_FORMAT dxgiFormat = getDXGIFormat();
 
-    ID3D11Device *device = mRenderer->getDevice();
-    HRESULT result;
-
     int lodOffset  = 1;
     GLsizei width  = mWidth;
     GLsizei height = mHeight;
@@ -494,7 +491,7 @@ gl::Error Image11::createStagingTexture()
 
     if (mTarget == GL_TEXTURE_3D)
     {
-        ID3D11Texture3D *newTexture = nullptr;
+        d3d11::Texture3D newTexture;
 
         D3D11_TEXTURE3D_DESC desc;
         desc.Width          = width;
@@ -516,22 +513,16 @@ gl::Error Image11::createStagingTexture()
                                               width, height, mDepth, lodOffset + 1, &initialData,
                                               &textureData);
 
-            result = device->CreateTexture3D(&desc, initialData.data(), &newTexture);
+            ANGLE_TRY(mRenderer->allocateResource(desc, initialData.data(), &newTexture));
         }
         else
         {
-            result = device->CreateTexture3D(&desc, nullptr, &newTexture);
+            ANGLE_TRY(mRenderer->allocateResource(desc, &newTexture));
         }
 
-        if (FAILED(result))
-        {
-            ASSERT(result == E_OUTOFMEMORY);
-            return gl::Error(GL_OUT_OF_MEMORY, "Failed to create staging texture, result: 0x%X.",
-                             result);
-        }
-
-        mStagingTexture     = newTexture;
+        mStagingTexture     = newTexture.get();
         mStagingSubresource = D3D11CalcSubresource(lodOffset, 0, lodOffset + 1);
+        mStagingTexture->AddRef();
     }
     else if (mTarget == GL_TEXTURE_2D || mTarget == GL_TEXTURE_2D_ARRAY ||
              mTarget == GL_TEXTURE_CUBE_MAP)

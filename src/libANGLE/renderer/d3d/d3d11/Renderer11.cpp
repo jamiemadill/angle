@@ -4121,7 +4121,7 @@ gl::Error Renderer11::readFromAttachment(const gl::FramebufferAttachment &srcAtt
         mDeviceContext->ResolveSubresource(resolveTex2D.get(), 0, textureHelper.getTexture2D(),
                                            sourceSubResource, textureHelper.getFormat());
         resolvedTextureHelper =
-            TextureHelper11::MakeAndReference(resolveTex2D.get(), textureHelper.getFormatSet());
+            TextureHelper11::Move(std::move(resolveTex2D), textureHelper.getFormatSet());
 
         sourceSubResource = 0;
         srcTexture        = &resolvedTextureHelper;
@@ -4554,7 +4554,7 @@ Renderer11::resolveMultisampledTexture(RenderTarget11 *renderTarget, bool depth,
 
     mDeviceContext->ResolveSubresource(resolveTexture.get(), 0, renderTarget->getTexture(),
                                        renderTarget->getSubresourceIndex(), formatSet.texFormat);
-    return TextureHelper11::MakeAndReference(resolveTexture.get(), renderTarget->getFormatSet());
+    return TextureHelper11::Move(std::move(resolveTexture), renderTarget->getFormatSet());
 }
 
 bool Renderer11::getLUID(LUID *adapterLuid) const
@@ -4850,7 +4850,7 @@ gl::ErrorOrResult<TextureHelper11> Renderer11::createStagingTexture(
 
         d3d11::Texture2D stagingTex;
         ANGLE_TRY(allocateResource(stagingDesc, &stagingTex));
-        return TextureHelper11::MakeAndReference(stagingTex.get(), formatSet);
+        return TextureHelper11::Move(std::move(stagingTex), formatSet);
     }
     ASSERT(textureType == GL_TEXTURE_3D);
 
@@ -4867,7 +4867,7 @@ gl::ErrorOrResult<TextureHelper11> Renderer11::createStagingTexture(
 
     d3d11::Texture3D stagingTex;
     ANGLE_TRY(allocateResource(stagingDesc, &stagingTex));
-    return TextureHelper11::MakeAndReference(stagingTex.get(), formatSet);
+    return TextureHelper11::Move(std::move(stagingTex), formatSet);
 }
 
 }  // namespace rx
