@@ -26,6 +26,9 @@ enum class ResourceType
     Texture2D,
     Texture3D,
     Buffer,
+    RenderTargetView,
+    ShaderResourceView,
+    DepthStencilView,
     Last
 };
 
@@ -92,6 +95,9 @@ ANGLE_INV_TYPE_HELPER(ResourceTypeFromDesc, ResourceType, D3D11_BUFFER_DESC, Buf
 ANGLE_INV_TYPE_HELPER(ResourceTypeFromDesc, ResourceType, D3D11_TEXTURE2D_DESC, Texture2D)
 ANGLE_INV_TYPE_HELPER(ResourceTypeFromDesc, ResourceType, D3D11_TEXTURE3D_DESC, Texture3D)
 ANGLE_INV_TYPE_HELPER_END(ResourceTypeFromDesc, ResourceType)
+
+template <ResourceType ResourceT>
+using GetInitDataType = typename ResourceTypeToInitData<ResourceT>::Type;
 
 // Smart pointer type. Wraps the resource and a factory for safe deletion.
 template <ResourceType Type>
@@ -206,7 +212,7 @@ class ResourceManager11 final : angle::NonCopyable
     template <ResourceType Type>
     gl::Error allocate(Renderer11 *renderer,
                        const GetDescType<Type> &desc,
-                       const D3D11_SUBRESOURCE_DATA *initData,
+                       GetInitDataType<Type> *initData,
                        Resource11<Type> *resourceOut);
 
   private:
@@ -226,9 +232,12 @@ class ResourceManager11 final : angle::NonCopyable
 
 namespace d3d11
 {
-using Texture2D = Resource11<ResourceType::Texture2D>;
-using Texture3D = Resource11<ResourceType::Texture3D>;
-using Buffer    = Resource11<ResourceType::Buffer>;
+using Buffer             = Resource11<ResourceType::Buffer>;
+using DepthStencilView   = Resource11<ResourceType::DepthStencilView>;
+using RenderTargetView   = Resource11<ResourceType::RenderTargetView>;
+using ShaderResourceView = Resource11<ResourceType::ShaderResourceView>;
+using Texture2D          = Resource11<ResourceType::Texture2D>;
+using Texture3D          = Resource11<ResourceType::Texture3D>;
 }  // namespace d3d11
 
 }  // namespace rx

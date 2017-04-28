@@ -410,17 +410,15 @@ class Renderer11 : public RendererD3D
         return gl::NoError();
     }
 
-    template <typename DescT, typename ResourceT>
-    gl::Error allocateResource(const DescT &desc,
-                               const D3D11_SUBRESOURCE_DATA *initData,
-                               ResourceT *resourceOut)
+    template <typename DescT, typename ResourceT, typename InitDataT>
+    gl::Error allocateResource(const DescT &desc, InitDataT *initData, ResourceT *resourceOut)
     {
         return mResourceManager11.allocate(this, desc, initData, resourceOut);
     }
 
-    template <typename DescT>
+    template <typename DescT, typename InitDataT>
     gl::Error allocateSharedResource(const DescT &desc,
-                                     const D3D11_SUBRESOURCE_DATA *initData,
+                                     InitDataT *initData,
                                      SharedResource11 *resourceOut)
     {
         Resource11<GetResourceTypeFromDesc<DescT>()> uniqueResource;

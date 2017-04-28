@@ -3515,8 +3515,8 @@ gl::Error Renderer11::createRenderTarget(int width,
         SharedResource11 texture;
         ANGLE_TRY(allocateSharedResource(desc, &texture));
 
-        ID3D11ShaderResourceView *srv     = nullptr;
-        ID3D11ShaderResourceView *blitSRV = nullptr;
+        d3d11::ShaderResourceView srv;
+        d3d11::ShaderResourceView blitSRV;
         if (bindSRV)
         {
             D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -3526,14 +3526,7 @@ gl::Error Renderer11::createRenderTarget(int width,
             srvDesc.Texture2D.MostDetailedMip = 0;
             srvDesc.Texture2D.MipLevels       = 1;
 
-            HRESULT result = mDevice->CreateShaderResourceView(texture.get(), &srvDesc, &srv);
-            if (FAILED(result))
-            {
-                ASSERT(result == E_OUTOFMEMORY);
-                return gl::Error(
-                    GL_OUT_OF_MEMORY,
-                    "Failed to create render target shader resource view, result: 0x%X.", result);
-            }
+            ANGLE_TRY(allocateResource(srvDesc, texture.get(), &srv));
 
             if (formatInfo.blitSRVFormat != formatInfo.srvFormat)
             {
@@ -3545,21 +3538,12 @@ gl::Error Renderer11::createRenderTarget(int width,
                 blitSRVDesc.Texture2D.MostDetailedMip = 0;
                 blitSRVDesc.Texture2D.MipLevels       = 1;
 
-                result = mDevice->CreateShaderResourceView(texture.get(), &blitSRVDesc, &blitSRV);
-                if (FAILED(result))
-                {
-                    ASSERT(result == E_OUTOFMEMORY);
-                    SafeRelease(srv);
-                    return gl::Error(GL_OUT_OF_MEMORY,
-                                     "Failed to create render target shader resource view for "
-                                     "blits, result: 0x%X.",
-                                     result);
-                }
+                ANGLE_TRY(allocateResource(blitSRVDesc, texture.get(), &blitSRV));
             }
             else
             {
-                blitSRV = srv;
-                srv->AddRef();
+                srv.get()->AddRef();
+                blitSRV.set(srv.get());
             }
         }
 
@@ -3572,22 +3556,11 @@ gl::Error Renderer11::createRenderTarget(int width,
             dsvDesc.Texture2D.MipSlice = 0;
             dsvDesc.Flags              = 0;
 
-            ID3D11DepthStencilView *dsv = nullptr;
-            HRESULT result = mDevice->CreateDepthStencilView(texture.get(), &dsvDesc, &dsv);
-            if (FAILED(result))
-            {
-                ASSERT(result == E_OUTOFMEMORY);
-                SafeRelease(srv);
-                SafeRelease(blitSRV);
-                return gl::Error(GL_OUT_OF_MEMORY,
-                                 "Failed to create render target depth stencil view, result: 0x%X.",
-                                 result);
-            }
+            d3d11::DepthStencilView dsv;
+            ANGLE_TRY(allocateResource(dsvDesc, texture.get(), &dsv));
 
             *outRT = new TextureRenderTarget11(dsv, texture, srv, formatInfo, width, height, 1,
                                                supportedSamples);
-
-            SafeRelease(dsv);
         }
         else if (bindRTV)
         {
@@ -3597,36 +3570,22 @@ gl::Error Renderer11::createRenderTarget(int width,
                                                             : D3D11_RTV_DIMENSION_TEXTURE2DMS;
             rtvDesc.Texture2D.MipSlice = 0;
 
-            ID3D11RenderTargetView *rtv = nullptr;
-            HRESULT result = mDevice->CreateRenderTargetView(texture.get(), &rtvDesc, &rtv);
-            if (FAILED(result))
-            {
-                ASSERT(result == E_OUTOFMEMORY);
-                SafeRelease(srv);
-                SafeRelease(blitSRV);
-                return gl::Error(GL_OUT_OF_MEMORY,
-                                 "Failed to create render target render target view, result: 0x%X.",
-                                 result);
-            }
+            d3d11::RenderTargetView rtv;
+            ANGLE_TRY(allocateResource(rtvDesc, texture.get(), &rtv));
 
             if (formatInfo.dataInitializerFunction != nullptr)
             {
                 const float clearValues[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-                mDeviceContext->ClearRenderTargetView(rtv, clearValues);
+                mDeviceContext->ClearRenderTargetView(rtv.get(), clearValues);
             }
 
             *outRT = new TextureRenderTarget11(rtv, texture, srv, blitSRV, formatInfo, width,
                                                height, 1, supportedSamples);
-
-            SafeRelease(rtv);
         }
         else
         {
             UNREACHABLE();
         }
-
-        SafeRelease(srv);
-        SafeRelease(blitSRV);
     }
     else
     {

@@ -46,6 +46,12 @@ size_t ComputeMemoryUsage(const D3D11_BUFFER_DESC &desc)
     return static_cast<size_t>(desc.ByteWidth);
 }
 
+template <typename T>
+size_t ComputeMemoryUsage(const T &desc)
+{
+    return 0;
+}
+
 template <ResourceType ResourceT>
 size_t ComputeGenericMemoryUsage(ID3D11Resource *genericResource)
 {
@@ -67,7 +73,6 @@ size_t ComputeGenericMemoryUsage(ResourceType resourceType, ID3D11Resource *reso
             return ComputeGenericMemoryUsage<ResourceType::Buffer>(resource);
 
         default:
-            UNREACHABLE();
             return 0;
     }
 }
@@ -96,21 +101,33 @@ HRESULT CreateResource(ID3D11Device *device,
     return device->CreateBuffer(&desc, initData, buffer);
 }
 
-const char *ResourceTypeString(ResourceType resourceType)
+HRESULT CreateResource(ID3D11Device *device,
+                       const D3D11_RENDER_TARGET_VIEW_DESC &desc,
+                       ID3D11Resource *resource,
+                       ID3D11RenderTargetView **renderTargetView)
 {
-    switch (resourceType)
-    {
-        case ResourceType::Texture2D:
-            return "Texture";
-        case ResourceType::Texture3D:
-            return "Texture3D";
-        case ResourceType::Buffer:
-            return "Buffer";
-        default:
-            UNREACHABLE();
-            return "";
-    }
+    return device->CreateRenderTargetView(resource, &desc, renderTargetView);
 }
+
+HRESULT CreateResource(ID3D11Device *device,
+                       const D3D11_SHADER_RESOURCE_VIEW_DESC &desc,
+                       ID3D11Resource *resource,
+                       ID3D11ShaderResourceView **resourceOut)
+{
+    return device->CreateShaderResourceView(resource, &desc, resourceOut);
+}
+
+HRESULT CreateResource(ID3D11Device *device,
+                       const D3D11_DEPTH_STENCIL_VIEW_DESC &desc,
+                       ID3D11Resource *resource,
+                       ID3D11DepthStencilView **resourceOut)
+{
+    return device->CreateDepthStencilView(resource, &desc, resourceOut);
+}
+
+constexpr std::array<const char *, NumResourceTypes> kResourceTypeNames = {{
+    "Texture", "Texture3D", "Buffer", "RenderTargetView", "ShaderResourceView", "DepthStencilView",
+}};
 }  // anonymous namespace
 
 // Resource11 Implementation
@@ -192,6 +209,9 @@ GenericResource11 Resource11<Type>::makeGeneric()
 template class Resource11<ResourceType::Texture2D>;
 template class Resource11<ResourceType::Texture3D>;
 template class Resource11<ResourceType::Buffer>;
+template class Resource11<ResourceType::RenderTargetView>;
+template class Resource11<ResourceType::ShaderResourceView>;
+template class Resource11<ResourceType::DepthStencilView>;
 
 // ResourceManager11 Implementation.
 ResourceManager11::ResourceManager11()
@@ -215,7 +235,7 @@ ResourceManager11::~ResourceManager11()
 template <ResourceType Type>
 gl::Error ResourceManager11::allocate(Renderer11 *renderer,
                                       const GetDescType<Type> &desc,
-                                      const D3D11_SUBRESOURCE_DATA *initData,
+                                      GetInitDataType<Type> *initData,
                                       Resource11<Type> *resourceOut)
 {
     ID3D11Device *device         = renderer->getDevice();
@@ -228,8 +248,9 @@ gl::Error ResourceManager11::allocate(Renderer11 *renderer,
         {
             renderer->notifyDeviceLost();
         }
-        return gl::OutOfMemory() << "Error allocating " << std::string(ResourceTypeString(Type))
-                                 << ". " << gl::FmtHR(hr);
+        return gl::OutOfMemory() << "Error allocating "
+                                 << std::string(kResourceTypeNames[ResourceTypeIndex(Type)]) << ". "
+                                 << gl::FmtHR(hr);
     }
     ASSERT(resource);
     incrResource(Type, ComputeMemoryUsage(desc));
@@ -276,10 +297,31 @@ template gl::Error ResourceManager11::allocate<ResourceType::Buffer>(
     const D3D11_BUFFER_DESC &,
     const D3D11_SUBRESOURCE_DATA *,
     Resource11<ResourceType::Buffer> *);
+template gl::Error ResourceManager11::allocate<ResourceType::RenderTargetView>(
+    Renderer11 *,
+    const D3D11_RENDER_TARGET_VIEW_DESC &,
+    ID3D11Resource *,
+    Resource11<ResourceType::RenderTargetView> *);
+template gl::Error ResourceManager11::allocate<ResourceType::ShaderResourceView>(
+    Renderer11 *,
+    const D3D11_SHADER_RESOURCE_VIEW_DESC &,
+    ID3D11Resource *,
+    Resource11<ResourceType::ShaderResourceView> *);
+template gl::Error ResourceManager11::allocate<ResourceType::DepthStencilView>(
+    Renderer11 *,
+    const D3D11_DEPTH_STENCIL_VIEW_DESC &,
+    ID3D11Resource *,
+    Resource11<ResourceType::DepthStencilView> *);
 
 template void ResourceManager11::onRelease<ResourceType::Texture2D>(ID3D11Texture2D *);
 template void ResourceManager11::onRelease<ResourceType::Texture3D>(ID3D11Texture3D *);
 template void ResourceManager11::onRelease<ResourceType::Buffer>(ID3D11Buffer *);
+template void ResourceManager11::onRelease<ResourceType::RenderTargetView>(
+    ID3D11RenderTargetView *);
+template void ResourceManager11::onRelease<ResourceType::ShaderResourceView>(
+    ID3D11ShaderResourceView *);
+template void ResourceManager11::onRelease<ResourceType::DepthStencilView>(
+    ID3D11DepthStencilView *);
 
 // GenericResource11 Implementation.
 GenericResource11::GenericResource11()
