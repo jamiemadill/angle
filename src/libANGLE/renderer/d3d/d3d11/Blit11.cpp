@@ -1496,9 +1496,8 @@ gl::Error Blit11::copyAndConvertImpl(const TextureHelper11 &source,
     ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
 
     TextureHelper11 sourceStaging;
-    ANGLE_TRY_RESULT(mRenderer->createStagingTexture(GL_TEXTURE_2D, source.getFormatSet(),
-                                                     sourceSize, StagingAccess::READ),
-                     sourceStaging);
+    ANGLE_TRY(mRenderer->createStagingTexture(ResourceType::Texture2D, source.getFormatSet(),
+                                              sourceSize, StagingAccess::READ, &sourceStaging));
 
     deviceContext->CopySubresourceRegion(sourceStaging.getResource(), 0, 0, 0, 0,
                                          source.getResource(), sourceSubresource, nullptr);
@@ -1567,9 +1566,8 @@ gl::Error Blit11::copyAndConvert(const TextureHelper11 &source,
     // ID3D11DevicContext::UpdateSubresource can be called
     //       using it's mapped data as a source
     TextureHelper11 destStaging;
-    ANGLE_TRY_RESULT(mRenderer->createStagingTexture(GL_TEXTURE_2D, dest.getFormatSet(), destSize,
-                                                     StagingAccess::READ_WRITE),
-                     destStaging);
+    ANGLE_TRY(mRenderer->createStagingTexture(ResourceType::Texture2D, dest.getFormatSet(),
+                                              destSize, StagingAccess::READ_WRITE, &destStaging));
 
     deviceContext->CopySubresourceRegion(destStaging.getResource(), 0, 0, 0, 0, dest.getResource(),
                                          destSubresource, nullptr);
@@ -1964,7 +1962,7 @@ gl::Error Blit11::getSwizzleShader(GLenum type,
     return gl::NoError();
 }
 
-gl::ErrorOrResult<TextureHelper11> Blit11::resolveDepth(RenderTarget11 *depth)
+gl::Error Blit11::resolveDepth(RenderTarget11 *depth, TextureHelper11 *outTexture)
 {
     // Multisampled depth stencil SRVs are not available in feature level 10.0
     ASSERT(mRenderer->getRenderer11DeviceCaps().featureLevel > D3D_FEATURE_LEVEL_10_0);
@@ -2007,8 +2005,8 @@ gl::ErrorOrResult<TextureHelper11> Blit11::resolveDepth(RenderTarget11 *depth)
     // Trigger the blit on the GPU.
     context->Draw(6, 0);
 
-    return TextureHelper11::MakeAndReference(mResolvedDepth.getResource(),
-                                             mResolvedDepth.getFormatSet());
+    *outTexture = TextureHelper11::Share(mResolvedDepth);
+    return gl::NoError();
 }
 
 gl::Error Blit11::initResolveDepthOnly(const d3d11::Format &format, const gl::Extents &extents)
@@ -2034,11 +2032,11 @@ gl::Error Blit11::initResolveDepthOnly(const d3d11::Format &format, const gl::Ex
     textureDesc.CPUAccessFlags     = 0;
     textureDesc.MiscFlags          = 0;
 
-    d3d11::Texture2D resolvedDepth;
-    ANGLE_TRY(mRenderer->allocateResource(textureDesc, &resolvedDepth));
-    d3d11::SetDebugName(resolvedDepth.get(), "Blit11::mResolvedDepth");
+    SharedResource11 resolvedDepth;
+    ANGLE_TRY(mRenderer->allocateSharedResource(textureDesc, &resolvedDepth));
+    resolvedDepth.setDebugName("Blit11::mResolvedDepth");
 
-    mResolvedDepth = TextureHelper11::Move(std::move(resolvedDepth), format);
+    mResolvedDepth = TextureHelper11::Share(std::move(resolvedDepth), format);
 
     D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
     dsvDesc.Flags              = 0;
@@ -2093,9 +2091,9 @@ gl::Error Blit11::initResolveDepthStencil(const gl::Extents &extents)
 
     ID3D11Device *device = mRenderer->getDevice();
 
-    d3d11::Texture2D resolvedDepthStencil;
-    ANGLE_TRY(mRenderer->allocateResource(textureDesc, &resolvedDepthStencil));
-    d3d11::SetDebugName(resolvedDepthStencil.get(), "Blit11::mResolvedDepthStencil");
+    SharedResource11 resolvedDepthStencil;
+    ANGLE_TRY(mRenderer->allocateSharedResource(textureDesc, &resolvedDepthStencil));
+    resolvedDepthStencil.setDebugName("Blit11::mResolvedDepthStencil");
 
     ASSERT(mResolvedDepthStencilRTView == nullptr);
     HRESULT hr = device->CreateRenderTargetView(resolvedDepthStencil.get(), nullptr,
@@ -2107,13 +2105,14 @@ gl::Error Blit11::initResolveDepthStencil(const gl::Extents &extents)
     }
     d3d11::SetDebugName(mResolvedDepthStencilRTView, "Blit11::mResolvedDepthStencilRTView");
 
-    mResolvedDepthStencil = TextureHelper11::Move(std::move(resolvedDepthStencil), formatSet);
+    mResolvedDepthStencil = TextureHelper11::Share(std::move(resolvedDepthStencil), formatSet);
 
     return gl::NoError();
 }
 
-gl::ErrorOrResult<TextureHelper11> Blit11::resolveStencil(RenderTarget11 *depthStencil,
-                                                          bool alsoDepth)
+gl::Error Blit11::resolveStencil(RenderTarget11 *depthStencil,
+                                 bool alsoDepth,
+                                 TextureHelper11 *outTexture)
 {
     // Multisampled depth stencil SRVs are not available in feature level 10.0
     ASSERT(mRenderer->getRenderer11DeviceCaps().featureLevel > D3D_FEATURE_LEVEL_10_0);
@@ -2125,7 +2124,7 @@ gl::ErrorOrResult<TextureHelper11> Blit11::resolveStencil(RenderTarget11 *depthS
     ID3D11Device *device         = mRenderer->getDevice();
     ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
-    ID3D11Resource *stencilResource = depthStencil->getTexture();
+    ID3D11Resource *stencilResource = depthStencil->getTexture().get();
 
     // Check if we need to re-create the stencil SRV.
     if (mStencilSRV)
@@ -2203,9 +2202,8 @@ gl::ErrorOrResult<TextureHelper11> Blit11::resolveStencil(RenderTarget11 *depthS
     gl::Box copyBox(0, 0, 0, extents.width, extents.height, 1);
 
     TextureHelper11 dest;
-    ANGLE_TRY_RESULT(mRenderer->createStagingTexture(GL_TEXTURE_2D, depthStencil->getFormatSet(),
-                                                     extents, StagingAccess::READ_WRITE),
-                     dest);
+    ANGLE_TRY(mRenderer->createStagingTexture(ResourceType::Texture2D, depthStencil->getFormatSet(),
+                                              extents, StagingAccess::READ_WRITE, &dest));
 
     const auto &copyFunction = GetCopyDepthStencilFunction(depthStencil->getInternalFormat());
     const auto &dsFormatSet  = depthStencil->getFormatSet();
@@ -2215,7 +2213,8 @@ gl::ErrorOrResult<TextureHelper11> Blit11::resolveStencil(RenderTarget11 *depthS
                                  nullptr, 0, 0, 0, 8u, dsDxgiInfo.pixelBytes, copyFunction));
 
     // Return the resolved depth texture, which the caller must Release.
-    return dest;
+    *outTexture = TextureHelper11::Share(dest);
+    return gl::NoError();
 }
 
 void Blit11::releaseResolveDepthStencilResources()

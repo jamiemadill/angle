@@ -113,11 +113,11 @@ gl::Error Image11::copyToStorage(TextureStorage *storage,
         ANGLE_TRY(storage11->releaseAssociatedImage(index, this));
     }
 
-    TextureHelper11 *stagingTexture      = nullptr;
+    const TextureHelper11 *stagingTexture = nullptr;
     unsigned int stagingSubresourceIndex = 0;
     ANGLE_TRY(getStagingTexture(&stagingTexture, &stagingSubresourceIndex));
-    ANGLE_TRY(storage11->updateSubresourceLevel(stagingTexture->getResource(),
-                                                stagingSubresourceIndex, index, region));
+    ANGLE_TRY(
+        storage11->updateSubresourceLevel(*stagingTexture, stagingSubresourceIndex, index, region));
 
     // Once the image data has been copied into the Storage, we can release it locally.
     if (attemptToReleaseStagingTexture)
@@ -300,15 +300,14 @@ gl::Error Image11::copyFromTexStorage(const gl::ImageIndex &imageIndex, TextureS
 {
     TextureStorage11 *storage11 = GetAs<TextureStorage11>(source);
 
-    ID3D11Resource *resource = nullptr;
+    const SharedResource11 *resource = nullptr;
     ANGLE_TRY(storage11->getResource(&resource));
 
     UINT subresourceIndex = storage11->getSubresourceIndex(imageIndex);
-    TextureHelper11 textureHelper =
-        TextureHelper11::MakeAndReference(resource, storage11->getFormatSet());
+    TextureHelper11 texture = TextureHelper11::Share(*resource, storage11->getFormatSet());
 
     gl::Box sourceBox(0, 0, 0, mWidth, mHeight, mDepth);
-    return copyWithoutConversion(gl::Offset(), sourceBox, textureHelper, subresourceIndex);
+    return copyWithoutConversion(gl::Offset(), sourceBox, texture, subresourceIndex);
 }
 
 gl::Error Image11::copyFromFramebuffer(const gl::Offset &destOffset,
@@ -328,10 +327,10 @@ gl::Error Image11::copyFromFramebuffer(const gl::Offset &destOffset,
         ANGLE_TRY(srcAttachment->getRenderTarget(&renderTarget));
 
         RenderTarget11 *rt11 = GetAs<RenderTarget11>(renderTarget);
-        ASSERT(rt11->getTexture());
+        ASSERT(rt11->getTexture().valid());
 
         TextureHelper11 textureHelper =
-            TextureHelper11::MakeAndReference(rt11->getTexture(), rt11->getFormatSet());
+            TextureHelper11::Share(rt11->getTexture(), rt11->getFormatSet());
         unsigned int sourceSubResource = rt11->getSubresourceIndex();
 
         gl::Box sourceBox(sourceArea.x, sourceArea.y, 0, sourceArea.width, sourceArea.height, 1);
@@ -391,7 +390,7 @@ gl::Error Image11::copyWithoutConversion(const gl::Offset &destOffset,
                                          UINT sourceSubResource)
 {
     // No conversion needed-- use copyback fastpath
-    TextureHelper11 *stagingTexture      = nullptr;
+    const TextureHelper11 *stagingTexture = nullptr;
     unsigned int stagingSubresourceIndex = 0;
     ANGLE_TRY(getStagingTexture(&stagingTexture, &stagingSubresourceIndex));
 
@@ -410,7 +409,8 @@ gl::Error Image11::copyWithoutConversion(const gl::Offset &destOffset,
     srcBox.back   = sourceArea.z + sourceArea.depth;
 
     // Check if we need to resolve a multisample texture.
-    if (textureHelper.getTextureType() == GL_TEXTURE_2D && textureHelper.getSampleCount() > 1)
+    if (textureHelper.getTextureType() == ResourceType::Texture2D &&
+        textureHelper.getSampleCount() > 1)
     {
         D3D11_TEXTURE2D_DESC resolveDesc;
         resolveDesc.Width              = extents.width;
@@ -428,7 +428,7 @@ gl::Error Image11::copyWithoutConversion(const gl::Offset &destOffset,
         d3d11::Texture2D srcTex2D;
         ANGLE_TRY(mRenderer->allocateResource(resolveDesc, &srcTex2D));
 
-        deviceContext->ResolveSubresource(srcTex2D.get(), 0, textureHelper.getTexture2D(),
+        deviceContext->ResolveSubresource(srcTex2D.get(), 0, textureHelper.getResource(),
                                           sourceSubResource, textureHelper.getFormat());
         subresourceAfterResolve = 0;
         deviceContext->CopySubresourceRegion(stagingTexture->getResource(), stagingSubresourceIndex,
@@ -446,7 +446,7 @@ gl::Error Image11::copyWithoutConversion(const gl::Offset &destOffset,
     return gl::NoError();
 }
 
-gl::Error Image11::getStagingTexture(TextureHelper11 **outStagingTexture,
+gl::Error Image11::getStagingTexture(const TextureHelper11 **outStagingTexture,
                                      unsigned int *outSubresourceIndex)
 {
     ANGLE_TRY(createStagingTexture());
@@ -482,7 +482,7 @@ gl::Error Image11::createStagingTexture()
 
     if (mTarget == GL_TEXTURE_3D)
     {
-        d3d11::Texture3D newTexture;
+        SharedResource11 newTexture;
 
         D3D11_TEXTURE3D_DESC desc;
         desc.Width          = width;
@@ -504,20 +504,20 @@ gl::Error Image11::createStagingTexture()
                                               width, height, mDepth, lodOffset + 1, &initialData,
                                               &textureData);
 
-            ANGLE_TRY(mRenderer->allocateResource(desc, initialData.data(), &newTexture));
+            ANGLE_TRY(mRenderer->allocateSharedResource(desc, initialData.data(), &newTexture));
         }
         else
         {
-            ANGLE_TRY(mRenderer->allocateResource(desc, &newTexture));
+            ANGLE_TRY(mRenderer->allocateSharedResource(desc, &newTexture));
         }
 
-        mStagingTexture     = TextureHelper11::Move(std::move(newTexture), format);
+        mStagingTexture     = TextureHelper11::Share(std::move(newTexture), format);
         mStagingSubresource = D3D11CalcSubresource(lodOffset, 0, lodOffset + 1);
     }
     else if (mTarget == GL_TEXTURE_2D || mTarget == GL_TEXTURE_2D_ARRAY ||
              mTarget == GL_TEXTURE_CUBE_MAP)
     {
-        d3d11::Texture2D newTexture;
+        SharedResource11 newTexture;
 
         D3D11_TEXTURE2D_DESC desc;
         desc.Width              = width;
@@ -541,14 +541,14 @@ gl::Error Image11::createStagingTexture()
                                               width, height, 1, lodOffset + 1, &initialData,
                                               &textureData);
 
-            ANGLE_TRY(mRenderer->allocateResource(desc, initialData.data(), &newTexture));
+            ANGLE_TRY(mRenderer->allocateSharedResource(desc, initialData.data(), &newTexture));
         }
         else
         {
-            ANGLE_TRY(mRenderer->allocateResource(desc, &newTexture));
+            ANGLE_TRY(mRenderer->allocateSharedResource(desc, &newTexture));
         }
 
-        mStagingTexture     = TextureHelper11::Move(std::move(newTexture), format);
+        mStagingTexture     = TextureHelper11::Share(newTexture, format);
         mStagingSubresource = D3D11CalcSubresource(lodOffset, 0, lodOffset + 1);
     }
     else
@@ -565,7 +565,7 @@ gl::Error Image11::map(D3D11_MAP mapType, D3D11_MAPPED_SUBRESOURCE *map)
     // We must recover from the TextureStorage if necessary, even for D3D11_MAP_WRITE.
     ANGLE_TRY(recoverFromAssociatedStorage());
 
-    TextureHelper11 *stagingTexture = nullptr;
+    const TextureHelper11 *stagingTexture = nullptr;
     unsigned int subresourceIndex  = 0;
     ANGLE_TRY(getStagingTexture(&stagingTexture, &subresourceIndex));
 

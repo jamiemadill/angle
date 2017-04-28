@@ -72,9 +72,11 @@ class Blit11 : angle::NonCopyable
                                const gl::Extents &destSize,
                                const gl::Rectangle *scissor);
 
-    gl::ErrorOrResult<TextureHelper11> resolveDepth(RenderTarget11 *depth);
+    gl::Error resolveDepth(RenderTarget11 *depth, TextureHelper11 *outTexture);
 
-    gl::ErrorOrResult<TextureHelper11> resolveStencil(RenderTarget11 *depthStencil, bool alsoDepth);
+    gl::Error resolveStencil(RenderTarget11 *depthStencil,
+                             bool alsoDepth,
+                             TextureHelper11 *outTexture);
 
     using BlitConvertFunction = void(const gl::Box &sourceArea,
                                      const gl::Box &destArea,

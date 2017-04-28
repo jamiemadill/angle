@@ -24,7 +24,6 @@ class Framebuffer;
 namespace rx
 {
 class Renderer11;
-class TextureHelper11;
 class TextureStorage11;
 struct Renderer11DeviceCaps;
 
@@ -72,7 +71,7 @@ class Image11 : public ImageD3D
                                     const TextureHelper11 &textureHelper,
                                     UINT sourceSubResource);
 
-    gl::Error getStagingTexture(TextureHelper11 **outStagingTexture,
+    gl::Error getStagingTexture(const TextureHelper11 **outStagingTexture,
                                 unsigned int *outSubresourceIndex);
     gl::Error createStagingTexture();
     void releaseStagingTexture();

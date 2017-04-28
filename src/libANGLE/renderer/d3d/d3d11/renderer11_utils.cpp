@@ -2047,129 +2047,88 @@ void InitConstantBufferDesc(D3D11_BUFFER_DESC *constantBufferDescription, size_t
 
 }  // namespace d3d11
 
-TextureHelper11::TextureHelper11()
-    : mTextureType(GL_NONE),
-      mFormat(DXGI_FORMAT_UNKNOWN),
-      mFormatSet(nullptr),
-      mSampleCount(0),
-      mTexture2D(),
-      mTexture3D()
+TextureHelper11::TextureHelper11() : mFormatSet(nullptr), mSampleCount(0), mTexture()
 {
 }
 
 TextureHelper11::TextureHelper11(TextureHelper11 &&toCopy)
-    : mTextureType(toCopy.mTextureType),
-      mExtents(toCopy.mExtents),
-      mFormat(toCopy.mFormat),
+    : mExtents(toCopy.mExtents),
       mFormatSet(toCopy.mFormatSet),
       mSampleCount(toCopy.mSampleCount),
-      mTexture2D(std::move(toCopy.mTexture2D)),
-      mTexture3D(std::move(toCopy.mTexture3D))
+      mTexture(std::move(toCopy.mTexture))
 {
     toCopy.reset();
 }
 
-// static
-TextureHelper11 TextureHelper11::Move(d3d11::Texture2D &&texture, const d3d11::Format &formatSet)
-{
-    TextureHelper11 newHelper;
-    newHelper.mFormatSet   = &formatSet;
-    newHelper.mTexture2D   = std::move(texture);
-    newHelper.mTextureType = GL_TEXTURE_2D;
-    newHelper.initDesc();
-    return newHelper;
-}
-
-// static
-TextureHelper11 TextureHelper11::Move(d3d11::Texture3D &&texture, const d3d11::Format &formatSet)
-{
-    TextureHelper11 newHelper;
-    newHelper.mFormatSet   = &formatSet;
-    newHelper.mTexture3D   = std::move(texture);
-    newHelper.mTextureType = GL_TEXTURE_3D;
-    newHelper.initDesc();
-    return newHelper;
-}
-
-// static
-TextureHelper11 TextureHelper11::MakeAndReference(ID3D11Resource *genericResource,
-                                                  const d3d11::Format &formatSet)
-{
-    TextureHelper11 newHelper;
-    newHelper.mFormatSet   = &formatSet;
-    newHelper.mTexture2D.set(d3d11::DynamicCastComObject<ID3D11Texture2D>(genericResource));
-    newHelper.mTexture3D.set(d3d11::DynamicCastComObject<ID3D11Texture3D>(genericResource));
-    newHelper.mTextureType = newHelper.mTexture2D.valid() ? GL_TEXTURE_2D : GL_TEXTURE_3D;
-    newHelper.initDesc();
-    return newHelper;
-}
-
 void TextureHelper11::initDesc()
 {
-    if (mTextureType == GL_TEXTURE_2D)
+    if (getTextureType() == ResourceType::Texture2D)
     {
-        ASSERT(!mTexture3D.valid());
         D3D11_TEXTURE2D_DESC desc2D;
-        mTexture2D.get()->GetDesc(&desc2D);
+        getDesc(&desc2D);
 
         mExtents.width  = static_cast<int>(desc2D.Width);
         mExtents.height = static_cast<int>(desc2D.Height);
         mExtents.depth  = 1;
-        mFormat         = desc2D.Format;
         mSampleCount    = desc2D.SampleDesc.Count;
     }
     else
     {
-        ASSERT(mTexture3D.valid() && mTextureType == GL_TEXTURE_3D);
+        ASSERT(getTextureType() == ResourceType::Texture3D);
         D3D11_TEXTURE3D_DESC desc3D;
-        mTexture3D.get()->GetDesc(&desc3D);
+        getDesc(&desc3D);
 
         mExtents.width  = static_cast<int>(desc3D.Width);
         mExtents.height = static_cast<int>(desc3D.Height);
         mExtents.depth  = static_cast<int>(desc3D.Depth);
-        mFormat         = desc3D.Format;
         mSampleCount    = 1;
     }
-    ASSERT(mFormatSet && mFormat == mFormatSet->texFormat);
 }
 
-TextureHelper11::~TextureHelper11()
+template <typename DescT>
+void TextureHelper11::getDesc(DescT *descOut)
 {
-}
-
-ID3D11Resource *TextureHelper11::getResource() const
-{
-    return mTexture2D.valid() ? static_cast<ID3D11Resource *>(mTexture2D.get())
-                              : static_cast<ID3D11Resource *>(mTexture3D.get());
+    return mTexture.getDesc(descOut);
 }
 
 TextureHelper11 &TextureHelper11::operator=(TextureHelper11 &&texture)
 {
-    mTextureType = texture.mTextureType;
     mExtents     = texture.mExtents;
-    mFormat      = texture.mFormat;
     mFormatSet   = texture.mFormatSet;
     mSampleCount = texture.mSampleCount;
-    mTexture2D   = std::move(texture.mTexture2D);
-    mTexture3D   = std::move(texture.mTexture3D);
+    mTexture     = std::move(texture.mTexture);
     texture.reset();
     return *this;
 }
 
 void TextureHelper11::reset()
 {
-    mTextureType = GL_NONE;
     mExtents     = gl::Extents();
-    mFormat      = DXGI_FORMAT_UNKNOWN;
     mFormatSet   = nullptr;
     mSampleCount = 0;
-    mTexture2D.reset();
-    mTexture3D.reset();
+    mTexture.reset();
 }
 
-bool TextureHelper11::valid() const
+// static
+TextureHelper11 TextureHelper11::Share(const SharedResource11 &texture,
+                                       const d3d11::Format &formatSet)
 {
-    return (mTextureType != GL_NONE);
+    TextureHelper11 newHelper;
+    newHelper.mFormatSet = &formatSet;
+    newHelper.mTexture   = texture;
+    newHelper.initDesc();
+    return newHelper;
+}
+
+// static
+TextureHelper11 TextureHelper11::Share(const TextureHelper11 &texture)
+{
+    TextureHelper11 newHelper;
+    newHelper.mFormatSet   = texture.mFormatSet;
+    newHelper.mTexture     = texture.mTexture;
+    newHelper.mExtents     = texture.mExtents;
+    newHelper.mSampleCount = texture.mSampleCount;
+    return std::move(newHelper);
 }
 
 bool UsePresentPathFast(const Renderer11 *renderer,

@@ -389,10 +389,11 @@ class Renderer11 : public RendererD3D
 
     gl::Version getMaxSupportedESVersion() const override;
 
-    gl::ErrorOrResult<TextureHelper11> createStagingTexture(GLenum textureType,
-                                                            const d3d11::Format &formatSet,
-                                                            const gl::Extents &size,
-                                                            StagingAccess readAndWriteAccess);
+    gl::Error createStagingTexture(ResourceType resourceType,
+                                   const d3d11::Format &formatSet,
+                                   const gl::Extents &size,
+                                   StagingAccess readAndWriteAccess,
+                                   TextureHelper11 *textureOut);
 
     template <typename DescT, typename ResourceT>
     gl::Error allocateResource(const DescT &desc, ResourceT *resourceOut)
@@ -415,6 +416,17 @@ class Renderer11 : public RendererD3D
                                ResourceT *resourceOut)
     {
         return mResourceManager11.allocate(this, desc, initData, resourceOut);
+    }
+
+    template <typename DescT>
+    gl::Error allocateSharedResource(const DescT &desc,
+                                     const D3D11_SUBRESOURCE_DATA *initData,
+                                     SharedResource11 *resourceOut)
+    {
+        Resource11<GetResourceTypeFromDesc<DescT>()> uniqueResource;
+        ANGLE_TRY(mResourceManager11.allocate(this, desc, initData, &uniqueResource));
+        *resourceOut = std::move(uniqueResource.makeGeneric().makeShared());
+        return gl::NoError();
     }
 
   protected:
@@ -469,9 +481,10 @@ class Renderer11 : public RendererD3D
     gl::Error generateSwizzles(const gl::ContextState &data, gl::SamplerType type);
     gl::Error generateSwizzles(const gl::ContextState &data);
 
-    gl::ErrorOrResult<TextureHelper11> resolveMultisampledTexture(RenderTarget11 *renderTarget,
-                                                                  bool depth,
-                                                                  bool stencil);
+    gl::Error resolveMultisampledTexture(RenderTarget11 *renderTarget,
+                                         bool depth,
+                                         bool stencil,
+                                         TextureHelper11 *textureOut);
 
     void populateRenderer11DeviceCaps();
 

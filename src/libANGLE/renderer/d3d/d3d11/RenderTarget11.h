@@ -26,7 +26,7 @@ class RenderTarget11 : public RenderTargetD3D
     RenderTarget11(const d3d11::Format &formatSet);
     virtual ~RenderTarget11();
 
-    virtual ID3D11Resource *getTexture() const = 0;
+    virtual const SharedResource11 &getTexture() const                  = 0;
     virtual ID3D11RenderTargetView *getRenderTargetView() const = 0;
     virtual ID3D11DepthStencilView *getDepthStencilView() const = 0;
     virtual ID3D11ShaderResourceView *getShaderResourceView() const = 0;
@@ -49,7 +49,7 @@ class TextureRenderTarget11 : public RenderTarget11
   public:
     // TextureRenderTarget11 takes ownership of any D3D11 resources it is given and will AddRef them
     TextureRenderTarget11(ID3D11RenderTargetView *rtv,
-                          ID3D11Resource *resource,
+                          const SharedResource11 &resource,
                           ID3D11ShaderResourceView *srv,
                           ID3D11ShaderResourceView *blitSRV,
                           const d3d11::Format &formatSet,
@@ -58,7 +58,7 @@ class TextureRenderTarget11 : public RenderTarget11
                           GLsizei depth,
                           GLsizei samples);
     TextureRenderTarget11(ID3D11DepthStencilView *dsv,
-                          ID3D11Resource *resource,
+                          const SharedResource11 &resource,
                           ID3D11ShaderResourceView *srv,
                           const d3d11::Format &formatSet,
                           GLsizei width,
@@ -73,7 +73,7 @@ class TextureRenderTarget11 : public RenderTarget11
     GLenum getInternalFormat() const override;
     GLsizei getSamples() const override;
 
-    ID3D11Resource *getTexture() const override;
+    const SharedResource11 &getTexture() const override;
     ID3D11RenderTargetView *getRenderTargetView() const override;
     ID3D11DepthStencilView *getDepthStencilView() const override;
     ID3D11ShaderResourceView *getShaderResourceView() const override;
@@ -88,7 +88,7 @@ class TextureRenderTarget11 : public RenderTarget11
     GLsizei mSamples;
 
     unsigned int mSubresourceIndex;
-    ID3D11Resource *mTexture;
+    SharedResource11 mTexture;
     ID3D11RenderTargetView *mRenderTarget;
     ID3D11DepthStencilView *mDepthStencil;
     ID3D11ShaderResourceView *mShaderResource;
@@ -110,7 +110,7 @@ class SurfaceRenderTarget11 : public RenderTarget11
     GLenum getInternalFormat() const override;
     GLsizei getSamples() const override;
 
-    ID3D11Resource *getTexture() const override;
+    const SharedResource11 &getTexture() const override;
     ID3D11RenderTargetView *getRenderTargetView() const override;
     ID3D11DepthStencilView *getDepthStencilView() const override;
     ID3D11ShaderResourceView *getShaderResourceView() const override;

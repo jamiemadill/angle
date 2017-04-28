@@ -362,41 +362,37 @@ void InitConstantBufferDesc(D3D11_BUFFER_DESC *constantBufferDescription, size_t
 }  // namespace d3d11
 
 // A helper class which wraps a 2D or 3D texture.
-class TextureHelper11 : angle::NonCopyable
+class TextureHelper11 final : angle::NonCopyable
 {
   public:
     TextureHelper11();
     TextureHelper11(TextureHelper11 &&toCopy);
-    ~TextureHelper11();
+    ~TextureHelper11() {}
     TextureHelper11 &operator=(TextureHelper11 &&texture);
 
-    static TextureHelper11 Move(d3d11::Texture2D &&texture, const d3d11::Format &formatSet);
-    static TextureHelper11 Move(d3d11::Texture3D &&texture, const d3d11::Format &formatSet);
-
-    static TextureHelper11 MakeAndReference(ID3D11Resource *genericResource,
-                                            const d3d11::Format &formatSet);
-
-    GLenum getTextureType() const { return mTextureType; }
+    ResourceType getTextureType() const { return mTexture.getResourceType(); }
     gl::Extents getExtents() const { return mExtents; }
-    DXGI_FORMAT getFormat() const { return mFormat; }
+    DXGI_FORMAT getFormat() const { return mFormatSet->texFormat; }
     const d3d11::Format &getFormatSet() const { return *mFormatSet; }
     int getSampleCount() const { return mSampleCount; }
-    ID3D11Texture2D *getTexture2D() const { return mTexture2D.get(); }
-    ID3D11Texture3D *getTexture3D() const { return mTexture3D.get(); }
-    ID3D11Resource *getResource() const;
-    bool valid() const;
+    bool valid() const { return mTexture.valid(); }
+    ID3D11Resource *getResource() const { return mTexture.get(); }
+
     void reset();
+
+    static TextureHelper11 Share(const SharedResource11 &texture, const d3d11::Format &formatSet);
+    static TextureHelper11 Share(const TextureHelper11 &texture);
 
   private:
     void initDesc();
 
-    GLenum mTextureType;
+    template <typename DescT>
+    void getDesc(DescT *descOut);
+
     gl::Extents mExtents;
-    DXGI_FORMAT mFormat;
     const d3d11::Format *mFormatSet;
     int mSampleCount;
-    d3d11::Texture2D mTexture2D;
-    d3d11::Texture3D mTexture3D;
+    SharedResource11 mTexture;
 };
 
 enum class StagingAccess
