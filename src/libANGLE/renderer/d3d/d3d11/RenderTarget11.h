@@ -52,7 +52,6 @@ class TextureRenderTarget11 : public RenderTarget11
                           ID3D11Resource *resource,
                           ID3D11ShaderResourceView *srv,
                           ID3D11ShaderResourceView *blitSRV,
-                          GLenum internalFormat,
                           const d3d11::Format &formatSet,
                           GLsizei width,
                           GLsizei height,
@@ -61,7 +60,6 @@ class TextureRenderTarget11 : public RenderTarget11
     TextureRenderTarget11(ID3D11DepthStencilView *dsv,
                           ID3D11Resource *resource,
                           ID3D11ShaderResourceView *srv,
-                          GLenum internalFormat,
                           const d3d11::Format &formatSet,
                           GLsizei width,
                           GLsizei height,
@@ -87,7 +85,6 @@ class TextureRenderTarget11 : public RenderTarget11
     GLsizei mWidth;
     GLsizei mHeight;
     GLsizei mDepth;
-    GLenum mInternalFormat;
     GLsizei mSamples;
 
     unsigned int mSubresourceIndex;

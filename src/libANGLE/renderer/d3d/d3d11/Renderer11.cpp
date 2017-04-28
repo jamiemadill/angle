@@ -3584,8 +3584,8 @@ gl::Error Renderer11::createRenderTarget(int width,
                                  result);
             }
 
-            *outRT = new TextureRenderTarget11(dsv, texture.get(), srv, format, formatInfo, width,
-                                               height, 1, supportedSamples);
+            *outRT = new TextureRenderTarget11(dsv, texture.get(), srv, formatInfo, width, height,
+                                               1, supportedSamples);
 
             SafeRelease(dsv);
         }
@@ -3615,8 +3615,8 @@ gl::Error Renderer11::createRenderTarget(int width,
                 mDeviceContext->ClearRenderTargetView(rtv, clearValues);
             }
 
-            *outRT = new TextureRenderTarget11(rtv, texture.get(), srv, blitSRV, format, formatInfo,
-                                               width, height, 1, supportedSamples);
+            *outRT = new TextureRenderTarget11(rtv, texture.get(), srv, blitSRV, formatInfo, width,
+                                               height, 1, supportedSamples);
 
             SafeRelease(rtv);
         }
@@ -3631,7 +3631,7 @@ gl::Error Renderer11::createRenderTarget(int width,
     else
     {
         *outRT = new TextureRenderTarget11(
-            static_cast<ID3D11RenderTargetView *>(nullptr), nullptr, nullptr, nullptr, format,
+            static_cast<ID3D11RenderTargetView *>(nullptr), nullptr, nullptr, nullptr,
             d3d11::Format::Get(GL_NONE, mRenderer11DeviceCaps), width, height, 1, supportedSamples);
     }
 

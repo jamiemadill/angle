@@ -215,7 +215,6 @@ TextureRenderTarget11::TextureRenderTarget11(ID3D11RenderTargetView *rtv,
                                              ID3D11Resource *resource,
                                              ID3D11ShaderResourceView *srv,
                                              ID3D11ShaderResourceView *blitSRV,
-                                             GLenum internalFormat,
                                              const d3d11::Format &formatSet,
                                              GLsizei width,
                                              GLsizei height,
@@ -225,7 +224,6 @@ TextureRenderTarget11::TextureRenderTarget11(ID3D11RenderTargetView *rtv,
       mWidth(width),
       mHeight(height),
       mDepth(depth),
-      mInternalFormat(internalFormat),
       mSamples(samples),
       mSubresourceIndex(0),
       mTexture(resource),
@@ -264,7 +262,6 @@ TextureRenderTarget11::TextureRenderTarget11(ID3D11RenderTargetView *rtv,
 TextureRenderTarget11::TextureRenderTarget11(ID3D11DepthStencilView *dsv,
                                              ID3D11Resource *resource,
                                              ID3D11ShaderResourceView *srv,
-                                             GLenum internalFormat,
                                              const d3d11::Format &formatSet,
                                              GLsizei width,
                                              GLsizei height,
@@ -274,7 +271,6 @@ TextureRenderTarget11::TextureRenderTarget11(ID3D11DepthStencilView *dsv,
       mWidth(width),
       mHeight(height),
       mDepth(depth),
-      mInternalFormat(internalFormat),
       mSamples(samples),
       mSubresourceIndex(0),
       mTexture(resource),
@@ -356,7 +352,7 @@ GLsizei TextureRenderTarget11::getDepth() const
 
 GLenum TextureRenderTarget11::getInternalFormat() const
 {
-    return mInternalFormat;
+    return mFormatSet.internalFormat;
 }
 
 GLsizei TextureRenderTarget11::getSamples() const
