@@ -401,6 +401,13 @@ class Renderer11 : public RendererD3D
         return mResourceManager11.allocate(this, desc, nullptr, resourceOut);
     }
 
+    template <ResourceType ResourceT>
+    gl::Error allocateResourceNoDesc(GetInitDataType<ResourceT> *initData,
+                                     Resource11<ResourceT> *resourceOut)
+    {
+        return mResourceManager11.allocate<ResourceT>(this, initData, resourceOut);
+    }
+
     template <typename DescT>
     gl::Error allocateSharedResource(const DescT &desc, SharedResource11 *resourceOut)
     {
