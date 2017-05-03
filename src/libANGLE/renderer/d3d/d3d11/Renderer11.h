@@ -427,6 +427,16 @@ class Renderer11 : public RendererD3D
         return gl::NoError();
     }
 
+    template <ResourceType ResourceT>
+    gl::Error allocateSharedResourceNoDesc(GetInitDataType<ResourceT> *initData,
+                                           SharedResource11 *resourceOut)
+    {
+        Resource11<ResourceT> uniqueResource;
+        ANGLE_TRY(mResourceManager11.allocate(this, initData, &uniqueResource));
+        *resourceOut = std::move(uniqueResource.makeGeneric().makeShared());
+        return gl::NoError();
+    }
+
   protected:
     gl::Error clearTextures(gl::SamplerType samplerType, size_t rangeStart, size_t rangeEnd) override;
 

@@ -42,11 +42,11 @@ class SwapChain11 final : public SwapChainD3D
 
     const SharedResource11 &getOffscreenTexture() const;
     ID3D11RenderTargetView *getRenderTarget();
-    ID3D11ShaderResourceView *getRenderTargetShaderResource();
+    const SharedResource11 &getRenderTargetShaderResource();
 
     const SharedResource11 &getDepthStencilTexture() const;
     ID3D11DepthStencilView *getDepthStencil();
-    ID3D11ShaderResourceView *getDepthStencilShaderResource();
+    const SharedResource11 &getDepthStencilShaderResource();
 
     EGLint getWidth() const { return mWidth; }
     EGLint getHeight() const { return mHeight; }
@@ -88,16 +88,16 @@ class SwapChain11 final : public SwapChainD3D
 
     SharedResource11 mBackBufferTexture;
     ID3D11RenderTargetView *mBackBufferRTView;
-    ID3D11ShaderResourceView *mBackBufferSRView;
+    SharedResource11 mBackBufferSRView;
 
     const bool mNeedsOffscreenTexture;
     SharedResource11 mOffscreenTexture;
     ID3D11RenderTargetView *mOffscreenRTView;
-    ID3D11ShaderResourceView *mOffscreenSRView;
+    SharedResource11 mOffscreenSRView;
 
     SharedResource11 mDepthStencilTexture;
     ID3D11DepthStencilView *mDepthStencilDSView;
-    ID3D11ShaderResourceView *mDepthStencilSRView;
+    SharedResource11 mDepthStencilSRView;
 
     ID3D11Buffer *mQuadVB;
     ID3D11SamplerState *mPassThroughSampler;

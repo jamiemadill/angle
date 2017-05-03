@@ -27,41 +27,45 @@ size_t ComputeMippedMemoryUsage(size_t baseLevelSize, size_t mipLevels)
     return sizeSum;
 }
 
-size_t ComputeMemoryUsage(const D3D11_TEXTURE2D_DESC &desc)
+size_t ComputeMemoryUsage(const D3D11_TEXTURE2D_DESC *desc)
 {
-    size_t pixelBytes = static_cast<size_t>(d3d11::GetDXGIFormatSizeInfo(desc.Format).pixelBytes);
-    size_t levelSize  = static_cast<size_t>(desc.Width * desc.Height * desc.ArraySize) * pixelBytes;
-    return ComputeMippedMemoryUsage(levelSize, static_cast<size_t>(desc.MipLevels));
+    ASSERT(desc);
+    size_t pixelBytes = static_cast<size_t>(d3d11::GetDXGIFormatSizeInfo(desc->Format).pixelBytes);
+    size_t levelSize =
+        static_cast<size_t>(desc->Width * desc->Height * desc->ArraySize) * pixelBytes;
+    return ComputeMippedMemoryUsage(levelSize, static_cast<size_t>(desc->MipLevels));
 }
 
-size_t ComputeMemoryUsage(const D3D11_TEXTURE3D_DESC &desc)
+size_t ComputeMemoryUsage(const D3D11_TEXTURE3D_DESC *desc)
 {
-    size_t pixelBytes = static_cast<size_t>(d3d11::GetDXGIFormatSizeInfo(desc.Format).pixelBytes);
-    size_t levelSize  = static_cast<size_t>(desc.Width * desc.Height * desc.Depth) * pixelBytes;
-    return ComputeMippedMemoryUsage(levelSize, static_cast<size_t>(desc.MipLevels));
+    ASSERT(desc);
+    size_t pixelBytes = static_cast<size_t>(d3d11::GetDXGIFormatSizeInfo(desc->Format).pixelBytes);
+    size_t levelSize  = static_cast<size_t>(desc->Width * desc->Height * desc->Depth) * pixelBytes;
+    return ComputeMippedMemoryUsage(levelSize, static_cast<size_t>(desc->MipLevels));
 }
 
-size_t ComputeMemoryUsage(const D3D11_BUFFER_DESC &desc)
+size_t ComputeMemoryUsage(const D3D11_BUFFER_DESC *desc)
 {
-    return static_cast<size_t>(desc.ByteWidth);
+    ASSERT(desc);
+    return static_cast<size_t>(desc->ByteWidth);
 }
 
 template <typename T>
-size_t ComputeMemoryUsage(const T &desc)
+size_t ComputeMemoryUsage(const T *desc)
 {
     return 0;
 }
 
 template <ResourceType ResourceT>
-size_t ComputeGenericMemoryUsage(ID3D11Resource *genericResource)
+size_t ComputeGenericMemoryUsage(ID3D11DeviceChild *genericResource)
 {
     auto *typedResource = static_cast<GetD3D11Type<ResourceT> *>(genericResource);
     GetDescType<ResourceT> desc;
     typedResource->GetDesc(&desc);
-    return ComputeMemoryUsage(desc);
+    return ComputeMemoryUsage(&desc);
 }
 
-size_t ComputeGenericMemoryUsage(ResourceType resourceType, ID3D11Resource *resource)
+size_t ComputeGenericMemoryUsage(ResourceType resourceType, ID3D11DeviceChild *resource)
 {
     switch (resourceType)
     {
@@ -78,51 +82,51 @@ size_t ComputeGenericMemoryUsage(ResourceType resourceType, ID3D11Resource *reso
 }
 
 HRESULT CreateResource(ID3D11Device *device,
-                       const D3D11_TEXTURE2D_DESC &desc,
+                       const D3D11_TEXTURE2D_DESC *desc,
                        const D3D11_SUBRESOURCE_DATA *initData,
                        ID3D11Texture2D **texture)
 {
-    return device->CreateTexture2D(&desc, initData, texture);
+    return device->CreateTexture2D(desc, initData, texture);
 }
 
 HRESULT CreateResource(ID3D11Device *device,
-                       const D3D11_TEXTURE3D_DESC &desc,
+                       const D3D11_TEXTURE3D_DESC *desc,
                        const D3D11_SUBRESOURCE_DATA *initData,
                        ID3D11Texture3D **texture)
 {
-    return device->CreateTexture3D(&desc, initData, texture);
+    return device->CreateTexture3D(desc, initData, texture);
 }
 
 HRESULT CreateResource(ID3D11Device *device,
-                       const D3D11_BUFFER_DESC &desc,
+                       const D3D11_BUFFER_DESC *desc,
                        const D3D11_SUBRESOURCE_DATA *initData,
                        ID3D11Buffer **buffer)
 {
-    return device->CreateBuffer(&desc, initData, buffer);
+    return device->CreateBuffer(desc, initData, buffer);
 }
 
 HRESULT CreateResource(ID3D11Device *device,
-                       const D3D11_RENDER_TARGET_VIEW_DESC &desc,
+                       const D3D11_RENDER_TARGET_VIEW_DESC *desc,
                        ID3D11Resource *resource,
                        ID3D11RenderTargetView **renderTargetView)
 {
-    return device->CreateRenderTargetView(resource, &desc, renderTargetView);
+    return device->CreateRenderTargetView(resource, desc, renderTargetView);
 }
 
 HRESULT CreateResource(ID3D11Device *device,
-                       const D3D11_SHADER_RESOURCE_VIEW_DESC &desc,
+                       const D3D11_SHADER_RESOURCE_VIEW_DESC *desc,
                        ID3D11Resource *resource,
                        ID3D11ShaderResourceView **resourceOut)
 {
-    return device->CreateShaderResourceView(resource, &desc, resourceOut);
+    return device->CreateShaderResourceView(resource, desc, resourceOut);
 }
 
 HRESULT CreateResource(ID3D11Device *device,
-                       const D3D11_DEPTH_STENCIL_VIEW_DESC &desc,
+                       const D3D11_DEPTH_STENCIL_VIEW_DESC *desc,
                        ID3D11Resource *resource,
                        ID3D11DepthStencilView **resourceOut)
 {
-    return device->CreateDepthStencilView(resource, &desc, resourceOut);
+    return device->CreateDepthStencilView(resource, desc, resourceOut);
 }
 
 constexpr std::array<const char *, NumResourceTypes> kResourceTypeNames = {{
@@ -233,10 +237,10 @@ ResourceManager11::~ResourceManager11()
 }
 
 template <ResourceType Type>
-gl::Error ResourceManager11::allocate(Renderer11 *renderer,
-                                      const GetDescType<Type> &desc,
-                                      GetInitDataType<Type> *initData,
-                                      Resource11<Type> *resourceOut)
+gl::Error ResourceManager11::allocateImpl(Renderer11 *renderer,
+                                          const GetDescType<Type> *desc,
+                                          GetInitDataType<Type> *initData,
+                                          Resource11<Type> *resourceOut)
 {
     ID3D11Device *device         = renderer->getDevice();
     GetD3D11Type<Type> *resource = nullptr;
@@ -279,37 +283,37 @@ void ResourceManager11::onRelease(GetD3D11Type<ResourceT> *resource)
 
     GetDescType<ResourceT> desc;
     resource->GetDesc(&desc);
-    decrResource(ResourceT, ComputeMemoryUsage(desc));
+    decrResource(ResourceT, ComputeMemoryUsage(&desc));
 }
 
-template gl::Error ResourceManager11::allocate<ResourceType::Texture2D>(
+template gl::Error ResourceManager11::allocateImpl<ResourceType::Texture2D>(
     Renderer11 *,
-    const D3D11_TEXTURE2D_DESC &,
+    const D3D11_TEXTURE2D_DESC *,
     const D3D11_SUBRESOURCE_DATA *,
     Resource11<ResourceType::Texture2D> *);
-template gl::Error ResourceManager11::allocate<ResourceType::Texture3D>(
+template gl::Error ResourceManager11::allocateImpl<ResourceType::Texture3D>(
     Renderer11 *,
-    const D3D11_TEXTURE3D_DESC &,
+    const D3D11_TEXTURE3D_DESC *,
     const D3D11_SUBRESOURCE_DATA *,
     Resource11<ResourceType::Texture3D> *);
-template gl::Error ResourceManager11::allocate<ResourceType::Buffer>(
+template gl::Error ResourceManager11::allocateImpl<ResourceType::Buffer>(
     Renderer11 *,
-    const D3D11_BUFFER_DESC &,
+    const D3D11_BUFFER_DESC *,
     const D3D11_SUBRESOURCE_DATA *,
     Resource11<ResourceType::Buffer> *);
-template gl::Error ResourceManager11::allocate<ResourceType::RenderTargetView>(
+template gl::Error ResourceManager11::allocateImpl<ResourceType::RenderTargetView>(
     Renderer11 *,
-    const D3D11_RENDER_TARGET_VIEW_DESC &,
+    const D3D11_RENDER_TARGET_VIEW_DESC *,
     ID3D11Resource *,
     Resource11<ResourceType::RenderTargetView> *);
-template gl::Error ResourceManager11::allocate<ResourceType::ShaderResourceView>(
+template gl::Error ResourceManager11::allocateImpl<ResourceType::ShaderResourceView>(
     Renderer11 *,
-    const D3D11_SHADER_RESOURCE_VIEW_DESC &,
+    const D3D11_SHADER_RESOURCE_VIEW_DESC *,
     ID3D11Resource *,
     Resource11<ResourceType::ShaderResourceView> *);
-template gl::Error ResourceManager11::allocate<ResourceType::DepthStencilView>(
+template gl::Error ResourceManager11::allocateImpl<ResourceType::DepthStencilView>(
     Renderer11 *,
-    const D3D11_DEPTH_STENCIL_VIEW_DESC &,
+    const D3D11_DEPTH_STENCIL_VIEW_DESC *,
     ID3D11Resource *,
     Resource11<ResourceType::DepthStencilView> *);
 
@@ -387,15 +391,35 @@ SharedResource11 GenericResource11::makeShared()
 }
 
 template <typename DescT>
-void GenericResource11::getDesc(DescT *descOut)
+void GenericResource11::getDesc(DescT *descOut) const
 {
-    return static_cast<GetD3D11Type<GetResourceTypeFromDesc<DescT>()> *>(mGenericResource)
+    return reinterpret_cast<GetD3D11Type<GetResourceTypeFromDesc<DescT>()> *>(mGenericResource)
         ->GetDesc(descOut);
 }
 
-template void GenericResource11::getDesc(D3D11_BUFFER_DESC *);
-template void GenericResource11::getDesc(D3D11_TEXTURE2D_DESC *);
-template void GenericResource11::getDesc(D3D11_TEXTURE3D_DESC *);
+ID3D11Resource *GenericResource11::asResource() const
+{
+    ASSERT(mResourceType == ResourceType::Texture2D || mResourceType == ResourceType::Texture3D ||
+           mResourceType == ResourceType::Buffer);
+    return static_cast<ID3D11Resource *>(mGenericResource);
+}
+
+bool GenericResource11::operator==(const GenericResource11 &other) const
+{
+    return mGenericResource == other.mGenericResource && mResourceType == other.mResourceType;
+}
+
+bool GenericResource11::operator!=(const GenericResource11 &other) const
+{
+    return !(*this == other);
+}
+
+template void GenericResource11::getDesc(D3D11_BUFFER_DESC *) const;
+template void GenericResource11::getDesc(D3D11_DEPTH_STENCIL_VIEW_DESC *) const;
+template void GenericResource11::getDesc(D3D11_RENDER_TARGET_VIEW_DESC *) const;
+template void GenericResource11::getDesc(D3D11_SHADER_RESOURCE_VIEW_DESC *) const;
+template void GenericResource11::getDesc(D3D11_TEXTURE2D_DESC *) const;
+template void GenericResource11::getDesc(D3D11_TEXTURE3D_DESC *) const;
 
 // SharedResource11 Implementation.
 

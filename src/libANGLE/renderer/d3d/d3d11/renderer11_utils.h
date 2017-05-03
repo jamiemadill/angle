@@ -376,7 +376,7 @@ class TextureHelper11 final : angle::NonCopyable
     const d3d11::Format &getFormatSet() const { return *mFormatSet; }
     int getSampleCount() const { return mSampleCount; }
     bool valid() const { return mTexture.valid(); }
-    ID3D11Resource *getResource() const { return mTexture.get(); }
+    ID3D11Resource *getResource() const { return mTexture.asResource(); }
 
     void reset();
 

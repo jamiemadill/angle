@@ -26,12 +26,12 @@ class Blit11 : angle::NonCopyable
     explicit Blit11(Renderer11 *renderer);
     ~Blit11();
 
-    gl::Error swizzleTexture(ID3D11ShaderResourceView *source,
-                             ID3D11RenderTargetView *dest,
+    gl::Error swizzleTexture(const SharedResource11 &source,
+                             const d3d11::RenderTargetView &dest,
                              const gl::Extents &size,
                              const gl::SwizzleState &swizzleTarget);
 
-    gl::Error copyTexture(ID3D11ShaderResourceView *source,
+    gl::Error copyTexture(const SharedResource11 &source,
                           const gl::Box &sourceArea,
                           const gl::Extents &sourceSize,
                           ID3D11RenderTargetView *dest,
@@ -54,7 +54,7 @@ class Blit11 : angle::NonCopyable
                           const gl::Extents &destSize,
                           const gl::Rectangle *scissor);
 
-    gl::Error copyDepth(ID3D11ShaderResourceView *source,
+    gl::Error copyDepth(const SharedResource11 &source,
                         const gl::Box &sourceArea,
                         const gl::Extents &sourceSize,
                         ID3D11DepthStencilView *dest,

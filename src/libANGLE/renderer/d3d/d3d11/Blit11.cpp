@@ -981,8 +981,8 @@ Blit11::ShaderSupport Blit11::getShaderSupport(const Shader &shader)
     return support;
 }
 
-gl::Error Blit11::swizzleTexture(ID3D11ShaderResourceView *source,
-                                 ID3D11RenderTargetView *dest,
+gl::Error Blit11::swizzleTexture(const SharedResource11 &source,
+                                 const d3d11::RenderTargetView &dest,
                                  const gl::Extents &size,
                                  const gl::SwizzleState &swizzleTarget)
 {
@@ -992,7 +992,7 @@ gl::Error Blit11::swizzleTexture(ID3D11ShaderResourceView *source,
     ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
 
     D3D11_SHADER_RESOURCE_VIEW_DESC sourceSRVDesc;
-    source->GetDesc(&sourceSRVDesc);
+    source.getDesc(&sourceSRVDesc);
 
     GLenum componentType = d3d11::GetComponentType(sourceSRVDesc.Format);
     if (componentType == GL_NONE)
@@ -1096,7 +1096,7 @@ gl::Error Blit11::swizzleTexture(ID3D11ShaderResourceView *source,
     stateManager->setShaderResource(gl::SAMPLER_PIXEL, 0, nullptr);
 
     // Apply render target
-    stateManager->setOneTimeRenderTarget(dest, nullptr);
+    stateManager->setOneTimeRenderTarget(dest.get(), nullptr);
 
     // Set the viewport
     D3D11_VIEWPORT viewport;
@@ -1109,7 +1109,8 @@ gl::Error Blit11::swizzleTexture(ID3D11ShaderResourceView *source,
     deviceContext->RSSetViewports(1, &viewport);
 
     // Apply textures
-    stateManager->setShaderResource(gl::SAMPLER_PIXEL, 0, source);
+    ID3D11ShaderResourceView *srv = source.getAs<ResourceType::ShaderResourceView>();
+    stateManager->setShaderResource(gl::SAMPLER_PIXEL, 0, srv);
 
     // Apply samplers
     deviceContext->PSSetSamplers(0, 1, mPointSampler.GetAddressOf());
@@ -1129,7 +1130,7 @@ gl::Error Blit11::swizzleTexture(ID3D11ShaderResourceView *source,
     return gl::NoError();
 }
 
-gl::Error Blit11::copyTexture(ID3D11ShaderResourceView *source,
+gl::Error Blit11::copyTexture(const SharedResource11 &source,
                               const gl::Box &sourceArea,
                               const gl::Extents &sourceSize,
                               ID3D11RenderTargetView *dest,
@@ -1150,7 +1151,7 @@ gl::Error Blit11::copyTexture(ID3D11ShaderResourceView *source,
     // Determine if the source format is a signed integer format, the destFormat will already
     // be GL_XXXX_INTEGER but it does not tell us if it is signed or unsigned.
     D3D11_SHADER_RESOURCE_VIEW_DESC sourceSRVDesc;
-    source->GetDesc(&sourceSRVDesc);
+    source.getDesc(&sourceSRVDesc);
 
     GLenum componentType = d3d11::GetComponentType(sourceSRVDesc.Format);
 
@@ -1245,7 +1246,8 @@ gl::Error Blit11::copyTexture(ID3D11ShaderResourceView *source,
     deviceContext->RSSetViewports(1, &viewport);
 
     // Apply textures
-    stateManager->setShaderResource(gl::SAMPLER_PIXEL, 0, source);
+    stateManager->setShaderResource(gl::SAMPLER_PIXEL, 0,
+                                    source.getAs<ResourceType::ShaderResourceView>());
 
     // Apply samplers
     ID3D11SamplerState *sampler = nullptr;
@@ -1293,7 +1295,7 @@ gl::Error Blit11::copyStencil(const TextureHelper11 &source,
                                 destSubresource, destArea, destSize, scissor, true);
 }
 
-gl::Error Blit11::copyDepth(ID3D11ShaderResourceView *source,
+gl::Error Blit11::copyDepth(const SharedResource11 &source,
                             const gl::Box &sourceArea,
                             const gl::Extents &sourceSize,
                             ID3D11DepthStencilView *dest,
@@ -1382,7 +1384,8 @@ gl::Error Blit11::copyDepth(ID3D11ShaderResourceView *source,
     deviceContext->RSSetViewports(1, &viewport);
 
     // Apply textures
-    stateManager->setShaderResource(gl::SAMPLER_PIXEL, 0, source);
+    stateManager->setShaderResource(gl::SAMPLER_PIXEL, 0,
+                                    source.getAs<ResourceType::ShaderResourceView>());
 
     // Apply samplers
     deviceContext->PSSetSamplers(0, 1, mPointSampler.GetAddressOf());
@@ -1996,7 +1999,8 @@ gl::Error Blit11::resolveDepth(RenderTarget11 *depth, TextureHelper11 *outTextur
     viewport.MaxDepth = 1.0f;
     context->RSSetViewports(1, &viewport);
 
-    ID3D11ShaderResourceView *pixelViews[] = {depth->getShaderResourceView()};
+    ID3D11ShaderResourceView *pixelViews[] = {
+        depth->getShaderResourceView().getAs<ResourceType::ShaderResourceView>()};
 
     context->PSSetShaderResources(0, 1, pixelViews);
 
@@ -2096,7 +2100,7 @@ gl::Error Blit11::initResolveDepthStencil(const gl::Extents &extents)
     resolvedDepthStencil.setDebugName("Blit11::mResolvedDepthStencil");
 
     ASSERT(mResolvedDepthStencilRTView == nullptr);
-    HRESULT hr = device->CreateRenderTargetView(resolvedDepthStencil.get(), nullptr,
+    HRESULT hr = device->CreateRenderTargetView(resolvedDepthStencil.asResource(), nullptr,
                                                 mResolvedDepthStencilRTView.GetAddressOf());
     if (FAILED(hr))
     {
@@ -2124,7 +2128,7 @@ gl::Error Blit11::resolveStencil(RenderTarget11 *depthStencil,
     ID3D11Device *device         = mRenderer->getDevice();
     ID3D11DeviceContext *context = mRenderer->getDeviceContext();
 
-    ID3D11Resource *stencilResource = depthStencil->getTexture().get();
+    ID3D11Resource *stencilResource = depthStencil->getTexture().asResource();
 
     // Check if we need to re-create the stencil SRV.
     if (mStencilSRV)
@@ -2179,7 +2183,8 @@ gl::Error Blit11::resolveStencil(RenderTarget11 *depthStencil,
     context->RSSetViewports(1, &viewport);
 
     ID3D11ShaderResourceView *pixelViews[] = {
-        depthStencil->getShaderResourceView(), mStencilSRV.Get(),
+        depthStencil->getShaderResourceView().getAs<ResourceType::ShaderResourceView>(),
+        mStencilSRV.Get(),
     };
 
     context->PSSetShaderResources(0, 2, pixelViews);

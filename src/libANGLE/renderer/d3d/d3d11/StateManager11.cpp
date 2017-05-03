@@ -1054,7 +1054,7 @@ gl::Error StateManager11::syncFramebuffer(ContextImpl *contextImpl, gl::Framebuf
         // Unset conflicting texture SRVs
         const auto *attachment = framebuffer->getColorbuffer(rtIndex);
         ASSERT(attachment);
-        unsetConflictingAttachmentResources(attachment, renderTarget->getTexture().get());
+        unsetConflictingAttachmentResources(attachment, renderTarget->getTexture().asResource());
 
         appliedRTIndex++;
     }
@@ -1079,7 +1079,7 @@ gl::Error StateManager11::syncFramebuffer(ContextImpl *contextImpl, gl::Framebuf
         const auto *attachment = framebuffer->getDepthOrStencilbuffer();
         ASSERT(attachment);
         unsetConflictingAttachmentResources(attachment,
-                                            depthStencilRenderTarget->getTexture().get());
+                                            depthStencilRenderTarget->getTexture().asResource());
     }
 
     // TODO(jmadill): Use context caps?
