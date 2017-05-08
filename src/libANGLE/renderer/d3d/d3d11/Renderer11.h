@@ -398,49 +398,41 @@ class Renderer11 : public RendererD3D
     template <typename DescT, typename ResourceT>
     gl::Error allocateResource(const DescT &desc, ResourceT *resourceOut)
     {
-        return mResourceManager11.allocate(this, desc, nullptr, resourceOut);
+        return mResourceManager11.allocate(this, &desc, nullptr, resourceOut);
     }
 
-    template <ResourceType ResourceT>
-    gl::Error allocateResourceNoDesc(GetInitDataType<ResourceT> *initData,
-                                     Resource11<ResourceT> *resourceOut)
+    template <typename DescT, typename InitDataT, typename ResourceT>
+    gl::Error allocateResource(const DescT &desc, InitDataT *initData, ResourceT *resourceOut)
     {
-        return mResourceManager11.allocate<ResourceT>(this, initData, resourceOut);
+        return mResourceManager11.allocate(this, &desc, initData, resourceOut);
+    }
+
+    template <typename InitDataT, typename ResourceT>
+    gl::Error allocateResourceNoDesc(InitDataT *initData, ResourceT *resourceOut)
+    {
+        return mResourceManager11.allocate(this, nullptr, initData, resourceOut);
     }
 
     template <typename DescT>
-    gl::Error allocateSharedResource(const DescT &desc, SharedResource11 *resourceOut)
+    gl::Error allocateTexture(const DescT &desc,
+                              const d3d11::Format &format,
+                              TextureHelper11 *textureOut)
     {
-        Resource11<GetResourceTypeFromDesc<DescT>()> uniqueResource;
-        ANGLE_TRY(mResourceManager11.allocate(this, desc, nullptr, &uniqueResource));
-        *resourceOut = std::move(uniqueResource.makeGeneric().makeShared());
+        Resource11<GetD3D11FromDesc<DescT>> texture;
+        ANGLE_TRY(mResourceManager11.allocate(this, &desc, nullptr, &texture));
+        textureOut->init(std::move(texture), desc, format);
         return gl::NoError();
-    }
-
-    template <typename DescT, typename ResourceT, typename InitDataT>
-    gl::Error allocateResource(const DescT &desc, InitDataT *initData, ResourceT *resourceOut)
-    {
-        return mResourceManager11.allocate(this, desc, initData, resourceOut);
     }
 
     template <typename DescT, typename InitDataT>
-    gl::Error allocateSharedResource(const DescT &desc,
-                                     InitDataT *initData,
-                                     SharedResource11 *resourceOut)
+    gl::Error allocateTexture(const DescT &desc,
+                              const d3d11::Format &format,
+                              InitDataT *initData,
+                              TextureHelper11 *textureOut)
     {
-        Resource11<GetResourceTypeFromDesc<DescT>()> uniqueResource;
-        ANGLE_TRY(mResourceManager11.allocate(this, desc, initData, &uniqueResource));
-        *resourceOut = std::move(uniqueResource.makeGeneric().makeShared());
-        return gl::NoError();
-    }
-
-    template <ResourceType ResourceT>
-    gl::Error allocateSharedResourceNoDesc(GetInitDataType<ResourceT> *initData,
-                                           SharedResource11 *resourceOut)
-    {
-        Resource11<ResourceT> uniqueResource;
-        ANGLE_TRY(mResourceManager11.allocate(this, initData, &uniqueResource));
-        *resourceOut = std::move(uniqueResource.makeGeneric().makeShared());
+        Resource11<GetD3D11FromDesc<DescT>> texture;
+        ANGLE_TRY(mResourceManager11.allocate(this, &desc, initData, &texture));
+        textureOut->init(std::move(texture), desc, format);
         return gl::NoError();
     }
 

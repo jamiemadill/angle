@@ -15,7 +15,7 @@ namespace angle
 class RobustResourceInitTest : public ANGLETest
 {
   protected:
-    constexpr static int kWidth = 128;
+    constexpr static int kWidth  = 128;
     constexpr static int kHeight = 128;
 
     RobustResourceInitTest()
@@ -58,7 +58,15 @@ class RobustResourceInitTest : public ANGLETest
     }
 
     void setupTexture(GLTexture *tex);
-    void checkNonZeroPixels(GLTexture *texture, int skipX, int skipY, int skipWidth, int skipHeight, int skipR, int skipG, int skipB, int skipA);
+    void checkNonZeroPixels(GLTexture *texture,
+                            int skipX,
+                            int skipY,
+                            int skipWidth,
+                            int skipHeight,
+                            int skipR,
+                            int skipG,
+                            int skipB,
+                            int skipA);
 };
 
 // Context creation should fail if EGL_ANGLE_create_context_robust_resource_initialization
@@ -194,21 +202,31 @@ void RobustResourceInitTest::setupTexture(GLTexture *tex)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kWidth, kHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
     // this can be quite undeterministic so to improve odds of seeing uninitialized data write bits
-    // into tex then delete texture then re-create one with same characteristics (driver will likely reuse mem)
-    // with this trick on r59046 WebKit/OSX I get FAIL 100% of the time instead of ~15% of the time.
+    // into tex then delete texture then re-create one with same characteristics (driver will likely
+    // reuse mem) with this trick on r59046 WebKit/OSX I get FAIL 100% of the time instead of ~15%
+    // of the time.
 
     std::array<uint8_t, kWidth * kHeight * 4> badData;
-    for (int i = 0; i < badData.size(); ++i)
+    for (int i     = 0; i < badData.size(); ++i)
         badData[i] = i % 255;
 
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kWidth, kHeight, GL_RGBA, GL_UNSIGNED_BYTE, badData.data());
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kWidth, kHeight, GL_RGBA, GL_UNSIGNED_BYTE,
+                    badData.data());
     glDeleteTextures(1, &tempTexture);
 
     // This will create the GLTexture.
     glBindTexture(GL_TEXTURE_2D, *tex);
 }
 
-void RobustResourceInitTest::checkNonZeroPixels(GLTexture *texture, int skipX, int skipY, int skipWidth, int skipHeight, int skipR, int skipG, int skipB, int skipA)
+void RobustResourceInitTest::checkNonZeroPixels(GLTexture *texture,
+                                                int skipX,
+                                                int skipY,
+                                                int skipWidth,
+                                                int skipHeight,
+                                                int skipR,
+                                                int skipG,
+                                                int skipB,
+                                                int skipA)
 {
     glBindTexture(GL_TEXTURE_2D, 0);
     GLFramebuffer fb;
@@ -227,7 +245,8 @@ void RobustResourceInitTest::checkNonZeroPixels(GLTexture *texture, int skipX, i
             int index = (y * kWidth + x) * 4;
             if (x >= skipX && x < skipX + skipWidth && y >= skipY && y < skipY + skipHeight)
             {
-                ASSERT_FALSE(data[index] != skipR || data[index + 1] != skipG || data[index + 2] != skipB || data[index + 3] != skipA);
+                ASSERT_FALSE(data[index] != skipR || data[index + 1] != skipG ||
+                             data[index + 2] != skipB || data[index + 3] != skipA);
             }
             else
             {
@@ -258,7 +277,8 @@ TEST_P(RobustResourceInitTest, ReadingUninitializedTexture)
     EXPECT_GL_NO_ERROR();
 }
 
-// Reading a partially initialized texture (texImage2D) should succeed with all uninitialized bytes set to 0 and initialized bytes untouched.
+// Reading a partially initialized texture (texImage2D) should succeed with all uninitialized bytes
+// set to 0 and initialized bytes untouched.
 TEST_P(RobustResourceInitTest, ReadingPartiallyInitializedTexture)
 {
     if (!setup())
@@ -269,13 +289,15 @@ TEST_P(RobustResourceInitTest, ReadingPartiallyInitializedTexture)
     GLTexture tex;
     setupTexture(&tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kWidth, kHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    std::array<uint8_t, 4> data = {{ 108, 72, 36, 9 } };
-    glTexSubImage2D(GL_TEXTURE_2D, 0, kWidth / 2, kHeight / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, data.data());
+    std::array<uint8_t, 4> data = {{108, 72, 36, 9}};
+    glTexSubImage2D(GL_TEXTURE_2D, 0, kWidth / 2, kHeight / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE,
+                    data.data());
     checkNonZeroPixels(&tex, kWidth / 2, kHeight / 2, 1, 1, data[0], data[1], data[2], data[3]);
     EXPECT_GL_NO_ERROR();
 }
 
-// Reading an uninitialized portion of a texture(copyTexImage2D) should succeed with all bytes set to 0.
+// Reading an uninitialized portion of a texture(copyTexImage2D) should succeed with all bytes set
+// to 0.
 TEST_P(RobustResourceInitTest, ReadingUninitializedCopiedTexture)
 {
     if (!setup())
@@ -289,7 +311,7 @@ TEST_P(RobustResourceInitTest, ReadingUninitializedCopiedTexture)
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     GLRenderbuffer rbo;
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    constexpr int fboWidth = 16;
+    constexpr int fboWidth  = 16;
     constexpr int fboHeight = 16;
     glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA4, fboWidth, fboHeight);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
@@ -302,7 +324,8 @@ TEST_P(RobustResourceInitTest, ReadingUninitializedCopiedTexture)
     EXPECT_GL_NO_ERROR();
 }
 
-// Reading an uninitialized portion of a texture (copyTexImage2D with negative x and y) should succeed with all bytes set to 0.
+// Reading an uninitialized portion of a texture (copyTexImage2D with negative x and y) should
+// succeed with all bytes set to 0.
 TEST_P(RobustResourceInitTest, ReadingOutOfboundsCopiedTexture)
 {
     if (!setup())
@@ -316,7 +339,7 @@ TEST_P(RobustResourceInitTest, ReadingOutOfboundsCopiedTexture)
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     GLRenderbuffer rbo;
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    constexpr int fboWidth = 16;
+    constexpr int fboWidth  = 16;
     constexpr int fboHeight = 16;
     glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA4, fboWidth, fboHeight);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
@@ -331,7 +354,8 @@ TEST_P(RobustResourceInitTest, ReadingOutOfboundsCopiedTexture)
     EXPECT_GL_NO_ERROR();
 }
 
-// Reading an uninitialized portion of a texture (copyTexImage2D from internal fbo) should succeed with all bytes set to 0.
+// Reading an uninitialized portion of a texture (copyTexImage2D from internal fbo) should succeed
+// with all bytes set to 0.
 TEST_P(RobustResourceInitTest, ReadingUninitializedSurface)
 {
     if (!setup())

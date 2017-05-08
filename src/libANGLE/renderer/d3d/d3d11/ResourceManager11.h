@@ -14,14 +14,17 @@
 
 #include "common/MemoryBuffer.h"
 #include "common/angleutils.h"
+#include "common/debug.h"
 #include "libANGLE/Constants.h"
 #include "libANGLE/Error.h"
 
 namespace rx
 {
-class GenericResource11;
 class Renderer11;
+class ResourceManager11;
+template <typename T>
 class SharedResource11;
+class TextureHelper11;
 
 enum class ResourceType
 {
@@ -107,6 +110,18 @@ ANGLE_TYPE_HELPER(InitDataType, ResourceType, Texture2D, const D3D11_SUBRESOURCE
 ANGLE_TYPE_HELPER(InitDataType, ResourceType, Texture3D, const D3D11_SUBRESOURCE_DATA)
 ANGLE_TYPE_HELPER_END(InitDataType, ResourceType)
 
+ANGLE_INV_TYPE_HELPER_BEGIN(ResourceTypeFromD3D11)
+ANGLE_INV_TYPE_HELPER(ResourceTypeFromD3D11, ResourceType, ID3D11Buffer, Buffer)
+ANGLE_INV_TYPE_HELPER(ResourceTypeFromD3D11, ResourceType, ID3D11DepthStencilView, DepthStencilView)
+ANGLE_INV_TYPE_HELPER(ResourceTypeFromD3D11, ResourceType, ID3D11RenderTargetView, RenderTargetView)
+ANGLE_INV_TYPE_HELPER(ResourceTypeFromD3D11,
+                      ResourceType,
+                      ID3D11ShaderResourceView,
+                      ShaderResourceView)
+ANGLE_INV_TYPE_HELPER(ResourceTypeFromD3D11, ResourceType, ID3D11Texture2D, Texture2D)
+ANGLE_INV_TYPE_HELPER(ResourceTypeFromD3D11, ResourceType, ID3D11Texture3D, Texture3D)
+ANGLE_INV_TYPE_HELPER_END(ResourceTypeFromD3D11, ResourceType)
+
 ANGLE_INV_TYPE_HELPER_BEGIN(ResourceTypeFromDesc)
 ANGLE_INV_TYPE_HELPER(ResourceTypeFromDesc, ResourceType, D3D11_BUFFER_DESC, Buffer)
 ANGLE_INV_TYPE_HELPER(ResourceTypeFromDesc,
@@ -125,135 +140,137 @@ ANGLE_INV_TYPE_HELPER(ResourceTypeFromDesc, ResourceType, D3D11_TEXTURE2D_DESC, 
 ANGLE_INV_TYPE_HELPER(ResourceTypeFromDesc, ResourceType, D3D11_TEXTURE3D_DESC, Texture3D)
 ANGLE_INV_TYPE_HELPER_END(ResourceTypeFromDesc, ResourceType)
 
+template <typename T>
+using GetDescFromD3D11 = GetDescType<ResourceTypeFromD3D11<T>::Value>;
+
+template <typename T>
+using GetInitDataFromD3D11 = GetInitDataType<ResourceTypeFromD3D11<T>::Value>;
+
+template <typename DescT>
+using GetD3D11FromDesc = GetD3D11Type<ResourceTypeFromDesc<DescT>::Value>;
+
+template <typename T>
+constexpr size_t ResourceTypeIndex()
+{
+    return static_cast<size_t>(GetResourceTypeFromD3D11<T>());
+}
+
+template <typename T>
+struct TypedData
+{
+    TypedData() {}
+    ~TypedData();
+
+    T *object                  = nullptr;
+    ResourceManager11 *manager = nullptr;
+};
+
 // Smart pointer type. Wraps the resource and a factory for safe deletion.
-template <ResourceType Type>
-class Resource11 : angle::NonCopyable
+template <typename T, template <class> class Pointer, typename DataT>
+class Resource11Base : angle::NonCopyable
 {
   public:
-    Resource11();
-    ~Resource11();
-    Resource11(Resource11 &&movedObj);
-    Resource11 &operator=(Resource11 &&movedObj);
+    T *get() const { return mData->object; }
 
-    GetD3D11Type<Type> *get() const { return mResource; }
-    void setDebugName(const char *name);
-    void set(GetD3D11Type<Type> *resource);
-    bool valid() const;
-    void reset();
+    void setDebugName(const char *name) { d3d11::SetDebugName(mData->object, name); }
 
-    GenericResource11 makeGeneric();
-
-  private:
-    friend class GenericResource11;
-    friend class ResourceManager11;
-    Resource11(GetD3D11Type<Type> *resource, ResourceManager11 *factory);
-
-    GetD3D11Type<Type> *mResource;
-    ResourceManager11 *mFactory;
-};
-
-class GenericResource11 : angle::NonCopyable
-{
-  public:
-    GenericResource11();
-    ~GenericResource11();
-    GenericResource11(GenericResource11 &&movedObj);
-    GenericResource11 &operator=(GenericResource11 &&movedObj);
-    void reset();
-    void setDebugName(const char *name);
-    void set(ID3D11Resource *resource, ResourceType resourceType);
-
-    template <ResourceType ResourceT>
-    GenericResource11(Resource11<ResourceT> &&movedObj)
-        : mGenericResource(movedObj.mResource),
-          mResourceType(ResourceT),
-          mFactory(movedObj.mFactory)
+    void set(T *object)
     {
-        movedObj.mResource = nullptr;
-        movedObj.mFactory  = nullptr;
+        ASSERT(!valid());
+        mData->object = object;
     }
 
-    template <ResourceType ResourceT>
-    GenericResource11 &operator=(Resource11<ResourceT> &&movedObj)
-    {
-        mGenericResource   = movedObj.mResource;
-        mResourceType      = ResourceT;
-        mFactory           = movedObj.mFactory;
-        movedObj.mResource = nullptr;
-        movedObj.mFactory  = nullptr;
-        return *this;
-    }
+    bool valid() const { return (mData->object != nullptr); }
 
-    ResourceType getResourceType() const { return mResourceType; }
-    bool valid() const { return mGenericResource != nullptr; }
-
-    SharedResource11 makeShared();
-
-    template <ResourceType ResourceT>
-    GetD3D11Type<ResourceT> *getAs() const
-    {
-        ASSERT(ResourceT == mResourceType);
-        return static_cast<GetD3D11Type<ResourceT> *>(mGenericResource);
-    }
-
-    template <typename DescT>
-    void getDesc(DescT *descOut) const;
-
-    // Will ASSERT that the resource type is correct.
-    ID3D11Resource *asResource() const;
-
-    bool operator==(const GenericResource11 &other) const;
-    bool operator!=(const GenericResource11 &other) const;
-
-  private:
-    ID3D11DeviceChild *mGenericResource;
-    ResourceType mResourceType;
-    ResourceManager11 *mFactory;
-};
-
-class SharedResource11
-{
-  public:
-    SharedResource11();
-    ~SharedResource11();
-    SharedResource11(const SharedResource11 &sharedObj);
-    SharedResource11(SharedResource11 &&movedObj);
-    SharedResource11 &operator=(const SharedResource11 &sharedObj);
-    SharedResource11 &operator=(SharedResource11 &&movedObj);
-    void reset();
-
-    SharedResource11(GenericResource11 &&genericResource);
-    SharedResource11 &operator=(GenericResource11 &&genericResource);
-    void setDebugName(const char *name);
-    void set(ID3D11Resource *resource, ResourceType resourceType);
-
-    ResourceType getResourceType() const { return mSharedResource->getResourceType(); }
-    ID3D11Resource *asResource() const { return mSharedResource->asResource(); }
-    bool valid() const { return mSharedResource->valid(); }
-
-    template <ResourceType ResourceT>
-    GetD3D11Type<ResourceT> *getAs() const
-    {
-        return mSharedResource->getAs<ResourceT>();
-    }
-
+    // Note: this function is not safety-checked.
     template <typename DescT>
     void getDesc(DescT *descOut) const
     {
-        return mSharedResource->getDesc(descOut);
+        return reinterpret_cast<GetD3D11FromDesc<DescT> *>(mData->object)->GetDesc(descOut);
     }
 
-    bool operator==(const SharedResource11 &other) const
+    void reset() { mData.reset(new DataT()); }
+
+  protected:
+    friend class TextureHelper11;
+
+    Resource11Base() : mData(new DataT()) {}
+
+    Resource11Base(Resource11Base &&movedObj) : mData(new DataT())
     {
-        return *mSharedResource == *other.mSharedResource;
+        std::swap(mData, movedObj.mData);
     }
-    bool operator!=(const SharedResource11 &other) const
+
+    virtual ~Resource11Base() { mData.reset(); }
+
+    Resource11Base &operator=(Resource11Base &&movedObj)
     {
-        return *mSharedResource != *other.mSharedResource;
+        std::swap(mData, movedObj.mData);
+        return *this;
+    }
+
+    Pointer<DataT> mData;
+};
+
+template <typename T>
+using UniquePtr = typename std::unique_ptr<T, std::default_delete<T>>;
+
+template <typename ResourceT>
+class Resource11 : public Resource11Base<ResourceT, UniquePtr, TypedData<ResourceT>>
+{
+  public:
+    Resource11() {}
+    Resource11(Resource11 &&other) : Resource11Base(std::move(other)) {}
+    Resource11 &operator=(Resource11 &&other)
+    {
+        std::swap(mData, other.mData);
+        return *this;
     }
 
   private:
-    std::shared_ptr<GenericResource11> mSharedResource;
+    template <typename T>
+    friend class SharedResource11;
+    friend class ResourceManager11;
+
+    Resource11(ResourceT *object, ResourceManager11 *manager)
+    {
+        mData->object  = object;
+        mData->manager = manager;
+    }
+};
+
+template <typename T>
+class SharedResource11 : public Resource11Base<T, std::shared_ptr, TypedData<T>>
+{
+  public:
+    SharedResource11() {}
+    SharedResource11(SharedResource11 &&movedObj) : Resource11Base(std::move(movedObj)) {}
+
+    SharedResource11 &operator=(SharedResource11 &&other)
+    {
+        std::swap(mData, other.mData);
+        return *this;
+    }
+
+    SharedResource11(const SharedResource11 &sharedObj) { mData = sharedObj.mData; }
+
+    SharedResource11 &operator=(const SharedResource11 &sharedObj)
+    {
+        mData = sharedObj.mData;
+        return *this;
+    }
+
+  private:
+    friend class ResourceManager11;
+    SharedResource11(Resource11<T> &&obj) : Resource11Base()
+    {
+        std::swap(mData->manager, obj.mData->manager);
+
+        // Can't use std::swap because of ID3D11Resource.
+        auto temp         = mData->object;
+        mData->object     = obj.mData->object;
+        obj.mData->object = static_cast<T *>(temp);
+    }
 };
 
 class ResourceManager11 final : angle::NonCopyable
@@ -262,38 +279,29 @@ class ResourceManager11 final : angle::NonCopyable
     ResourceManager11();
     ~ResourceManager11();
 
-    template <ResourceType Type>
+    template <typename T>
     gl::Error allocate(Renderer11 *renderer,
-                       const GetDescType<Type> &desc,
-                       GetInitDataType<Type> *initData,
-                       Resource11<Type> *resourceOut)
+                       const GetDescFromD3D11<T> *desc,
+                       GetInitDataFromD3D11<T> *initData,
+                       Resource11<T> *resourceOut);
+
+    template <typename T>
+    gl::Error allocate(Renderer11 *renderer,
+                       const GetDescFromD3D11<T> *desc,
+                       GetInitDataFromD3D11<T> *initData,
+                       SharedResource11<T> *sharedRes)
     {
-        return allocateImpl(renderer, &desc, initData, resourceOut);
+        Resource11<T> res;
+        ANGLE_TRY(allocate(renderer, desc, initData, &res));
+        *sharedRes = std::move(res);
+        return gl::NoError();
     }
 
-    // Some View resources can be allocated without a desc.
-    template <ResourceType Type>
-    gl::Error allocate(Renderer11 *renderer,
-                       GetInitDataType<Type> *initData,
-                       Resource11<Type> *resourceOut)
-    {
-        return allocateImpl(renderer, nullptr, initData, resourceOut);
-    }
+    template <typename T>
+    void onRelease(T *resource);
+    void onReleaseResource(ResourceType resourceType, ID3D11Resource *resource);
 
   private:
-    friend class GenericResource11;
-    template <ResourceType ResourceT>
-    friend class Resource11;
-
-    template <ResourceType ResourceT>
-    void onRelease(GetD3D11Type<ResourceT> *resource);
-
-    template <ResourceType Type>
-    gl::Error allocateImpl(Renderer11 *renderer,
-                           const GetDescType<Type> *desc,
-                           GetInitDataType<Type> *initData,
-                           Resource11<Type> *resourceOut);
-
     void incrResource(ResourceType resourceType, size_t memorySize);
     void decrResource(ResourceType resourceType, size_t memorySize);
 
@@ -307,14 +315,30 @@ class ResourceManager11 final : angle::NonCopyable
     std::vector<D3D11_SUBRESOURCE_DATA> mShadowInitData;
 };
 
+template <typename ResourceT>
+TypedData<ResourceT>::~TypedData()
+{
+    if (object)
+    {
+        // We can have a nullptr factory when holding passed-in resources.
+        if (manager)
+        {
+            manager->onRelease(object);
+        }
+        object->Release();
+    }
+}
+
 namespace d3d11
 {
-using Buffer             = Resource11<ResourceType::Buffer>;
-using DepthStencilView   = Resource11<ResourceType::DepthStencilView>;
-using RenderTargetView   = Resource11<ResourceType::RenderTargetView>;
-using ShaderResourceView = Resource11<ResourceType::ShaderResourceView>;
-using Texture2D          = Resource11<ResourceType::Texture2D>;
-using Texture3D          = Resource11<ResourceType::Texture3D>;
+using Buffer             = Resource11<ID3D11Buffer>;
+using DepthStencilView   = Resource11<ID3D11DepthStencilView>;
+using RenderTargetView   = Resource11<ID3D11RenderTargetView>;
+using ShaderResourceView = Resource11<ID3D11ShaderResourceView>;
+using Texture2D          = Resource11<ID3D11Texture2D>;
+using Texture3D          = Resource11<ID3D11Texture3D>;
+
+using SharedSRV = SharedResource11<ID3D11ShaderResourceView>;
 }  // namespace d3d11
 
 }  // namespace rx

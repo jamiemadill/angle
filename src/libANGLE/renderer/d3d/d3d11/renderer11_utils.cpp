@@ -2047,88 +2047,70 @@ void InitConstantBufferDesc(D3D11_BUFFER_DESC *constantBufferDescription, size_t
 
 }  // namespace d3d11
 
-TextureHelper11::TextureHelper11() : mFormatSet(nullptr), mSampleCount(0), mTexture()
+// TextureHelper11 implementation.
+TextureHelper11::TextureHelper11() : mFormatSet(nullptr), mSampleCount(0)
 {
 }
 
-TextureHelper11::TextureHelper11(TextureHelper11 &&toCopy)
-    : mExtents(toCopy.mExtents),
-      mFormatSet(toCopy.mFormatSet),
-      mSampleCount(toCopy.mSampleCount),
-      mTexture(std::move(toCopy.mTexture))
+TextureHelper11::TextureHelper11(TextureHelper11 &&toCopy) : TextureHelper11()
 {
-    toCopy.reset();
+    *this = std::move(toCopy);
 }
 
-void TextureHelper11::initDesc()
+TextureHelper11::TextureHelper11(const TextureHelper11 &other)
+    : mFormatSet(other.mFormatSet), mExtents(other.mExtents), mSampleCount(other.mSampleCount)
 {
-    if (getTextureType() == ResourceType::Texture2D)
-    {
-        D3D11_TEXTURE2D_DESC desc2D;
-        getDesc(&desc2D);
-
-        mExtents.width  = static_cast<int>(desc2D.Width);
-        mExtents.height = static_cast<int>(desc2D.Height);
-        mExtents.depth  = 1;
-        mSampleCount    = desc2D.SampleDesc.Count;
-    }
-    else
-    {
-        ASSERT(getTextureType() == ResourceType::Texture3D);
-        D3D11_TEXTURE3D_DESC desc3D;
-        getDesc(&desc3D);
-
-        mExtents.width  = static_cast<int>(desc3D.Width);
-        mExtents.height = static_cast<int>(desc3D.Height);
-        mExtents.depth  = static_cast<int>(desc3D.Depth);
-        mSampleCount    = 1;
-    }
+    mData = other.mData;
 }
 
-template <typename DescT>
-void TextureHelper11::getDesc(DescT *descOut)
+TextureHelper11::~TextureHelper11()
 {
-    return mTexture.getDesc(descOut);
 }
 
-TextureHelper11 &TextureHelper11::operator=(TextureHelper11 &&texture)
+void TextureHelper11::initDesc(const D3D11_TEXTURE2D_DESC &desc2D)
 {
-    mExtents     = texture.mExtents;
-    mFormatSet   = texture.mFormatSet;
-    mSampleCount = texture.mSampleCount;
-    mTexture     = std::move(texture.mTexture);
-    texture.reset();
+    mData->resourceType = ResourceType::Texture2D;
+    mExtents.width      = static_cast<int>(desc2D.Width);
+    mExtents.height     = static_cast<int>(desc2D.Height);
+    mExtents.depth      = 1;
+    mSampleCount        = desc2D.SampleDesc.Count;
+}
+
+void TextureHelper11::initDesc(const D3D11_TEXTURE3D_DESC &desc3D)
+{
+    mData->resourceType = ResourceType::Texture3D;
+    mExtents.width      = static_cast<int>(desc3D.Width);
+    mExtents.height     = static_cast<int>(desc3D.Height);
+    mExtents.depth      = static_cast<int>(desc3D.Depth);
+    mSampleCount        = 1;
+}
+
+TextureHelper11 &TextureHelper11::operator=(TextureHelper11 &&other)
+{
+    std::swap(mData, other.mData);
+    std::swap(mExtents, other.mExtents);
+    std::swap(mFormatSet, other.mFormatSet);
+    std::swap(mSampleCount, other.mSampleCount);
     return *this;
 }
 
-void TextureHelper11::reset()
+TextureHelper11 &TextureHelper11::operator=(const TextureHelper11 &other)
 {
-    mExtents     = gl::Extents();
-    mFormatSet   = nullptr;
-    mSampleCount = 0;
-    mTexture.reset();
+    mData        = other.mData;
+    mExtents     = other.mExtents;
+    mFormatSet   = other.mFormatSet;
+    mSampleCount = other.mSampleCount;
+    return *this;
 }
 
-// static
-TextureHelper11 TextureHelper11::Share(const SharedResource11 &texture,
-                                       const d3d11::Format &formatSet)
+bool TextureHelper11::operator==(const TextureHelper11 &other) const
 {
-    TextureHelper11 newHelper;
-    newHelper.mFormatSet = &formatSet;
-    newHelper.mTexture   = texture;
-    newHelper.initDesc();
-    return newHelper;
+    return mData->object == other.mData->object;
 }
 
-// static
-TextureHelper11 TextureHelper11::Share(const TextureHelper11 &texture)
+bool TextureHelper11::operator!=(const TextureHelper11 &other) const
 {
-    TextureHelper11 newHelper;
-    newHelper.mFormatSet   = texture.mFormatSet;
-    newHelper.mTexture     = texture.mTexture;
-    newHelper.mExtents     = texture.mExtents;
-    newHelper.mSampleCount = texture.mSampleCount;
-    return std::move(newHelper);
+    return mData->object != other.mData->object;
 }
 
 bool UsePresentPathFast(const Renderer11 *renderer,

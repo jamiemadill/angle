@@ -1176,7 +1176,7 @@
         {
             'target_name': 'libGLESv2_static',
             'type': 'static_library',
-            'dependencies': [ 'libANGLE', 'angle_common' ],
+            'dependencies': [ 'libANGLE' ],
             'export_dependent_settings':
             [
                 'libANGLE',

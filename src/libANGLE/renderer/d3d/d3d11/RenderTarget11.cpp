@@ -212,9 +212,9 @@ void RenderTarget11::signalDirty()
 }
 
 TextureRenderTarget11::TextureRenderTarget11(d3d11::RenderTargetView &&rtv,
-                                             const SharedResource11 &resource,
-                                             const SharedResource11 &srv,
-                                             const SharedResource11 &blitSRV,
+                                             const TextureHelper11 &resource,
+                                             const d3d11::SharedSRV &srv,
+                                             const d3d11::SharedSRV &blitSRV,
                                              const d3d11::Format &formatSet,
                                              GLsizei width,
                                              GLsizei height,
@@ -234,14 +234,14 @@ TextureRenderTarget11::TextureRenderTarget11(d3d11::RenderTargetView &&rtv,
 {
     if (mRenderTarget.valid() && mTexture.valid())
     {
-        mSubresourceIndex = GetRTVSubresourceIndex(mTexture.asResource(), mRenderTarget.get());
+        mSubresourceIndex = GetRTVSubresourceIndex(mTexture.get(), mRenderTarget.get());
     }
     ASSERT(mFormatSet.formatID != angle::Format::ID::NONE || mWidth == 0 || mHeight == 0);
 }
 
 TextureRenderTarget11::TextureRenderTarget11(d3d11::DepthStencilView &&dsv,
-                                             const SharedResource11 &resource,
-                                             const SharedResource11 &srv,
+                                             const TextureHelper11 &resource,
+                                             const d3d11::SharedSRV &srv,
                                              const d3d11::Format &formatSet,
                                              GLsizei width,
                                              GLsizei height,
@@ -261,7 +261,7 @@ TextureRenderTarget11::TextureRenderTarget11(d3d11::DepthStencilView &&dsv,
 {
     if (mDepthStencil.valid() && mTexture.valid())
     {
-        mSubresourceIndex = GetDSVSubresourceIndex(mTexture.asResource(), mDepthStencil.get());
+        mSubresourceIndex = GetDSVSubresourceIndex(mTexture.get(), mDepthStencil.get());
     }
     ASSERT(mFormatSet.formatID != angle::Format::ID::NONE || mWidth == 0 || mHeight == 0);
 }
@@ -270,7 +270,7 @@ TextureRenderTarget11::~TextureRenderTarget11()
 {
 }
 
-const SharedResource11 &TextureRenderTarget11::getTexture() const
+const TextureHelper11 &TextureRenderTarget11::getTexture() const
 {
     return mTexture;
 }
@@ -285,12 +285,12 @@ ID3D11DepthStencilView *TextureRenderTarget11::getDepthStencilView() const
     return mDepthStencil.get();
 }
 
-const SharedResource11 &TextureRenderTarget11::getShaderResourceView() const
+const d3d11::SharedSRV &TextureRenderTarget11::getShaderResourceView() const
 {
     return mShaderResource;
 }
 
-const SharedResource11 &TextureRenderTarget11::getBlitShaderResourceView() const
+const d3d11::SharedSRV &TextureRenderTarget11::getBlitShaderResourceView() const
 {
     return mBlitShaderResource;
 }
@@ -364,7 +364,7 @@ GLsizei SurfaceRenderTarget11::getSamples() const
     return mSwapChain->getSamples();
 }
 
-const SharedResource11 &SurfaceRenderTarget11::getTexture() const
+const TextureHelper11 &SurfaceRenderTarget11::getTexture() const
 {
     return (mDepth ? mSwapChain->getDepthStencilTexture() : mSwapChain->getOffscreenTexture());
 }
@@ -379,13 +379,13 @@ ID3D11DepthStencilView *SurfaceRenderTarget11::getDepthStencilView() const
     return (mDepth ? mSwapChain->getDepthStencil() : nullptr);
 }
 
-const SharedResource11 &SurfaceRenderTarget11::getShaderResourceView() const
+const d3d11::SharedSRV &SurfaceRenderTarget11::getShaderResourceView() const
 {
     return (mDepth ? mSwapChain->getDepthStencilShaderResource()
                    : mSwapChain->getRenderTargetShaderResource());
 }
 
-const SharedResource11 &SurfaceRenderTarget11::getBlitShaderResourceView() const
+const d3d11::SharedSRV &SurfaceRenderTarget11::getBlitShaderResourceView() const
 {
     // The SurfaceRenderTargetView format should always be such that the normal SRV works for blits.
     return getShaderResourceView();

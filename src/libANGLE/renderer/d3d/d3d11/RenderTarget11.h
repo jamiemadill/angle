@@ -26,11 +26,11 @@ class RenderTarget11 : public RenderTargetD3D
     RenderTarget11(const d3d11::Format &formatSet);
     virtual ~RenderTarget11();
 
-    virtual const SharedResource11 &getTexture() const                = 0;
+    virtual const TextureHelper11 &getTexture() const                 = 0;
     virtual ID3D11RenderTargetView *getRenderTargetView() const = 0;
     virtual ID3D11DepthStencilView *getDepthStencilView() const = 0;
-    virtual const SharedResource11 &getShaderResourceView() const     = 0;
-    virtual const SharedResource11 &getBlitShaderResourceView() const = 0;
+    virtual const d3d11::SharedSRV &getShaderResourceView() const     = 0;
+    virtual const d3d11::SharedSRV &getBlitShaderResourceView() const = 0;
 
     virtual unsigned int getSubresourceIndex() const = 0;
 
@@ -49,9 +49,9 @@ class TextureRenderTarget11 : public RenderTarget11
   public:
     // TextureRenderTarget11 takes ownership of any D3D11 resources it is given and will AddRef them
     TextureRenderTarget11(d3d11::RenderTargetView &&rtv,
-                          const SharedResource11 &resource,
-                          const SharedResource11 &srv,
-                          const SharedResource11 &blitSRV,
+                          const TextureHelper11 &resource,
+                          const d3d11::SharedSRV &srv,
+                          const d3d11::SharedSRV &blitSRV,
                           const d3d11::Format &formatSet,
                           GLsizei width,
                           GLsizei height,
@@ -59,8 +59,8 @@ class TextureRenderTarget11 : public RenderTarget11
                           GLsizei samples);
 
     TextureRenderTarget11(d3d11::DepthStencilView &&dsv,
-                          const SharedResource11 &resource,
-                          const SharedResource11 &srv,
+                          const TextureHelper11 &resource,
+                          const d3d11::SharedSRV &srv,
                           const d3d11::Format &formatSet,
                           GLsizei width,
                           GLsizei height,
@@ -74,11 +74,11 @@ class TextureRenderTarget11 : public RenderTarget11
     GLenum getInternalFormat() const override;
     GLsizei getSamples() const override;
 
-    const SharedResource11 &getTexture() const override;
+    const TextureHelper11 &getTexture() const override;
     ID3D11RenderTargetView *getRenderTargetView() const override;
     ID3D11DepthStencilView *getDepthStencilView() const override;
-    const SharedResource11 &getShaderResourceView() const override;
-    const SharedResource11 &getBlitShaderResourceView() const override;
+    const d3d11::SharedSRV &getShaderResourceView() const override;
+    const d3d11::SharedSRV &getBlitShaderResourceView() const override;
 
     unsigned int getSubresourceIndex() const override;
 
@@ -89,14 +89,14 @@ class TextureRenderTarget11 : public RenderTarget11
     GLsizei mSamples;
 
     unsigned int mSubresourceIndex;
-    SharedResource11 mTexture;
+    TextureHelper11 mTexture;
     d3d11::RenderTargetView mRenderTarget;
     d3d11::DepthStencilView mDepthStencil;
-    SharedResource11 mShaderResource;
+    d3d11::SharedSRV mShaderResource;
 
     // Shader resource view to use with internal blit shaders. Not set for depth/stencil render
     // targets.
-    SharedResource11 mBlitShaderResource;
+    d3d11::SharedSRV mBlitShaderResource;
 };
 
 class SurfaceRenderTarget11 : public RenderTarget11
@@ -111,11 +111,11 @@ class SurfaceRenderTarget11 : public RenderTarget11
     GLenum getInternalFormat() const override;
     GLsizei getSamples() const override;
 
-    const SharedResource11 &getTexture() const override;
+    const TextureHelper11 &getTexture() const override;
     ID3D11RenderTargetView *getRenderTargetView() const override;
     ID3D11DepthStencilView *getDepthStencilView() const override;
-    const SharedResource11 &getShaderResourceView() const override;
-    const SharedResource11 &getBlitShaderResourceView() const override;
+    const d3d11::SharedSRV &getShaderResourceView() const override;
+    const d3d11::SharedSRV &getBlitShaderResourceView() const override;
 
     unsigned int getSubresourceIndex() const override;
 

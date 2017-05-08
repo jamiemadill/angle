@@ -361,38 +361,83 @@ enum ReservedConstantBufferSlot
 void InitConstantBufferDesc(D3D11_BUFFER_DESC *constantBufferDescription, size_t byteWidth);
 }  // namespace d3d11
 
+struct GenericData
+{
+    GenericData() {}
+    ~GenericData()
+    {
+        if (object)
+        {
+            // We can have a nullptr factory when holding passed-in resources.
+            if (manager)
+            {
+                manager->onReleaseResource(resourceType, object);
+                manager = nullptr;
+            }
+            object->Release();
+            object = nullptr;
+        }
+    }
+
+    ResourceType resourceType  = ResourceType::Last;
+    ID3D11Resource *object     = nullptr;
+    ResourceManager11 *manager = nullptr;
+};
+
 // A helper class which wraps a 2D or 3D texture.
-class TextureHelper11 final : angle::NonCopyable
+class TextureHelper11 : public Resource11Base<ID3D11Resource, std::shared_ptr, GenericData>
 {
   public:
     TextureHelper11();
-    TextureHelper11(TextureHelper11 &&toCopy);
-    ~TextureHelper11() {}
-    TextureHelper11 &operator=(TextureHelper11 &&texture);
+    TextureHelper11(TextureHelper11 &&other);
+    TextureHelper11(const TextureHelper11 &other);
+    ~TextureHelper11();
+    TextureHelper11 &operator=(TextureHelper11 &&other);
+    TextureHelper11 &operator=(const TextureHelper11 &other);
 
-    ResourceType getTextureType() const { return mTexture.getResourceType(); }
+    ResourceType getTextureType() const { return mData->resourceType; }
     gl::Extents getExtents() const { return mExtents; }
     DXGI_FORMAT getFormat() const { return mFormatSet->texFormat; }
     const d3d11::Format &getFormatSet() const { return *mFormatSet; }
     int getSampleCount() const { return mSampleCount; }
-    bool valid() const { return mTexture.valid(); }
-    ID3D11Resource *getResource() const { return mTexture.asResource(); }
 
-    void reset();
+    template <typename DescT, typename ResourceT>
+    void init(Resource11<ResourceT> &&texture, const DescT &desc, const d3d11::Format &format)
+    {
+        std::swap(mData->manager, texture.mData->manager);
 
-    static TextureHelper11 Share(const SharedResource11 &texture, const d3d11::Format &formatSet);
-    static TextureHelper11 Share(const TextureHelper11 &texture);
+        // Can't use std::swap because texture is typed, and here we use ID3D11Resource.
+        auto temp             = mData->object;
+        mData->object         = texture.mData->object;
+        texture.mData->object = static_cast<ResourceT *>(temp);
+
+        mFormatSet = &format;
+        initDesc(desc);
+    }
+
+    template <typename ResourceT>
+    void set(ResourceT *object, const d3d11::Format &format)
+    {
+        ASSERT(!valid());
+        mFormatSet     = &format;
+        mData->object  = object;
+        mData->manager = nullptr;
+
+        GetDescFromD3D11<ResourceT> desc;
+        getDesc(&desc);
+        initDesc(desc);
+    }
+
+    bool operator==(const TextureHelper11 &other) const;
+    bool operator!=(const TextureHelper11 &other) const;
 
   private:
-    void initDesc();
+    void initDesc(const D3D11_TEXTURE2D_DESC &desc2D);
+    void initDesc(const D3D11_TEXTURE3D_DESC &desc3D);
 
-    template <typename DescT>
-    void getDesc(DescT *descOut);
-
-    gl::Extents mExtents;
     const d3d11::Format *mFormatSet;
+    gl::Extents mExtents;
     int mSampleCount;
-    SharedResource11 mTexture;
 };
 
 enum class StagingAccess

@@ -184,7 +184,7 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
     ASSERT(backbufferHeight >= 1);
 
     // Preserve the render target content
-    SharedResource11 previousOffscreenTexture = std::move(mOffscreenTexture);
+    TextureHelper11 previousOffscreenTexture = std::move(mOffscreenTexture);
     const int previousWidth = mWidth;
     const int previousHeight = mHeight;
 
@@ -205,14 +205,14 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
                                                         (void **)&tempResource11);
             ASSERT(SUCCEEDED(result));
 
-            mOffscreenTexture.set(d3d11::DynamicCastComObject<ID3D11Texture2D>(tempResource11),
-                                  ResourceType::Texture2D);
+            auto *texture2D = d3d11::DynamicCastComObject<ID3D11Texture2D>(tempResource11);
+            mOffscreenTexture.set(texture2D, backbufferFormatInfo);
             SafeRelease(tempResource11);
         }
         else if (mD3DTexture != nullptr)
         {
-            mOffscreenTexture.set(d3d11::DynamicCastComObject<ID3D11Texture2D>(mD3DTexture),
-                                  ResourceType::Texture2D);
+            auto *texture2D = d3d11::DynamicCastComObject<ID3D11Texture2D>(mD3DTexture);
+            mOffscreenTexture.set(texture2D, backbufferFormatInfo);
         }
         else
         {
@@ -238,7 +238,8 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
         offscreenTextureDesc.CPUAccessFlags = 0;
         offscreenTextureDesc.MiscFlags = useSharedResource ? ANGLE_RESOURCE_SHARE_TYPE : 0;
 
-        gl::Error err = mRenderer->allocateSharedResource(offscreenTextureDesc, &mOffscreenTexture);
+        gl::Error err = mRenderer->allocateTexture(offscreenTextureDesc, backbufferFormatInfo,
+                                                   &mOffscreenTexture);
         if (err.isError())
         {
             ERR() << "Error allocating offscreen back buffer texture.";
@@ -250,7 +251,7 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
         if (useSharedResource)
         {
             IDXGIResource *offscreenTextureResource = nullptr;
-            HRESULT result = mOffscreenTexture.asResource()->QueryInterface(
+            HRESULT result                          = mOffscreenTexture.get()->QueryInterface(
                 __uuidof(IDXGIResource), reinterpret_cast<void **>(&offscreenTextureResource));
 
             // Fall back to no share handle on failure
@@ -273,7 +274,7 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
     }
 
     // This may return null if the original texture was created without a keyed mutex.
-    mKeyedMutex = d3d11::DynamicCastComObject<IDXGIKeyedMutex>(mOffscreenTexture.asResource());
+    mKeyedMutex = d3d11::DynamicCastComObject<IDXGIKeyedMutex>(mOffscreenTexture.get());
 
     D3D11_RENDER_TARGET_VIEW_DESC offscreenRTVDesc;
     offscreenRTVDesc.Format             = backbufferFormatInfo.rtvFormat;
@@ -281,8 +282,8 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
         (mEGLSamples <= 1) ? D3D11_RTV_DIMENSION_TEXTURE2D : D3D11_RTV_DIMENSION_TEXTURE2DMS;
     offscreenRTVDesc.Texture2D.MipSlice = 0;
 
-    HRESULT result = device->CreateRenderTargetView(mOffscreenTexture.asResource(),
-                                                    &offscreenRTVDesc, &mOffscreenRTView);
+    HRESULT result = device->CreateRenderTargetView(mOffscreenTexture.get(), &offscreenRTVDesc,
+                                                    &mOffscreenRTView);
     ASSERT(SUCCEEDED(result));
     d3d11::SetDebugName(mOffscreenRTView, "Offscreen back buffer render target");
 
@@ -295,8 +296,8 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
 
     if (offscreenTextureDesc.BindFlags & D3D11_BIND_SHADER_RESOURCE)
     {
-        gl::Error err = mRenderer->allocateSharedResource(
-            offscreenSRVDesc, mOffscreenTexture.asResource(), &mOffscreenSRView);
+        gl::Error err = mRenderer->allocateResource(offscreenSRVDesc, mOffscreenTexture.get(),
+                                                    &mOffscreenSRView);
         ASSERT(!err.isError());
         mOffscreenSRView.setDebugName("Offscreen back buffer shader resource");
     }
@@ -313,8 +314,8 @@ EGLint SwapChain11::resetOffscreenColorBuffer(int backbufferWidth, int backbuffe
 
         ID3D11DeviceContext *deviceContext = mRenderer->getDeviceContext();
         const int yoffset = std::max(backbufferHeight - previousHeight, 0);
-        deviceContext->CopySubresourceRegion(mOffscreenTexture.asResource(), 0, 0, yoffset, 0,
-                                             previousOffscreenTexture.asResource(), 0, &sourceBox);
+        deviceContext->CopySubresourceRegion(mOffscreenTexture.get(), 0, 0, yoffset, 0,
+                                             previousOffscreenTexture.get(), 0, &sourceBox);
 
         if (mSwapChain)
         {
@@ -353,8 +354,8 @@ EGLint SwapChain11::resetOffscreenDepthBuffer(int backbufferWidth, int backbuffe
         depthStencilTextureDesc.CPUAccessFlags = 0;
         depthStencilTextureDesc.MiscFlags = 0;
 
-        gl::Error error =
-            mRenderer->allocateSharedResource(depthStencilTextureDesc, &mDepthStencilTexture);
+        gl::Error error = mRenderer->allocateTexture(depthStencilTextureDesc, depthBufferFormatInfo,
+                                                     &mDepthStencilTexture);
         if (error.isError())
         {
             ERR() << "Error allocating offscreen depth stencil texture.";
@@ -371,7 +372,7 @@ EGLint SwapChain11::resetOffscreenDepthBuffer(int backbufferWidth, int backbuffe
         depthStencilDesc.Texture2D.MipSlice = 0;
 
         ID3D11Device *device = mRenderer->getDevice();
-        HRESULT result       = device->CreateDepthStencilView(mDepthStencilTexture.asResource(),
+        HRESULT result       = device->CreateDepthStencilView(mDepthStencilTexture.get(),
                                                         &depthStencilDesc, &mDepthStencilDSView);
         ASSERT(SUCCEEDED(result));
         d3d11::SetDebugName(mDepthStencilDSView, "Offscreen depth stencil view");
@@ -386,8 +387,8 @@ EGLint SwapChain11::resetOffscreenDepthBuffer(int backbufferWidth, int backbuffe
             depthStencilSRVDesc.Texture2D.MostDetailedMip = 0;
             depthStencilSRVDesc.Texture2D.MipLevels = static_cast<UINT>(-1);
 
-            gl::Error err = mRenderer->allocateSharedResource(
-                depthStencilSRVDesc, mDepthStencilTexture.asResource(), &mDepthStencilSRView);
+            gl::Error err = mRenderer->allocateResource(
+                depthStencilSRVDesc, mDepthStencilTexture.get(), &mDepthStencilSRView);
             ASSERT(!err.isError());
             mDepthStencilSRView.setDebugName("Offscreen depth stencil shader resource");
         }
@@ -459,18 +460,20 @@ EGLint SwapChain11::resize(EGLint backbufferWidth, EGLint backbufferHeight)
     ASSERT(SUCCEEDED(result));
     if (SUCCEEDED(result))
     {
-        mBackBufferTexture.set(swapchainBackBuffer, ResourceType::Texture2D);
+        const auto &format =
+            d3d11::Format::Get(mOffscreenRenderTargetFormat, mRenderer->getRenderer11DeviceCaps());
+        mBackBufferTexture.set(swapchainBackBuffer, format);
         mBackBufferTexture.setDebugName("Back buffer texture");
-        result = device->CreateRenderTargetView(mBackBufferTexture.asResource(), nullptr,
-                                                &mBackBufferRTView);
+        result =
+            device->CreateRenderTargetView(mBackBufferTexture.get(), nullptr, &mBackBufferRTView);
         ASSERT(SUCCEEDED(result));
         if (SUCCEEDED(result))
         {
             d3d11::SetDebugName(mBackBufferRTView, "Back buffer render target");
         }
 
-        gl::Error err = mRenderer->allocateSharedResourceNoDesc<ResourceType::ShaderResourceView>(
-            mBackBufferTexture.asResource(), &mBackBufferSRView);
+        gl::Error err =
+            mRenderer->allocateResourceNoDesc(mBackBufferTexture.get(), &mBackBufferSRView);
         ASSERT(!err.isError());
         mBackBufferSRView.setDebugName("Back buffer shader resource");
     }
@@ -578,16 +581,18 @@ EGLint SwapChain11::reset(EGLint backbufferWidth, EGLint backbufferHeight, EGLin
                                        reinterpret_cast<LPVOID *>(&swapchainBackBuffer));
         ASSERT(SUCCEEDED(result));
 
-        mBackBufferTexture.set(swapchainBackBuffer, ResourceType::Texture2D);
+        const auto &format =
+            d3d11::Format::Get(mOffscreenRenderTargetFormat, mRenderer->getRenderer11DeviceCaps());
+        mBackBufferTexture.set(swapchainBackBuffer, format);
         mBackBufferTexture.setDebugName("Back buffer texture");
 
-        result = device->CreateRenderTargetView(mBackBufferTexture.asResource(), nullptr,
-                                                &mBackBufferRTView);
+        result =
+            device->CreateRenderTargetView(mBackBufferTexture.get(), nullptr, &mBackBufferRTView);
         ASSERT(SUCCEEDED(result));
         d3d11::SetDebugName(mBackBufferRTView, "Back buffer render target");
 
-        gl::Error err = mRenderer->allocateSharedResourceNoDesc<ResourceType::ShaderResourceView>(
-            mBackBufferTexture.asResource(), &mBackBufferSRView);
+        gl::Error err =
+            mRenderer->allocateResourceNoDesc(mBackBufferTexture.get(), &mBackBufferSRView);
         ASSERT(!err.isError());
         mBackBufferSRView.setDebugName("Back buffer shader resource view");
     }
@@ -799,8 +804,7 @@ EGLint SwapChain11::copyOffscreenToBackbuffer(EGLint x, EGLint y, EGLint width, 
     deviceContext->RSSetViewports(1, &viewport);
 
     // Apply textures
-    stateManager->setShaderResource(gl::SAMPLER_PIXEL, 0,
-                                    mOffscreenSRView.getAs<ResourceType::ShaderResourceView>());
+    stateManager->setShaderResource(gl::SAMPLER_PIXEL, 0, mOffscreenSRView.get());
     deviceContext->PSSetSamplers(0, 1, &mPassThroughSampler);
 
     // Draw
@@ -880,7 +884,7 @@ EGLint SwapChain11::present(EGLint x, EGLint y, EGLint width, EGLint height)
     return EGL_SUCCESS;
 }
 
-const SharedResource11 &SwapChain11::getOffscreenTexture() const
+const TextureHelper11 &SwapChain11::getOffscreenTexture() const
 {
     return mNeedsOffscreenTexture ? mOffscreenTexture : mBackBufferTexture;
 }
@@ -890,7 +894,7 @@ ID3D11RenderTargetView *SwapChain11::getRenderTarget()
     return mNeedsOffscreenTexture ? mOffscreenRTView : mBackBufferRTView;
 }
 
-const SharedResource11 &SwapChain11::getRenderTargetShaderResource()
+const d3d11::SharedSRV &SwapChain11::getRenderTargetShaderResource()
 {
     return mNeedsOffscreenTexture ? mOffscreenSRView : mBackBufferSRView;
 }
@@ -900,12 +904,12 @@ ID3D11DepthStencilView *SwapChain11::getDepthStencil()
     return mDepthStencilDSView;
 }
 
-const SharedResource11 &SwapChain11::getDepthStencilShaderResource()
+const d3d11::SharedSRV &SwapChain11::getDepthStencilShaderResource()
 {
     return mDepthStencilSRView;
 }
 
-const SharedResource11 &SwapChain11::getDepthStencilTexture() const
+const TextureHelper11 &SwapChain11::getDepthStencilTexture() const
 {
     return mDepthStencilTexture;
 }

@@ -1487,7 +1487,7 @@ gl::Error Renderer11::setSamplerState(gl::SamplerType type,
 
 gl::Error Renderer11::setTexture(gl::SamplerType type, int index, gl::Texture *texture)
 {
-    SharedResource11 textureSRV;
+    d3d11::SharedSRV textureSRV;
 
     if (texture)
     {
@@ -1515,8 +1515,7 @@ gl::Error Renderer11::setTexture(gl::SamplerType type, int index, gl::Texture *t
            (type == gl::SAMPLER_VERTEX &&
             static_cast<unsigned int>(index) < getNativeCaps().maxVertexTextureImageUnits));
 
-    mStateManager.setShaderResource(type, index,
-                                    textureSRV.getAs<ResourceType::ShaderResourceView>());
+    mStateManager.setShaderResource(type, index, textureSRV.get());
 
     return gl::NoError();
 }
@@ -3363,13 +3362,13 @@ gl::Error Renderer11::copyTexture(const gl::Texture *source,
     if (unpackPremultiplyAlpha == unpackUnmultiplyAlpha && !unpackFlipY &&
         sourceStorage11->getFormatSet().texFormat == destStorage11->getFormatSet().texFormat)
     {
-        const SharedResource11 *sourceResource = nullptr;
+        const TextureHelper11 *sourceResource = nullptr;
         ANGLE_TRY(sourceStorage11->getResource(&sourceResource));
 
         gl::ImageIndex sourceIndex = gl::ImageIndex::Make2D(sourceLevel);
         UINT sourceSubresource     = sourceStorage11->getSubresourceIndex(sourceIndex);
 
-        const SharedResource11 *destResource = nullptr;
+        const TextureHelper11 *destResource = nullptr;
         ANGLE_TRY(destStorage11->getResource(&destResource));
 
         gl::ImageIndex destIndex = gl::ImageIndex::Make2D(destLevel);
@@ -3384,13 +3383,13 @@ gl::Error Renderer11::copyTexture(const gl::Texture *source,
             1u,
         };
 
-        mDeviceContext->CopySubresourceRegion(
-            destResource->asResource(), destSubresource, destOffset.x, destOffset.y, destOffset.z,
-            sourceResource->asResource(), sourceSubresource, &sourceBox);
+        mDeviceContext->CopySubresourceRegion(destResource->get(), destSubresource, destOffset.x,
+                                              destOffset.y, destOffset.z, sourceResource->get(),
+                                              sourceSubresource, &sourceBox);
     }
     else
     {
-        SharedResource11 sourceSRV;
+        d3d11::SharedSRV sourceSRV;
         ANGLE_TRY(sourceStorage11->getSRVLevels(sourceLevel, sourceLevel, &sourceSRV));
 
         gl::ImageIndex destIndex             = gl::ImageIndex::Make2D(destLevel);
@@ -3435,7 +3434,7 @@ gl::Error Renderer11::copyCompressedTexture(const gl::Texture *source,
     TextureStorage11_2D *destStorage11 = GetAs<TextureStorage11_2D>(storage);
     ASSERT(destStorage11);
 
-    const SharedResource11 *destResource = nullptr;
+    const TextureHelper11 *destResource = nullptr;
     ANGLE_TRY(destStorage11->getResource(&destResource));
 
     gl::ImageIndex destIndex = gl::ImageIndex::Make2D(destLevel);
@@ -3450,14 +3449,14 @@ gl::Error Renderer11::copyCompressedTexture(const gl::Texture *source,
     TextureStorage11_2D *sourceStorage11 = GetAs<TextureStorage11_2D>(sourceStorage);
     ASSERT(sourceStorage11);
 
-    const SharedResource11 *sourceResource = nullptr;
+    const TextureHelper11 *sourceResource = nullptr;
     ANGLE_TRY(sourceStorage11->getResource(&sourceResource));
 
     gl::ImageIndex sourceIndex = gl::ImageIndex::Make2D(sourceLevel);
     UINT sourceSubresource     = sourceStorage11->getSubresourceIndex(sourceIndex);
 
-    mDeviceContext->CopySubresourceRegion(destResource->asResource(), destSubresource, 0, 0, 0,
-                                          sourceResource->asResource(), sourceSubresource, nullptr);
+    mDeviceContext->CopySubresourceRegion(destResource->get(), destSubresource, 0, 0, 0,
+                                          sourceResource->get(), sourceSubresource, nullptr);
 
     return gl::NoError();
 }
@@ -3513,11 +3512,11 @@ gl::Error Renderer11::createRenderTarget(int width,
         // The format must be either an RTV or a DSV
         ASSERT(bindRTV != bindDSV);
 
-        SharedResource11 texture;
-        ANGLE_TRY(allocateSharedResource(desc, &texture));
+        TextureHelper11 texture;
+        ANGLE_TRY(allocateTexture(desc, formatInfo, &texture));
 
-        SharedResource11 srv;
-        SharedResource11 blitSRV;
+        d3d11::SharedSRV srv;
+        d3d11::SharedSRV blitSRV;
         if (bindSRV)
         {
             D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -3527,7 +3526,7 @@ gl::Error Renderer11::createRenderTarget(int width,
             srvDesc.Texture2D.MostDetailedMip = 0;
             srvDesc.Texture2D.MipLevels       = 1;
 
-            ANGLE_TRY(allocateSharedResource(srvDesc, texture.asResource(), &srv));
+            ANGLE_TRY(allocateResource(srvDesc, texture.get(), &srv));
 
             if (formatInfo.blitSRVFormat != formatInfo.srvFormat)
             {
@@ -3539,7 +3538,7 @@ gl::Error Renderer11::createRenderTarget(int width,
                 blitSRVDesc.Texture2D.MostDetailedMip = 0;
                 blitSRVDesc.Texture2D.MipLevels       = 1;
 
-                ANGLE_TRY(allocateSharedResource(blitSRVDesc, texture.asResource(), &blitSRV));
+                ANGLE_TRY(allocateResource(blitSRVDesc, texture.get(), &blitSRV));
             }
             else
             {
@@ -3557,7 +3556,7 @@ gl::Error Renderer11::createRenderTarget(int width,
             dsvDesc.Flags              = 0;
 
             d3d11::DepthStencilView dsv;
-            ANGLE_TRY(allocateResource(dsvDesc, texture.asResource(), &dsv));
+            ANGLE_TRY(allocateResource(dsvDesc, texture.get(), &dsv));
 
             *outRT = new TextureRenderTarget11(std::move(dsv), texture, srv, formatInfo, width,
                                                height, 1, supportedSamples);
@@ -3571,7 +3570,7 @@ gl::Error Renderer11::createRenderTarget(int width,
             rtvDesc.Texture2D.MipSlice = 0;
 
             d3d11::RenderTargetView rtv;
-            ANGLE_TRY(allocateResource(rtvDesc, texture.asResource(), &rtv));
+            ANGLE_TRY(allocateResource(rtvDesc, texture.get(), &rtv));
 
             if (formatInfo.dataInitializerFunction != nullptr)
             {
@@ -3590,7 +3589,7 @@ gl::Error Renderer11::createRenderTarget(int width,
     else
     {
         *outRT = new TextureRenderTarget11(
-            d3d11::RenderTargetView(), SharedResource11(), SharedResource11(), SharedResource11(),
+            d3d11::RenderTargetView(), TextureHelper11(), d3d11::SharedSRV(), d3d11::SharedSRV(),
             d3d11::Format::Get(GL_NONE, mRenderer11DeviceCaps), width, height, 1, supportedSamples);
     }
 
@@ -3608,9 +3607,9 @@ gl::Error Renderer11::createRenderTargetCopy(RenderTargetD3D *source, RenderTarg
     RenderTarget11 *source11 = GetAs<RenderTarget11>(source);
     RenderTarget11 *dest11   = GetAs<RenderTarget11>(newRT);
 
-    mDeviceContext->CopySubresourceRegion(
-        dest11->getTexture().asResource(), dest11->getSubresourceIndex(), 0, 0, 0,
-        source11->getTexture().asResource(), source11->getSubresourceIndex(), nullptr);
+    mDeviceContext->CopySubresourceRegion(dest11->getTexture().get(), dest11->getSubresourceIndex(),
+                                          0, 0, 0, source11->getTexture().get(),
+                                          source11->getSubresourceIndex(), nullptr);
     *outRT = newRT;
     return gl::NoError();
 }
@@ -3924,11 +3923,11 @@ gl::Error Renderer11::generateMipmapUsingD3D(TextureStorage *storage,
     ASSERT(storage11->isRenderTarget());
     ASSERT(storage11->supportsNativeMipmapFunction());
 
-    SharedResource11 srv;
+    d3d11::SharedSRV srv;
     ANGLE_TRY(storage11->getSRVLevels(textureState.getEffectiveBaseLevel(),
                                       textureState.getEffectiveMaxLevel(), &srv));
 
-    mDeviceContext->GenerateMips(srv.getAs<ResourceType::ShaderResourceView>());
+    mDeviceContext->GenerateMips(srv.get());
 
     return gl::NoError();
 }
@@ -4008,15 +4007,13 @@ gl::Error Renderer11::readFromAttachment(const gl::FramebufferAttachment &srcAtt
 
     const bool invertTexture = UsePresentPathFast(this, &srcAttachment);
 
-    RenderTargetD3D *renderTarget = nullptr;
-    ANGLE_TRY(srcAttachment.getRenderTarget(&renderTarget));
-
-    RenderTarget11 *rt11 = GetAs<RenderTarget11>(renderTarget);
+    RenderTarget11 *rt11 = nullptr;
+    ANGLE_TRY(srcAttachment.getRenderTarget(&rt11));
     ASSERT(rt11->getTexture().valid());
 
-    TextureHelper11 texture = TextureHelper11::Share(rt11->getTexture(), rt11->getFormatSet());
     unsigned int sourceSubResource = rt11->getSubresourceIndex();
 
+    const auto &texture        = rt11->getTexture();
     const gl::Extents &texSize = texture.getExtents();
 
     gl::Rectangle actualArea = sourceArea;
@@ -4071,12 +4068,10 @@ gl::Error Renderer11::readFromAttachment(const gl::FramebufferAttachment &srcAtt
         resolveDesc.CPUAccessFlags     = 0;
         resolveDesc.MiscFlags          = 0;
 
-        SharedResource11 resolveTex2D;
-        ANGLE_TRY(allocateSharedResource(resolveDesc, &resolveTex2D));
+        ANGLE_TRY(allocateTexture(resolveDesc, texture.getFormatSet(), &resolvedTexture));
 
-        mDeviceContext->ResolveSubresource(resolveTex2D.asResource(), 0, texture.getResource(),
+        mDeviceContext->ResolveSubresource(resolvedTexture.get(), 0, texture.get(),
                                            sourceSubResource, texture.getFormat());
-        resolvedTexture = TextureHelper11::Share(resolveTex2D, texture.getFormatSet());
 
         sourceSubResource = 0;
         srcTexture        = &resolvedTexture;
@@ -4096,8 +4091,8 @@ gl::Error Renderer11::readFromAttachment(const gl::FramebufferAttachment &srcAtt
     }
     srcBox.back = srcBox.front + 1;
 
-    mDeviceContext->CopySubresourceRegion(stagingHelper.getResource(), 0, 0, 0, 0,
-                                          srcTexture->getResource(), sourceSubResource, &srcBox);
+    mDeviceContext->CopySubresourceRegion(stagingHelper.get(), 0, 0, 0, 0, srcTexture->get(),
+                                          sourceSubResource, &srcBox);
 
     if (!invertTexture)
     {
@@ -4126,7 +4121,7 @@ gl::Error Renderer11::packPixels(const TextureHelper11 &textureHelper,
                                  const PackPixelsParams &params,
                                  uint8_t *pixelsOut)
 {
-    ID3D11Resource *readResource = textureHelper.getResource();
+    ID3D11Resource *readResource = textureHelper.get();
 
     D3D11_MAPPED_SUBRESOURCE mapping;
     HRESULT hr = mDeviceContext->Map(readResource, 0, D3D11_MAP_READ, 0, &mapping);
@@ -4172,8 +4167,7 @@ gl::Error Renderer11::blitRenderbufferRect(const gl::Rectangle &readRectIn,
                << "Failed to retrieve the internal draw render target from the draw framebuffer.";
     }
 
-    TextureHelper11 drawTexture = TextureHelper11::Share(drawRenderTarget11->getTexture(),
-                                                         drawRenderTarget11->getFormatSet());
+    const TextureHelper11 &drawTexture = drawRenderTarget11->getTexture();
     unsigned int drawSubresource    = drawRenderTarget11->getSubresourceIndex();
     ID3D11RenderTargetView *drawRTV = drawRenderTarget11->getRenderTargetView();
     ID3D11DepthStencilView *drawDSV = drawRenderTarget11->getDepthStencilView();
@@ -4187,7 +4181,7 @@ gl::Error Renderer11::blitRenderbufferRect(const gl::Rectangle &readRectIn,
 
     TextureHelper11 readTexture;
     unsigned int readSubresource      = 0;
-    SharedResource11 readSRV;
+    d3d11::SharedSRV readSRV;
 
     if (readRenderTarget->getSamples() > 1)
     {
@@ -4204,14 +4198,13 @@ gl::Error Renderer11::blitRenderbufferRect(const gl::Rectangle &readRectIn,
             viewDesc.Texture2D.MipLevels       = 1;
             viewDesc.Texture2D.MostDetailedMip = 0;
 
-            ANGLE_TRY(allocateSharedResource(viewDesc, readTexture.getResource(), &readSRV));
+            ANGLE_TRY(allocateResource(viewDesc, readTexture.get(), &readSRV));
         }
     }
     else
     {
         ASSERT(readRenderTarget11);
-        readTexture = TextureHelper11::Share(readRenderTarget11->getTexture(),
-                                             readRenderTarget11->getFormatSet());
+        readTexture     = readRenderTarget11->getTexture();
         readSubresource = readRenderTarget11->getSubresourceIndex();
         readSRV         = readRenderTarget11->getBlitShaderResourceView();
         if (!readSRV.valid())
@@ -4377,9 +4370,8 @@ gl::Error Renderer11::blitRenderbufferRect(const gl::Rectangle &readRectIn,
         // We also require complete framebuffer copies for depth-stencil blit.
         D3D11_BOX *pSrcBox = wholeBufferCopy ? nullptr : &readBox;
 
-        mDeviceContext->CopySubresourceRegion(drawTexture.getResource(), drawSubresource, dstX,
-                                              dstY, 0, readTexture.getResource(), readSubresource,
-                                              pSrcBox);
+        mDeviceContext->CopySubresourceRegion(drawTexture.get(), drawSubresource, dstX, dstY, 0,
+                                              readTexture.get(), readSubresource, pSrcBox);
     }
     else
     {
@@ -4496,13 +4488,11 @@ gl::Error Renderer11::resolveMultisampledTexture(RenderTarget11 *renderTarget,
     resolveDesc.CPUAccessFlags     = 0;
     resolveDesc.MiscFlags          = 0;
 
-    SharedResource11 resolveTexture;
-    ANGLE_TRY(allocateSharedResource(resolveDesc, &resolveTexture));
+    ANGLE_TRY(allocateTexture(resolveDesc, renderTarget->getFormatSet(), textureOut));
 
-    mDeviceContext->ResolveSubresource(resolveTexture.asResource(), 0,
-                                       renderTarget->getTexture().asResource(),
+    mDeviceContext->ResolveSubresource(textureOut->get(), 0, renderTarget->getTexture().get(),
                                        renderTarget->getSubresourceIndex(), formatSet.texFormat);
-    *textureOut = TextureHelper11::Share(resolveTexture, renderTarget->getFormatSet());
+
     return gl::NoError();
 }
 
@@ -4777,8 +4767,6 @@ gl::Error Renderer11::createStagingTexture(ResourceType resourceType,
                                            StagingAccess readAndWriteAccess,
                                            TextureHelper11 *textureOut)
 {
-    SharedResource11 stagingTex;
-
     if (resourceType == ResourceType::Texture2D)
     {
         D3D11_TEXTURE2D_DESC stagingDesc;
@@ -4799,7 +4787,7 @@ gl::Error Renderer11::createStagingTexture(ResourceType resourceType,
             stagingDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_WRITE;
         }
 
-        ANGLE_TRY(allocateSharedResource(stagingDesc, &stagingTex));
+        ANGLE_TRY(allocateTexture(stagingDesc, formatSet, textureOut));
     }
     else
     {
@@ -4815,10 +4803,9 @@ gl::Error Renderer11::createStagingTexture(ResourceType resourceType,
         stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
         stagingDesc.MiscFlags      = 0;
 
-        ANGLE_TRY(allocateSharedResource(stagingDesc, &stagingTex));
+        ANGLE_TRY(allocateTexture(stagingDesc, formatSet, textureOut));
     }
 
-    *textureOut = TextureHelper11::Share(stagingTex, formatSet);
     return gl::NoError();
 }
 

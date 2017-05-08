@@ -40,13 +40,13 @@ class SwapChain11 final : public SwapChainD3D
     RenderTargetD3D *getColorRenderTarget() override { return &mColorRenderTarget; }
     RenderTargetD3D *getDepthStencilRenderTarget() override { return &mDepthStencilRenderTarget; }
 
-    const SharedResource11 &getOffscreenTexture() const;
+    const TextureHelper11 &getOffscreenTexture() const;
     ID3D11RenderTargetView *getRenderTarget();
-    const SharedResource11 &getRenderTargetShaderResource();
+    const d3d11::SharedSRV &getRenderTargetShaderResource();
 
-    const SharedResource11 &getDepthStencilTexture() const;
+    const TextureHelper11 &getDepthStencilTexture() const;
     ID3D11DepthStencilView *getDepthStencil();
-    const SharedResource11 &getDepthStencilShaderResource();
+    const d3d11::SharedSRV &getDepthStencilShaderResource();
 
     EGLint getWidth() const { return mWidth; }
     EGLint getHeight() const { return mHeight; }
@@ -86,18 +86,18 @@ class SwapChain11 final : public SwapChainD3D
     IDXGISwapChain1 *mSwapChain1;
     IDXGIKeyedMutex *mKeyedMutex;
 
-    SharedResource11 mBackBufferTexture;
+    TextureHelper11 mBackBufferTexture;
     ID3D11RenderTargetView *mBackBufferRTView;
-    SharedResource11 mBackBufferSRView;
+    d3d11::SharedSRV mBackBufferSRView;
 
     const bool mNeedsOffscreenTexture;
-    SharedResource11 mOffscreenTexture;
+    TextureHelper11 mOffscreenTexture;
     ID3D11RenderTargetView *mOffscreenRTView;
-    SharedResource11 mOffscreenSRView;
+    d3d11::SharedSRV mOffscreenSRView;
 
-    SharedResource11 mDepthStencilTexture;
+    TextureHelper11 mDepthStencilTexture;
     ID3D11DepthStencilView *mDepthStencilDSView;
-    SharedResource11 mDepthStencilSRView;
+    d3d11::SharedSRV mDepthStencilSRView;
 
     ID3D11Buffer *mQuadVB;
     ID3D11SamplerState *mPassThroughSampler;

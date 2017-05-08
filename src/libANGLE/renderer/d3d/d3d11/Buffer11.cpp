@@ -1466,12 +1466,10 @@ gl::Error Buffer11::PackStorage::packPixels(const gl::FramebufferAttachment &rea
     RenderTarget11 *renderTarget = nullptr;
     ANGLE_TRY(readAttachment.getRenderTarget(&renderTarget));
 
-    const SharedResource11 &renderTargetResource = renderTarget->getTexture();
-    ASSERT(renderTargetResource.valid());
+    const TextureHelper11 &srcTexture = renderTarget->getTexture();
+    ASSERT(srcTexture.valid());
 
     unsigned int srcSubresource = renderTarget->getSubresourceIndex();
-    TextureHelper11 srcTexture =
-        TextureHelper11::Share(renderTargetResource, renderTarget->getFormatSet());
 
     mQueuedPackCommand.reset(new PackPixelsParams(params));
 
@@ -1503,8 +1501,8 @@ gl::Error Buffer11::PackStorage::packPixels(const gl::FramebufferAttachment &rea
     srcBox.back = srcBox.front + 1;
 
     // Asynchronous copy
-    immediateContext->CopySubresourceRegion(mStagingTexture.getResource(), 0, 0, 0, 0,
-                                            srcTexture.getResource(), srcSubresource, &srcBox);
+    immediateContext->CopySubresourceRegion(mStagingTexture.get(), 0, 0, 0, 0, srcTexture.get(),
+                                            srcSubresource, &srcBox);
 
     return gl::NoError();
 }
