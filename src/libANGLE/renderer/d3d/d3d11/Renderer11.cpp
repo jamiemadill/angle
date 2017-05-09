@@ -3581,23 +3581,18 @@ gl::Error Renderer11::createRenderTarget(int width,
             dsvDesc.Texture2D.MipSlice = 0;
             dsvDesc.Flags              = 0;
 
-            ID3D11DepthStencilView *dsv = nullptr;
-            result                      = mDevice->CreateDepthStencilView(texture, &dsvDesc, &dsv);
-            if (FAILED(result))
+            d3d11::DepthStencilView dsv;
+            gl::Error err = allocateResource(dsvDesc, texture, &dsv);
+            if (err.isError())
             {
-                ASSERT(result == E_OUTOFMEMORY);
                 SafeRelease(texture);
                 SafeRelease(srv);
                 SafeRelease(blitSRV);
-                return gl::Error(GL_OUT_OF_MEMORY,
-                                 "Failed to create render target depth stencil view, result: 0x%X.",
-                                 result);
+                return err;
             }
 
-            *outRT = new TextureRenderTarget11(dsv, texture, srv, format, formatInfo, width, height,
-                                               1, supportedSamples);
-
-            SafeRelease(dsv);
+            *outRT = new TextureRenderTarget11(std::move(dsv), texture, srv, format, formatInfo,
+                                               width, height, 1, supportedSamples);
         }
         else if (bindRTV)
         {
@@ -4235,7 +4230,7 @@ gl::Error Renderer11::blitRenderbufferRect(const gl::Rectangle &readRectIn,
         drawRenderTarget11->getTexture(), drawRenderTarget11->getFormatSet());
     unsigned int drawSubresource    = drawRenderTarget11->getSubresourceIndex();
     const d3d11::RenderTargetView &drawRTV = drawRenderTarget11->getRenderTargetView();
-    ID3D11DepthStencilView *drawDSV = drawRenderTarget11->getDepthStencilView();
+    const d3d11::DepthStencilView &drawDSV = drawRenderTarget11->getDepthStencilView();
 
     RenderTarget11 *readRenderTarget11 = GetAs<RenderTarget11>(readRenderTarget);
     if (!readRenderTarget11)
