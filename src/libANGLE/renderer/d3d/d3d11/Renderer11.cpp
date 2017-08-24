@@ -2111,7 +2111,7 @@ gl::Error Renderer11::drawTriangleFan(const gl::ContextState &data,
 
 // TODO(jmadill): Move to StateManager11.
 gl::Error Renderer11::applyUniforms(const ProgramD3D &programD3D,
-                                    const std::vector<D3DUniform *> &uniformArray)
+                                    const std::vector<D3DUniform> & /*uniformArray*/)
 {
     UniformStorage11 *vertexUniformStorage =
         GetAs<UniformStorage11>(&programD3D.getVertexUniformStorage());
@@ -4264,8 +4264,7 @@ gl::Error Renderer11::dispatchCompute(const gl::Context *context,
     return gl::NoError();
 }
 
-gl::Error Renderer11::applyComputeUniforms(const ProgramD3D &programD3D,
-                                           const std::vector<D3DUniform *> &uniformArray)
+gl::Error Renderer11::applyComputeUniforms(const ProgramD3D &programD3D)
 {
     UniformStorage11 *computeUniformStorage =
         GetAs<UniformStorage11>(&programD3D.getComputeUniformStorage());

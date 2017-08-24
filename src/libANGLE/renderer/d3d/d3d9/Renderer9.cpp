@@ -1851,14 +1851,14 @@ gl::Error Renderer9::applyShaders(const gl::Context *context, GLenum drawMode)
 }
 
 gl::Error Renderer9::applyUniforms(const ProgramD3D &programD3D,
-                                   const std::vector<D3DUniform *> &uniformArray)
+                                   const std::vector<D3DUniform> &uniformArray)
 {
-    for (const D3DUniform *targetUniform : uniformArray)
+    for (const D3DUniform &targetUniform : uniformArray)
     {
-        const GLfloat *f = reinterpret_cast<const GLfloat *>(targetUniform->firstNonNullData());
-        const GLint *i   = reinterpret_cast<const GLint *>(targetUniform->firstNonNullData());
+        const GLfloat *f = reinterpret_cast<const GLfloat *>(targetUniform.firstNonNullData());
+        const GLint *i   = reinterpret_cast<const GLint *>(targetUniform.firstNonNullData());
 
-        switch (targetUniform->type)
+        switch (targetUniform.type)
         {
             case GL_SAMPLER_2D:
             case GL_SAMPLER_CUBE:
@@ -1868,7 +1868,7 @@ gl::Error Renderer9::applyUniforms(const ProgramD3D &programD3D,
             case GL_BOOL_VEC2:
             case GL_BOOL_VEC3:
             case GL_BOOL_VEC4:
-                applyUniformnbv(targetUniform, i);
+                applyUniformnbv(&targetUniform, i);
                 break;
             case GL_FLOAT:
             case GL_FLOAT_VEC2:
@@ -1877,13 +1877,13 @@ gl::Error Renderer9::applyUniforms(const ProgramD3D &programD3D,
             case GL_FLOAT_MAT2:
             case GL_FLOAT_MAT3:
             case GL_FLOAT_MAT4:
-                applyUniformnfv(targetUniform, f);
+                applyUniformnfv(&targetUniform, f);
                 break;
             case GL_INT:
             case GL_INT_VEC2:
             case GL_INT_VEC3:
             case GL_INT_VEC4:
-                applyUniformniv(targetUniform, i);
+                applyUniformniv(&targetUniform, i);
                 break;
             default:
                 UNREACHABLE();
@@ -3215,8 +3215,7 @@ gl::Version Renderer9::getMaxSupportedESVersion() const
     return gl::Version(2, 0);
 }
 
-gl::Error Renderer9::applyComputeUniforms(const ProgramD3D &programD3D,
-                                          const std::vector<D3DUniform *> &uniformArray)
+gl::Error Renderer9::applyComputeUniforms(const ProgramD3D &programD3D)
 {
     UNIMPLEMENTED();
     return gl::InternalError() << "Compute shader is not implemented on D3D9";

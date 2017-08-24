@@ -148,7 +148,7 @@ class Renderer9 : public RendererD3D
                                 const gl::FramebufferAttachment *colorAttachment,
                                 const gl::FramebufferAttachment *depthStencilAttachment);
     gl::Error applyUniforms(const ProgramD3D &programD3D,
-                            const std::vector<D3DUniform *> &uniformArray) override;
+                            const std::vector<D3DUniform> &uniformArray) override;
     bool applyPrimitiveType(GLenum primitiveType, GLsizei elementCount, bool usesPointSize);
     gl::Error applyVertexBuffer(const gl::State &state,
                                 GLenum mode,
@@ -390,8 +390,7 @@ class Renderer9 : public RendererD3D
 
     gl::Version getMaxSupportedESVersion() const override;
 
-    gl::Error applyComputeUniforms(const ProgramD3D &programD3D,
-                                   const std::vector<D3DUniform *> &uniformArray) override;
+    gl::Error applyComputeUniforms(const ProgramD3D &programD3D) override;
 
     gl::Error clearRenderTarget(RenderTargetD3D *renderTarget,
                                 const gl::ColorF &clearColorValue,

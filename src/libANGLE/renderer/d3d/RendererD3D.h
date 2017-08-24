@@ -155,7 +155,7 @@ class RendererD3D : public BufferFactoryD3D
                                         const std::vector<GLint> &fragmentUniformBuffers) = 0;
 
     virtual gl::Error applyUniforms(const ProgramD3D &programD3D,
-                                    const std::vector<D3DUniform *> &uniformArray) = 0;
+                                    const std::vector<D3DUniform> &uniformArray) = 0;
 
     virtual unsigned int getReservedVertexUniformBuffers() const = 0;
     virtual unsigned int getReservedFragmentUniformBuffers() const = 0;
@@ -319,8 +319,7 @@ class RendererD3D : public BufferFactoryD3D
 
     angle::WorkerThreadPool *getWorkerThreadPool();
 
-    virtual gl::Error applyComputeUniforms(const ProgramD3D &programD3D,
-                                           const std::vector<D3DUniform *> &uniformArray) = 0;
+    virtual gl::Error applyComputeUniforms(const ProgramD3D &programD3D) = 0;
 
     bool isRobustResourceInitEnabled() const;
 

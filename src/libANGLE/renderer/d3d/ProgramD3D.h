@@ -34,13 +34,16 @@ class ShaderExecutableD3D;
 // Helper struct representing a single shader uniform
 // TODO(jmadill): Make uniform blocks shared between all programs, so we don't need separate
 // register indices.
-struct D3DUniform : private angle::NonCopyable
+struct D3DUniform
 {
+    D3DUniform();
     D3DUniform(GLenum typeIn,
                const std::string &nameIn,
                unsigned int arraySizeIn,
                bool defaultBlock);
     ~D3DUniform();
+    D3DUniform(const D3DUniform &other) = default;
+    D3DUniform &operator=(const D3DUniform &other) = default;
 
     bool isSampler() const;
     unsigned int elementCount() const { return std::max(1u, arraySize); }
@@ -352,7 +355,7 @@ class ProgramD3D : public ProgramImpl
         GLenum textureType;
     };
 
-    typedef std::map<std::string, D3DUniform *> D3DUniformMap;
+    typedef std::map<std::string, D3DUniform> D3DUniformMap;
 
     void defineUniformsAndAssignRegisters(const gl::Context *context);
     void defineUniformBase(const gl::Shader *shader,
@@ -474,7 +477,7 @@ class ProgramD3D : public ProgramImpl
     gl::InputLayout mCachedInputLayout;
 
     std::vector<D3DVarying> mStreamOutVaryings;
-    std::vector<D3DUniform *> mD3DUniforms;
+    std::vector<D3DUniform> mD3DUniforms;
     std::vector<D3DUniformBlock> mD3DUniformBlocks;
 
     bool mUniformsDirty;

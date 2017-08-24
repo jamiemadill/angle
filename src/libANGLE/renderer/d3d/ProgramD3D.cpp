@@ -273,6 +273,21 @@ void GetMatrixUniform(GLint columns, GLint rows, NonFloatT *dataOut, const NonFl
 
 // D3DUniform Implementation
 
+D3DUniform::D3DUniform()
+    : type(GL_NONE),
+      name(),
+      arraySize(0),
+      vsData(nullptr),
+      psData(nullptr),
+      csData(nullptr),
+      vsRegisterIndex(GL_INVALID_INDEX),
+      psRegisterIndex(GL_INVALID_INDEX),
+      csRegisterIndex(GL_INVALID_INDEX),
+      registerCount(0),
+      registerElement(0),
+      mSamplerData()
+{}
+
 D3DUniform::D3DUniform(GLenum typeIn,
                        const std::string &nameIn,
                        unsigned int arraySizeIn,
@@ -708,16 +723,16 @@ void ProgramD3D::updateSamplerMapping()
     mDirtySamplerMapping = false;
 
     // Retrieve sampler uniform values
-    for (const D3DUniform *d3dUniform : mD3DUniforms)
+    for (const D3DUniform &d3dUniform : mD3DUniforms)
     {
-        if (!d3dUniform->isSampler())
+        if (!d3dUniform.isSampler())
             continue;
 
-        int count = d3dUniform->elementCount();
+        int count = d3dUniform.elementCount();
 
-        if (d3dUniform->isReferencedByFragmentShader())
+        if (d3dUniform.isReferencedByFragmentShader())
         {
-            unsigned int firstIndex = d3dUniform->psRegisterIndex;
+            unsigned int firstIndex = d3dUniform.psRegisterIndex;
 
             for (int i = 0; i < count; i++)
             {
@@ -726,14 +741,14 @@ void ProgramD3D::updateSamplerMapping()
                 if (samplerIndex < mSamplersPS.size())
                 {
                     ASSERT(mSamplersPS[samplerIndex].active);
-                    mSamplersPS[samplerIndex].logicalTextureUnit = d3dUniform->mSamplerData[i];
+                    mSamplersPS[samplerIndex].logicalTextureUnit = d3dUniform.mSamplerData[i];
                 }
             }
         }
 
-        if (d3dUniform->isReferencedByVertexShader())
+        if (d3dUniform.isReferencedByVertexShader())
         {
-            unsigned int firstIndex = d3dUniform->vsRegisterIndex;
+            unsigned int firstIndex = d3dUniform.vsRegisterIndex;
 
             for (int i = 0; i < count; i++)
             {
@@ -742,14 +757,14 @@ void ProgramD3D::updateSamplerMapping()
                 if (samplerIndex < mSamplersVS.size())
                 {
                     ASSERT(mSamplersVS[samplerIndex].active);
-                    mSamplersVS[samplerIndex].logicalTextureUnit = d3dUniform->mSamplerData[i];
+                    mSamplersVS[samplerIndex].logicalTextureUnit = d3dUniform.mSamplerData[i];
                 }
             }
         }
 
-        if (d3dUniform->isReferencedByComputeShader())
+        if (d3dUniform.isReferencedByComputeShader())
         {
-            unsigned int firstIndex = d3dUniform->csRegisterIndex;
+            unsigned int firstIndex = d3dUniform.csRegisterIndex;
 
             for (int i = 0; i < count; i++)
             {
@@ -758,7 +773,7 @@ void ProgramD3D::updateSamplerMapping()
                 if (samplerIndex < mSamplersCS.size())
                 {
                     ASSERT(mSamplersCS[samplerIndex].active);
-                    mSamplersCS[samplerIndex].logicalTextureUnit = d3dUniform->mSamplerData[i];
+                    mSamplersCS[samplerIndex].logicalTextureUnit = d3dUniform.mSamplerData[i];
                 }
             }
         }
@@ -842,14 +857,13 @@ gl::LinkResult ProgramD3D::load(const gl::Context *context,
     {
         const gl::LinkedUniform &linkedUniform = linkedUniforms[uniformIndex];
 
-        D3DUniform *d3dUniform =
-            new D3DUniform(linkedUniform.type, linkedUniform.name, linkedUniform.arraySize,
+        D3DUniform d3dUniform(linkedUniform.type, linkedUniform.name, linkedUniform.arraySize,
                            linkedUniform.isInDefaultBlock());
-        stream->readInt(&d3dUniform->psRegisterIndex);
-        stream->readInt(&d3dUniform->vsRegisterIndex);
-        stream->readInt(&d3dUniform->csRegisterIndex);
-        stream->readInt(&d3dUniform->registerCount);
-        stream->readInt(&d3dUniform->registerElement);
+        stream->readInt(&d3dUniform.psRegisterIndex);
+        stream->readInt(&d3dUniform.vsRegisterIndex);
+        stream->readInt(&d3dUniform.csRegisterIndex);
+        stream->readInt(&d3dUniform.registerCount);
+        stream->readInt(&d3dUniform.registerElement);
 
         mD3DUniforms.push_back(d3dUniform);
     }
@@ -1077,14 +1091,14 @@ void ProgramD3D::save(const gl::Context *context, gl::BinaryOutputStream *stream
     stream->writeInt(mUsedComputeSamplerRange);
 
     stream->writeInt(mD3DUniforms.size());
-    for (const D3DUniform *uniform : mD3DUniforms)
+    for (const D3DUniform &uniform : mD3DUniforms)
     {
         // Type, name and arraySize are redundant, so aren't stored in the binary.
-        stream->writeIntOrNegOne(uniform->psRegisterIndex);
-        stream->writeIntOrNegOne(uniform->vsRegisterIndex);
-        stream->writeIntOrNegOne(uniform->csRegisterIndex);
-        stream->writeInt(uniform->registerCount);
-        stream->writeInt(uniform->registerElement);
+        stream->writeIntOrNegOne(uniform.psRegisterIndex);
+        stream->writeIntOrNegOne(uniform.vsRegisterIndex);
+        stream->writeIntOrNegOne(uniform.csRegisterIndex);
+        stream->writeInt(uniform.registerCount);
+        stream->writeInt(uniform.registerElement);
     }
 
     // Ensure we init the uniform block structure data if we should.
@@ -1723,24 +1737,24 @@ void ProgramD3D::initializeUniformStorage()
     unsigned int vertexRegisters   = 0;
     unsigned int fragmentRegisters = 0;
     unsigned int computeRegisters  = 0;
-    for (const D3DUniform *d3dUniform : mD3DUniforms)
+    for (const D3DUniform &d3dUniform : mD3DUniforms)
     {
-        if (!d3dUniform->isSampler())
+        if (!d3dUniform.isSampler())
         {
-            if (d3dUniform->isReferencedByVertexShader())
+            if (d3dUniform.isReferencedByVertexShader())
             {
                 vertexRegisters = std::max(vertexRegisters,
-                                           d3dUniform->vsRegisterIndex + d3dUniform->registerCount);
+                                           d3dUniform.vsRegisterIndex + d3dUniform.registerCount);
             }
-            if (d3dUniform->isReferencedByFragmentShader())
+            if (d3dUniform.isReferencedByFragmentShader())
             {
                 fragmentRegisters = std::max(
-                    fragmentRegisters, d3dUniform->psRegisterIndex + d3dUniform->registerCount);
+                    fragmentRegisters, d3dUniform.psRegisterIndex + d3dUniform.registerCount);
             }
-            if (d3dUniform->isReferencedByComputeShader())
+            if (d3dUniform.isReferencedByComputeShader())
             {
                 computeRegisters = std::max(
-                    computeRegisters, d3dUniform->csRegisterIndex + d3dUniform->registerCount);
+                    computeRegisters, d3dUniform.csRegisterIndex + d3dUniform.registerCount);
             }
         }
     }
@@ -1753,30 +1767,30 @@ void ProgramD3D::initializeUniformStorage()
         std::unique_ptr<UniformStorageD3D>(mRenderer->createUniformStorage(computeRegisters * 16u));
 
     // Iterate the uniforms again to assign data pointers to default block uniforms.
-    for (D3DUniform *&d3dUniform : mD3DUniforms)
+    for (D3DUniform &d3dUniform : mD3DUniforms)
     {
-        if (d3dUniform->isSampler())
+        if (d3dUniform.isSampler())
         {
-            d3dUniform->mSamplerData.resize(d3dUniform->elementCount(), 0);
+            d3dUniform.mSamplerData.resize(d3dUniform.elementCount(), 0);
             continue;
         }
 
-        if (d3dUniform->isReferencedByVertexShader())
+        if (d3dUniform.isReferencedByVertexShader())
         {
-            d3dUniform->vsData = mVertexUniformStorage->getDataPointer(d3dUniform->vsRegisterIndex,
-                                                                       d3dUniform->registerElement);
+            d3dUniform.vsData = mVertexUniformStorage->getDataPointer(d3dUniform.vsRegisterIndex,
+                                                                       d3dUniform.registerElement);
         }
 
-        if (d3dUniform->isReferencedByFragmentShader())
+        if (d3dUniform.isReferencedByFragmentShader())
         {
-            d3dUniform->psData = mFragmentUniformStorage->getDataPointer(
-                d3dUniform->psRegisterIndex, d3dUniform->registerElement);
+            d3dUniform.psData = mFragmentUniformStorage->getDataPointer(
+                d3dUniform.psRegisterIndex, d3dUniform.registerElement);
         }
 
-        if (d3dUniform->isReferencedByComputeShader())
+        if (d3dUniform.isReferencedByComputeShader())
         {
-            d3dUniform->csData = mComputeUniformStorage->getDataPointer(
-                d3dUniform->csRegisterIndex, d3dUniform->registerElement);
+            d3dUniform.csData = mComputeUniformStorage->getDataPointer(
+                d3dUniform.csRegisterIndex, d3dUniform.registerElement);
         }
     }
 }
@@ -1801,7 +1815,7 @@ gl::Error ProgramD3D::applyComputeUniforms()
     }
 
     ASSERT(!mDirtySamplerMapping);
-    ANGLE_TRY(mRenderer->applyComputeUniforms(*this, mD3DUniforms));
+    ANGLE_TRY(mRenderer->applyComputeUniforms(*this));
 
     mUniformsDirty = false;
 
@@ -2082,11 +2096,11 @@ void ProgramD3D::defineUniformBase(const gl::Shader *shader,
 
 D3DUniform *ProgramD3D::getD3DUniformByName(const std::string &name)
 {
-    for (D3DUniform *d3dUniform : mD3DUniforms)
+    for (D3DUniform &d3dUniform : mD3DUniforms)
     {
-        if (d3dUniform->name == name)
+        if (d3dUniform.name == name)
         {
-            return d3dUniform;
+            return &d3dUniform;
         }
     }
 
@@ -2148,12 +2162,12 @@ void ProgramD3D::defineUniform(GLenum shaderType,
 
     if (uniformMapEntry != uniformMap->end())
     {
-        d3dUniform = uniformMapEntry->second;
+        d3dUniform = &uniformMapEntry->second;
     }
     else
     {
-        d3dUniform = new D3DUniform(uniform.type, fullName, uniform.arraySize, true);
-        (*uniformMap)[fullName] = d3dUniform;
+        auto iter = uniformMap->emplace(fullName, D3DUniform(uniform.type, fullName, uniform.arraySize, true));
+        d3dUniform = &iter.first->second;
     }
 
     if (encoder)
@@ -2192,11 +2206,11 @@ void ProgramD3D::setUniformImpl(const gl::VariableLocation &locationInfo,
                                 uint8_t *targetData,
                                 const gl::UniformTypeInfo &uniformTypeInfo)
 {
-    D3DUniform *targetUniform = mD3DUniforms[locationInfo.index];
+    D3DUniform &targetUniform = mD3DUniforms[locationInfo.index];
     const int components      = uniformTypeInfo.componentCount;
     unsigned int arrayElement = locationInfo.element;
 
-    if (targetUniform->type == uniformTypeInfo.type)
+    if (targetUniform.type == uniformTypeInfo.type)
     {
         T *target = reinterpret_cast<T *>(targetData) + arrayElement * 4;
 
@@ -2207,7 +2221,7 @@ void ProgramD3D::setUniformImpl(const gl::VariableLocation &locationInfo,
             memcpy(dest, source, components * sizeof(T));
         }
     }
-    else if (targetUniform->type == uniformTypeInfo.boolVectorType)
+    else if (targetUniform.type == uniformTypeInfo.boolVectorType)
     {
         GLint *boolParams = reinterpret_cast<GLint *>(targetData) + arrayElement * 4;
 
@@ -2233,31 +2247,31 @@ void ProgramD3D::setUniformInternal(GLint location,
                                     const gl::UniformTypeInfo &uniformTypeInfo)
 {
     const gl::VariableLocation &locationInfo = mState.getUniformLocations()[location];
-    D3DUniform *targetUniform                = mD3DUniforms[locationInfo.index];
+    D3DUniform &targetUniform                = mD3DUniforms[locationInfo.index];
 
-    if (!targetUniform->mSamplerData.empty())
+    if (!targetUniform.mSamplerData.empty())
     {
         ASSERT(uniformTypeInfo.type == GL_INT);
-        memcpy(&targetUniform->mSamplerData[locationInfo.element], v, count * sizeof(T));
+        memcpy(&targetUniform.mSamplerData[locationInfo.element], v, count * sizeof(T));
         mDirtySamplerMapping = true;
         mUniformsDirty       = true;
     }
 
-    if (targetUniform->vsData)
+    if (targetUniform.isReferencedByVertexShader())
     {
-        setUniformImpl(locationInfo, count, v, targetUniform->vsData, uniformTypeInfo);
+        setUniformImpl(locationInfo, count, v, targetUniform.vsData, uniformTypeInfo);
         mUniformsDirty = true;
     }
 
-    if (targetUniform->psData)
+    if (targetUniform.isReferencedByFragmentShader())
     {
-        setUniformImpl(locationInfo, count, v, targetUniform->psData, uniformTypeInfo);
+        setUniformImpl(locationInfo, count, v, targetUniform.psData, uniformTypeInfo);
         mUniformsDirty = true;
     }
 
-    if (targetUniform->csData)
+    if (targetUniform.isReferencedByComputeShader())
     {
-        setUniformImpl(locationInfo, count, v, targetUniform->csData, uniformTypeInfo);
+        setUniformImpl(locationInfo, count, v, targetUniform.csData, uniformTypeInfo);
         mUniformsDirty = true;
     }
 }
@@ -2352,11 +2366,11 @@ size_t ProgramD3D::getUniformBlockInfo(const sh::InterfaceBlock &interfaceBlock)
 
 void ProgramD3D::assignAllSamplerRegisters()
 {
-    for (D3DUniform *d3dUniform : mD3DUniforms)
+    for (D3DUniform &d3dUniform : mD3DUniforms)
     {
-        if (d3dUniform->isSampler())
+        if (d3dUniform.isSampler())
         {
-            assignSamplerRegisters(d3dUniform);
+            assignSamplerRegisters(&d3dUniform);
         }
     }
 }
@@ -2443,7 +2457,7 @@ void ProgramD3D::reset()
     mUsesPointSize = false;
     mUsesFlatInterpolation = false;
 
-    SafeDeleteContainer(mD3DUniforms);
+    mD3DUniforms.clear();
     mD3DUniformBlocks.clear();
 
     mVertexUniformStorage.reset(nullptr);
@@ -2601,12 +2615,12 @@ void ProgramD3D::gatherTransformFeedbackVaryings(const gl::VaryingPacking &varyi
 
 D3DUniform *ProgramD3D::getD3DUniformFromLocation(GLint location)
 {
-    return mD3DUniforms[mState.getUniformLocations()[location].index];
+    return &mD3DUniforms[mState.getUniformLocations()[location].index];
 }
 
 const D3DUniform *ProgramD3D::getD3DUniformFromLocation(GLint location) const
 {
-    return mD3DUniforms[mState.getUniformLocations()[location].index];
+    return &mD3DUniforms[mState.getUniformLocations()[location].index];
 }
 
 bool ProgramD3D::getUniformBlockSize(const std::string &blockName, size_t *sizeOut) const

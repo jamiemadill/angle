@@ -144,7 +144,7 @@ class Renderer11 : public RendererD3D
     bool applyPrimitiveType(GLenum mode, GLsizei count, bool usesPointSize);
 
     gl::Error applyUniforms(const ProgramD3D &programD3D,
-                            const std::vector<D3DUniform *> &uniformArray) override;
+                            const std::vector<D3DUniform> &uniformArray) override;
 
     gl::Error applyDriverUniforms(const ProgramD3D &programD3D, GLenum drawMode);
     gl::Error applyTransformFeedbackBuffers(const gl::ContextState &data);
@@ -410,8 +410,7 @@ class Renderer11 : public RendererD3D
                               GLuint numGroupsX,
                               GLuint numGroupsY,
                               GLuint numGroupsZ);
-    gl::Error applyComputeUniforms(const ProgramD3D &programD3D,
-                                   const std::vector<D3DUniform *> &uniformArray) override;
+    gl::Error applyComputeUniforms(const ProgramD3D &programD3D) override;
     gl::Error applyComputeShader(const gl::Context *context);
 
     gl::ErrorOrResult<TextureHelper11> createStagingTexture(ResourceType textureType,
