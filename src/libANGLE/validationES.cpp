@@ -2422,7 +2422,6 @@ bool ValidateUniform(ValidationContext *context, GLenum valueType, GLint locatio
         return false;
     }
 
-    const LinkedUniform *uniform = nullptr;
     gl::Program *programObject   = context->getGLState().getProgram();
     return ValidateUniformCommonBase(context, programObject, location, count, &uniform) &&
            ValidateUniformValue(context, valueType, uniform->type);
