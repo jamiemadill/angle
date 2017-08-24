@@ -47,7 +47,10 @@ LinkedUniform::LinkedUniform(const sh::Uniform &uniform)
 }
 
 LinkedUniform::LinkedUniform(const LinkedUniform &uniform)
-    : sh::Uniform(uniform), bufferIndex(uniform.bufferIndex), blockInfo(uniform.blockInfo), typeInfo(uniform.typeInfo)
+    : sh::Uniform(uniform),
+      bufferIndex(uniform.bufferIndex),
+      blockInfo(uniform.blockInfo),
+      typeInfo(uniform.typeInfo)
 {
 }
 

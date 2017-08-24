@@ -383,7 +383,10 @@ class ProgramD3D : public ProgramImpl
                         const gl::UniformTypeInfo &uniformTypeInfo);
 
     template <typename T>
-    void setUniformInternal(GLint location, GLsizei count, const T *v, const gl::UniformTypeInfo &uniformTypeInfo);
+    void setUniformInternal(GLint location,
+                            GLsizei count,
+                            const T *v,
+                            const gl::UniformTypeInfo &uniformTypeInfo);
 
     template <int cols, int rows>
     void setUniformMatrixfvImpl(GLint location,
