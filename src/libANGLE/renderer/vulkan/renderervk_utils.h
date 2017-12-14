@@ -733,6 +733,98 @@ Error InitializeRenderPassFromDesc(VkDevice device,
                                    const AttachmentOpsArray &ops,
                                    RenderPass *renderPass);
 
+struct alignas(8) PackedShaderStageInfo final
+{
+    uint32_t stage;
+    uint32_t moduleSerial;
+    // TODO(jmadill): Do we want specialization constants?
+};
+
+static_assert(sizeof(PackedShaderStageInfo) == 8, "Size check failed");
+
+struct alignas(4) PackedVertexInputBindingDesc final
+{
+    // Although techncially stride can be any value in ES 2.0, in practice supporting stride
+    // greater than MAX_USHORT should not be that helpful. Note that stride limits are
+    // introduced in ES 3.1.
+    uint16_t stride;
+    uint16_t inputRate;
+};
+
+static_assert(sizeof(PackedVertexInputBindingDesc) == 4, "Size check failed");
+
+struct alignas(8) PackedVertexInputAttributeDesc final
+{
+    uint16_t location;
+    uint16_t format;
+    uint32_t offset;
+};
+
+static_assert(sizeof(PackedVertexInputAttributeDesc) == 8, "Size check failed");
+
+struct alignas(4) PackedInputAssemblyInfo
+{
+    uint16_t topology;
+    uint16_t primitiveRestartEnable;
+};
+
+static_assert(sizeof(PackedInputAssemblyInfo) == 4, "Size check failed");
+
+struct PackedRasterizationStateInfo
+{
+    uint8_t depthClampEnable;
+    uint8_t rasterizationDiscardEnable;
+    uint8_t polygonMode;
+    uint8_t cullMode;
+    // Padded to 16-bits to ensure there's no gaps in the structure.
+    uint16_t frontFace;
+    uint16_t depthBiasEnable;
+    float depthBiasConstantFactor;
+    // Note: depth bias clamp is only exposed in a 3.1 extension, but left here for completeness.
+    float depthBiasClamp;
+    float depthBiasSlopeFactor;
+    float lineWidth;
+};
+
+static_assert(sizeof(PackedRasterizationStateInfo) == 24, "Size check failed");
+
+struct alignas(16) PackedMultisampleStateInfo final
+{
+    uint8_t rasterizationSamples;
+    uint8_t sampleShadingEnable;
+    uint8_t alphaToCoverageEnable;
+    uint8_t alphaToOneEnable;
+    float minSampleShading;
+    uint32_t sampleMask[gl::MAX_SAMPLE_MASK_WORDS];
+};
+
+static_assert(sizeof(PackedMultisampleStateInfo) == 16, "Size check failed");
+
+class PipelineDesc final
+{
+  public:
+    PipelineDesc();
+    ~PipelineDesc();
+    PipelineDesc(const PipelineDesc &other);
+    PipelineDesc &operator=(const PipelineDesc &other);
+
+    size_t hash() const;
+    bool operator==(const PipelineDesc &other) const;
+
+  private:
+    // TODO(jmadill): Handle Geometry/Compute shaders when necessary.
+    std::array<PackedShaderStageInfo, 2> mShaderStageInfo;
+    gl::AttribArray<PackedVertexInputBindingDesc> mVertexInputBindings;
+    gl::AttribArray<PackedVertexInputAttributeDesc> mVertexInputAttribs;
+    PackedInputAssemblyInfo mInputAssemblyInfo;
+    // TODO(jmadill): Consider using dynamic state for viewport/scissor.
+    VkViewport mViewport;
+    VkRect2D mScissor;
+    PackedRasterizationStateInfo mRasterizationStateInfo;
+    PackedMultisampleStateInfo mMultisampleStateInfo;
+    RenderPassDesc mRenderPassDesc;
+};
+
 }  // namespace vk
 
 namespace gl_vk

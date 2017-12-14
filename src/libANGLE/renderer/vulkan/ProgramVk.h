@@ -127,7 +127,9 @@ class ProgramVk : public ProgramImpl
     void setUniformImpl(GLint location, GLsizei count, const T *v, GLenum entryPointType);
 
     vk::ShaderModule mLinkedVertexModule;
+    Serial mVertexModuleSerial;
     vk::ShaderModule mLinkedFragmentModule;
+    Serial mFragmentModuleSerial;
     vk::PipelineLayout mPipelineLayout;
     std::vector<vk::DescriptorSetLayout> mDescriptorSetLayouts;
 
